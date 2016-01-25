@@ -3,6 +3,7 @@
 
 #include <NgfClient>
 
+#include <QQmlInfo>
 #include <QTimer>
 #include <QDBusInterface>
 #include <QDBusPendingReply>
@@ -36,6 +37,8 @@ public:
     quint32 eventId;
 
     bool connected;
+
+    QString modemPath;
 };
 
 VoiceCallManager::VoiceCallManager(QObject *parent)
@@ -124,7 +127,19 @@ QString VoiceCallManager::defaultProviderId() const
         return QString();
     }
 
-    return d->providers->id(0); //TODO: Add support for select default voice call provider.
+    if (d->modemPath.isEmpty()) {
+        return d->providers->id(0);
+    }
+
+    QString provider;
+    for (int i = 0 ; i < d->providers->count(); ++i) {
+        if (d->providers->id(i).endsWith(d->modemPath)) {
+            provider = d->providers->id(i);
+            break;
+        }
+    }
+
+    return provider;
 }
 
 VoiceCallHandler* VoiceCallManager::activeVoiceCall() const
@@ -132,6 +147,23 @@ VoiceCallHandler* VoiceCallManager::activeVoiceCall() const
     TRACE
     Q_D(const VoiceCallManager);
     return d->activeVoiceCall;
+}
+
+QString VoiceCallManager::modemPath() const
+{
+    TRACE;
+    Q_D(const VoiceCallManager);
+    return d->modemPath;
+}
+
+void VoiceCallManager::setModemPath(const QString &modemPath)
+{
+    TRACE;
+    Q_D(VoiceCallManager);
+    if (d->modemPath != modemPath) {
+        d->modemPath = modemPath;
+        emit modemPathChanged();
+    }
 }
 
 QString VoiceCallManager::audioMode() const
@@ -160,6 +192,18 @@ bool VoiceCallManager::isSpeakerMuted() const
     TRACE
     Q_D(const VoiceCallManager);
     return d->interface->property("isSpeakerMuted").toBool();
+}
+
+void VoiceCallManager::dial(const QString &msisdn)
+{
+    TRACE
+    Q_D(VoiceCallManager);
+    QString provider = defaultProviderId();
+    if (provider.isEmpty()) {
+        qmlInfo(this) << tr("No provider found for modemPath: %1").arg(d->modemPath);
+    } else {
+        dial(provider, msisdn);
+    }
 }
 
 void VoiceCallManager::dial(const QString &provider, const QString &msisdn)

@@ -251,7 +251,6 @@ void VoiceCallHandlerDBusAdapter::sendDtmf(const QString &tones)
 QVariantMap VoiceCallHandlerDBusAdapter::getProperties()
 {
     TRACE
-    Q_D(VoiceCallHandlerDBusAdapter);
     QVariantMap props;
 
     props.insert("handlerId", QVariant(handlerId()));

@@ -19,10 +19,10 @@ class VoiceCallManager : public QObject
 
     Q_PROPERTY(VoiceCallModel* voiceCalls READ voiceCalls NOTIFY voiceCallsChanged)
     Q_PROPERTY(VoiceCallProviderModel* providers READ providers NOTIFY providersChanged)
+    Q_PROPERTY(VoiceCallHandler* activeVoiceCall READ activeVoiceCall NOTIFY activeVoiceCallChanged)
 
     Q_PROPERTY(QString defaultProviderId READ defaultProviderId NOTIFY defaultProviderChanged)
-
-    Q_PROPERTY(VoiceCallHandler* activeVoiceCall READ activeVoiceCall NOTIFY activeVoiceCallChanged)
+    Q_PROPERTY(QString modemPath READ modemPath WRITE setModemPath NOTIFY modemPathChanged)
 
     Q_PROPERTY(QString audioMode READ audioMode WRITE setAudioMode NOTIFY audioModeChanged)
     Q_PROPERTY(bool isAudioRouted READ isAudioRouted WRITE setAudioRouted NOTIFY audioRoutedChanged)
@@ -42,6 +42,9 @@ public:
 
     VoiceCallHandler* activeVoiceCall() const;
 
+    QString modemPath() const;
+    void setModemPath(const QString &modemPath);
+
     QString audioMode() const;
     bool isAudioRouted() const;
 
@@ -57,6 +60,7 @@ Q_SIGNALS:
     void defaultProviderChanged();
 
     void activeVoiceCallChanged();
+    void modemPathChanged();
 
     void audioModeChanged();
     void audioRoutedChanged();
@@ -64,7 +68,8 @@ Q_SIGNALS:
     void speakerMutedChanged();
 
 public Q_SLOTS:
-    void dial(const QString &providerId, const QString &msisdn);
+    void dial(const QString &msisdn);
+    void dial(const QString &provider, const QString &msisdn);
 
     void silenceRingtone();
 

@@ -80,7 +80,7 @@ QString TelepathyProvider::providerId() const
 {
     TRACE
     Q_D(const TelepathyProvider);
-    return d->account->objectPath();
+    return QString("telepathy-") + d->account->uniqueIdentifier();
 }
 
 QString TelepathyProvider::providerType() const

@@ -1,6 +1,6 @@
 CONFIG += no_libvoicecall no_plugininstall
 include(../../plugin.pri)
-QT = core dbus qml
+QT = core dbus qml multimedia
 
 TARGET = voicecall
 uri = org.nemomobile.voicecall
@@ -10,6 +10,7 @@ uri = org.nemomobile.voicecall
 PKGCONFIG += ngf-qt5
 
 HEADERS += \
+    voicecallaudiorecorder.h \
     voicecallhandler.h \
     voicecallmanager.h \
     voicecallmodel.h \
@@ -17,6 +18,7 @@ HEADERS += \
     voicecallplugin.h
 
 SOURCES += \
+    voicecallaudiorecorder.cpp \
     voicecallhandler.cpp \
     voicecallmanager.cpp \
     voicecallmodel.cpp \

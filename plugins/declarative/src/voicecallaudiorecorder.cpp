@@ -15,6 +15,8 @@ const QString recordingsDir("CallRecordings");
 const quint16 ChannelCount = 1;
 const quint16 SampleRate = 8000;
 const quint16 SampleBits = 8;
+const quint32 WaveHeaderLength = 44;
+const quint16 WavePCMFormat = 1;
 
 QAudioFormat getRecordingFormat()
 {
@@ -152,11 +154,19 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
         qWarning() << "Unreadable directory:" << outputDir;
     }
 
-    const QString filePath(outputDir.filePath(QString("%1.pcm").arg(QString::fromLocal8Bit(QFile::encodeName(fileName)))));
+    const QString filePath(outputDir.filePath(QString("%1.wav").arg(QString::fromLocal8Bit(QFile::encodeName(fileName)))));
 
     QScopedPointer<QFile> file(new QFile(filePath));
     if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         qWarning() << "Unable to open file for write:" << filePath;
+        emit recordingError(FileCreation);
+        return false;
+    }
+
+    // Leave space for the header to be placed later
+    const QByteArray emptyBytes(WaveHeaderLength, '\0');
+    if (file->write(emptyBytes) == -1) {
+        qWarning() << "Unable to write header space to file:" << filePath;
         emit recordingError(FileCreation);
         return false;
     }
@@ -193,11 +203,49 @@ void VoiceCallAudioRecorder::terminateRecording()
         }
     }
     if (output) {
+        bool success = false;
+
+        // We need to write the header to the file
+        const quint32 fileLength = output->size();
+        const quint32 dataLength = fileLength - WaveHeaderLength;
+
+        if (dataLength > 0) {
+            QByteArray waveHeader;
+            {
+                QDataStream os(&waveHeader, QIODevice::WriteOnly);
+                os.setByteOrder(QDataStream::LittleEndian);
+
+                os.writeRawData("RIFF", 4);
+                os << quint32(fileLength - 8);  // Total data length
+                os.writeRawData("WAVE", 4);
+                os.writeRawData("fmt ", 4);
+                os << quint32(16);              // fmt header length
+                os << quint16(WavePCMFormat);
+                os << quint16(ChannelCount);
+                os << quint32(SampleRate);
+                os << quint32(SampleRate * ChannelCount * (SampleBits / CHAR_BIT)); // data rate
+                os << quint16(SampleBits/ CHAR_BIT); // bytes per sample
+                os << quint16(SampleBits);
+                os.writeRawData("data", 4);
+                os << quint32(dataLength);
+            }
+
+            if (output->seek(0) && output->write(waveHeader) == waveHeader.length()) {
+                success = true;
+            } else {
+                qWarning() << "Unable to write header to file:" << output->fileName();
+            }
+        }
+
         const QString fileName(output->fileName());
         output->close();
         output.reset();
 
-        emit callRecorded(fileName, label);
+        if (success) {
+            emit callRecorded(fileName, label);
+        } else {
+            emit recordingError(FileStorage);
+        }
     }
     if (active) {
         active = false;

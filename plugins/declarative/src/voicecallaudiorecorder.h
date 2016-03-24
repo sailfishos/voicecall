@@ -24,7 +24,7 @@ public:
     explicit VoiceCallAudioRecorder(QObject *parent);
     ~VoiceCallAudioRecorder();
 
-    Q_INVOKABLE void startRecording(const QString &name, const QString &uid);
+    Q_INVOKABLE void startRecording(const QString &name, const QString &uid, bool incoming);
     Q_INVOKABLE void stopRecording();
 
     bool recording() const;

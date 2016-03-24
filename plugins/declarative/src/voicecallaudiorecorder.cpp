@@ -66,7 +66,7 @@ VoiceCallAudioRecorder::~VoiceCallAudioRecorder()
     terminateRecording();
 }
 
-void VoiceCallAudioRecorder::startRecording(const QString &name, const QString &uid)
+void VoiceCallAudioRecorder::startRecording(const QString &name, const QString &uid, bool incoming)
 {
     if (name.isEmpty() || uid.isEmpty()) {
         qWarning() << "Unable to create unidentified recording";
@@ -79,7 +79,7 @@ void VoiceCallAudioRecorder::startRecording(const QString &name, const QString &
     }
 
     const QString timestamp(QLocale::c().toString(QDateTime::currentDateTime(), QStringLiteral("yyyyMMdd-HHmmsszzz")));
-    const QString fileName(QString("%1.%2.%3").arg(name).arg(uid).arg(timestamp));
+    const QString fileName(QString("%1.%2.%3.%4").arg(name).arg(uid).arg(timestamp).arg(incoming ? 1 : 0));
 
     if (initiateRecording(fileName)) {
         label = name;

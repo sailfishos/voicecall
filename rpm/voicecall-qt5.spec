@@ -1,6 +1,6 @@
 Name:       voicecall-qt5
 Summary:    Dialer engine for Nemo Mobile
-Version:    0.6.14
+Version:    0.6.15
 Release:    1
 Group:      Communications/Telephony
 License:    ASL 2.0

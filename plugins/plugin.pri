@@ -2,6 +2,8 @@ TEMPLATE = lib
 QT = core
 CONFIG += plugin link_pkgconfig
 
+QMAKE_CXXFLAGS += -std=c++0x
+
 # includes are ok all the time, yes, really.
 # it's only used for some macros.
 INCLUDEPATH += $$PWD/../lib/src

@@ -49,7 +49,7 @@ QDBusMessage createEnableVoicecallRecordingMessage(bool enable)
                                                       routeManagerPath,
                                                       routeManagerInterface,
                                                       enable ? QString("Enable") : QString("Disable"));
-    msg.setArguments(QVariantList() << QVariant(QString("voicecallrec")));
+    msg.setArguments(QVariantList() << QVariant(QString("voicecallrecord")));
     return msg;
 }
 

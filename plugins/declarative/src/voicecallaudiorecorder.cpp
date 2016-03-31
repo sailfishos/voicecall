@@ -14,7 +14,7 @@ const QString recordingsDir("CallRecordings");
 
 const quint16 ChannelCount = 1;
 const quint16 SampleRate = 8000;
-const quint16 SampleBits = 8;
+const quint16 SampleBits = 16;
 const quint32 WaveHeaderLength = 44;
 const quint16 WavePCMFormat = 1;
 
@@ -49,7 +49,7 @@ QDBusMessage createEnableVoicecallRecordingMessage(bool enable)
                                                       routeManagerPath,
                                                       routeManagerInterface,
                                                       enable ? QString("Enable") : QString("Disable"));
-    msg.setArguments(QVariantList() << QVariant(QString("voicecallrec")));
+    msg.setArguments(QVariantList() << QVariant(QString("voicecallrecord")));
     return msg;
 }
 

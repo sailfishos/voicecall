@@ -50,6 +50,10 @@ public:
     bool isForwarded() const;
     bool isRemoteHeld() const;
 
+    // TODO: unimplemented - JB#35997
+    QString parentHandlerId() const { return QString(); }
+    QList<AbstractVoiceCallHandler*> childCalls() const { return QList<AbstractVoiceCallHandler*>(); }
+
     VoiceCallStatus status() const;
 
 Q_SIGNALS:
@@ -61,6 +65,10 @@ public Q_SLOTS:
     void hold(bool on = true);
     void deflect(const QString &target);
     void sendDtmf(const QString &tones);
+
+    // TODO: unimplemented - JB#35997
+    void merge(const QString &) {}
+    void split() {}
 
 protected Q_SLOTS:
     void onStatusChanged();

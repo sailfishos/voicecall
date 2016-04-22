@@ -3,6 +3,8 @@ TARGET = voicecall
 
 QT = core dbus
 
+CONFIG += c++11
+
 #DEFINES += WANT_TRACE
 
 HEADERS += \

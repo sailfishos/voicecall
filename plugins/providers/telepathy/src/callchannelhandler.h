@@ -21,14 +21,14 @@
 #ifndef CALLCHANNELHANDLER_H
 #define CALLCHANNELHANDLER_H
 
-#include <abstractvoicecallhandler.h>
+#include "basechannelhandler.h"
 
 #include <TelepathyQt/Channel>
 #include <TelepathyQt/CallContent>
 
 class TelepathyProvider;
 
-class CallChannelHandler : public AbstractVoiceCallHandler
+class CallChannelHandler : public BaseChannelHandler
 {
     Q_OBJECT
 
@@ -48,15 +48,17 @@ public:
     bool isForwarded() const;
     bool isRemoteHeld() const;
 
+    // TODO: unimplemented
+    QString parentHandlerId() const override { return QString(); }
+    QList<AbstractVoiceCallHandler*> childCalls() const override { return QList<AbstractVoiceCallHandler*>(); }
+
     VoiceCallStatus status() const;
 
-    /*** CallChannelHandler Implementation ***/
-    Tp::CallChannel channel() const;
+    /*** BaseChannelHandler Implementation ***/
+    Tp::ChannelPtr channel() const override;
 
-Q_SIGNALS:
-    /*** CallChannelHandler Implementation ***/
-    void error(const QString &errorMessage);
-    void invalidated(const QString &errorName, const QString &errorMessage);
+    // TODO: unimplemented
+    void setParentHandlerId(const QString &handler) override {}
 
 public Q_SLOTS:
     /*** AbstractVoiceCallHandler Implementation ***/
@@ -64,8 +66,11 @@ public Q_SLOTS:
     void hangup();
     void hold(bool on);
     void deflect(const QString &target);
-
     void sendDtmf(const QString &tones);
+
+    // TODO: unimplemented
+    void merge(const QString &) {}
+    void split() {}
 
 protected Q_SLOTS:
     void onStatusChanged();
@@ -88,6 +93,10 @@ protected Q_SLOTS:
 
 protected:
     void timerEvent(QTimerEvent *event);
+
+    // TODO: unimplemented
+    void addChildCall(BaseChannelHandler *handler) override {}
+    void removeChildCall(BaseChannelHandler *handler) override {}
 
 private:
     void setStatus(VoiceCallStatus newStatus);

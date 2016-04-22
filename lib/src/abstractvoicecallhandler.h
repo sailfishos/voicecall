@@ -44,6 +44,8 @@ class AbstractVoiceCallHandler : public QObject
     Q_PROPERTY(bool isMultiparty READ isMultiparty NOTIFY multipartyChanged)
     Q_PROPERTY(bool isForwarded READ isForwarded NOTIFY forwardedChanged)
     Q_PROPERTY(bool isRemoteHeld READ isRemoteHeld NOTIFY remoteHeldChanged)
+    Q_PROPERTY(QString parentHandlerId READ parentHandlerId NOTIFY parentHandlerIdChanged)
+    Q_PROPERTY(QList<AbstractVoiceCallHandler*> childCalls READ childCalls NOTIFY childCallsChanged)
 
 public:
     enum VoiceCallStatus {
@@ -71,6 +73,8 @@ public:
     virtual bool isEmergency() const = 0;
     virtual bool isForwarded() const = 0;
     virtual bool isRemoteHeld() const = 0;
+    virtual QString parentHandlerId() const = 0;
+    virtual QList<AbstractVoiceCallHandler*> childCalls() const = 0;
 
     virtual VoiceCallStatus status() const = 0;
 
@@ -86,6 +90,8 @@ Q_SIGNALS:
     void multipartyChanged(bool);
     void forwardedChanged(bool);
     void remoteHeldChanged(bool);
+    void parentHandlerIdChanged(QString);
+    void childCallsChanged();
 
 public Q_SLOTS:
     virtual void answer() = 0;
@@ -93,6 +99,8 @@ public Q_SLOTS:
     virtual void hold(bool on) = 0;
     virtual void deflect(const QString &target) = 0;
     virtual void sendDtmf(const QString &tones) = 0;
+    virtual void merge(const QString &callHandle) = 0;
+    virtual void split() = 0;
 };
 
 #endif // ABSTRACTVOICECALLHANDLER_H

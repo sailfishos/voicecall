@@ -52,14 +52,17 @@ public:
         ROLE_PROVIDER_ID,
         ROLE_HANDLER_ID,
         ROLE_STATUS,
+        ROLE_STATUS_TEXT,
         ROLE_LINE_ID,
         ROLE_STARTED_AT,
         ROLE_IS_EMERGENCY,
         ROLE_IS_MULTIPARTY,
+        ROLE_PARENT_CALL,
         ROLE_INSTANCE
     };
 
     explicit VoiceCallModel(VoiceCallManager *manager);
+    explicit VoiceCallModel(VoiceCallHandler *conf);
             ~VoiceCallModel();
 
     int count() const;
@@ -82,6 +85,7 @@ protected Q_SLOTS:
     void propertyChanged();
 
 private:
+    void init();
     class VoiceCallModelPrivate *d_ptr;
 
     Q_DECLARE_PRIVATE(VoiceCallModel)

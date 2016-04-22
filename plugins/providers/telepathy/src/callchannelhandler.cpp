@@ -90,7 +90,7 @@ public:
 };
 
 CallChannelHandler::CallChannelHandler(const QString &id, Tp::CallChannelPtr channel, const QDateTime &userActionTime, TelepathyProvider *provider)
-    : AbstractVoiceCallHandler(provider), d_ptr(new CallChannelHandlerPrivate(this, id, channel, userActionTime, provider))
+    : BaseChannelHandler(provider), d_ptr(new CallChannelHandlerPrivate(this, id, channel, userActionTime, provider))
 {
     TRACE
     Q_D(CallChannelHandler);
@@ -194,6 +194,12 @@ AbstractVoiceCallHandler::VoiceCallStatus CallChannelHandler::status() const
     TRACE
     Q_D(const CallChannelHandler);
     return d->status;
+}
+
+Tp::ChannelPtr CallChannelHandler::channel() const
+{
+    Q_D(const CallChannelHandler);
+    return d->channel;
 }
 
 void CallChannelHandler::answer()

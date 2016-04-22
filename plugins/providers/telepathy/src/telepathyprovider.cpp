@@ -48,7 +48,7 @@ public:
 
     QString                      errorString;
 
-    QHash<QString,AbstractVoiceCallHandler*> voiceCalls;
+    QHash<QString,BaseChannelHandler*> voiceCalls;
 
     Tp::PendingChannelRequest *tpChannelRequest;
 
@@ -94,7 +94,31 @@ QList<AbstractVoiceCallHandler*> TelepathyProvider::voiceCalls() const
 {
     TRACE
     Q_D(const TelepathyProvider);
-    return d->voiceCalls.values();
+    QList<AbstractVoiceCallHandler*> calls;
+    foreach (BaseChannelHandler *handler, d->voiceCalls)
+        calls << handler;
+
+    return calls;
+}
+
+BaseChannelHandler *TelepathyProvider::voiceCall(const QString &handlerId) const
+{
+    TRACE
+    Q_D(const TelepathyProvider);
+    return d->voiceCalls.value(handlerId);
+}
+
+BaseChannelHandler *TelepathyProvider::voiceCall(Tp::ChannelPtr channel) const
+{
+    Q_D(const TelepathyProvider);
+
+    foreach (BaseChannelHandler *handler, d->voiceCalls) {
+        if (handler->channel()->objectPath() == channel->objectPath()) {
+            return handler;
+        }
+    }
+
+    return 0;
 }
 
 bool TelepathyProvider::dial(const QString &msisdn)
@@ -130,6 +154,66 @@ bool TelepathyProvider::dial(const QString &msisdn)
                      SLOT(onChannelRequestCreated(Tp::ChannelRequestPtr)));
 
     return true;
+}
+
+bool TelepathyProvider::createConference(Tp::ChannelPtr channel1, Tp::ChannelPtr channel2)
+{
+    TRACE
+    Q_D(TelepathyProvider);
+    if (d->tpChannelRequest)
+    {
+        d->errorString = "Can't initiate a call when one is pending!";
+        WARNING_T(d->errorString);
+        emit this->error(d->errorString);
+        return false;
+    }
+
+    if (d->account->protocolName() == "sip") {
+        WARNING_T("Conference calls not supported for SIP protocol");
+    } else if (d->account->protocolName() == "tel") {
+        QList<Tp::ChannelPtr> channels;
+        channels << channel1 << channel2;
+        WARNING_T("Create conference call");
+        d->tpChannelRequest = d->account->createConferenceStreamedMediaCall(channels, QStringList(), QDateTime::currentDateTime(), TP_QT_IFACE_CLIENT + ".voicecall");
+    } else {
+        d->errorString = "Attempting to create conference on an unknown protocol";
+        WARNING_T(d->errorString);
+        emit this->error(d->errorString);
+        return false;
+    }
+
+    QObject::connect(d->tpChannelRequest,
+                     SIGNAL(finished(Tp::PendingOperation*)),
+                     SLOT(onPendingRequestFinished(Tp::PendingOperation*)));
+    QObject::connect(d->tpChannelRequest,
+                     SIGNAL(channelRequestCreated(Tp::ChannelRequestPtr)),
+                     SLOT(onChannelRequestCreated(Tp::ChannelRequestPtr)));
+
+    return true;
+}
+
+void TelepathyProvider::updateConferenceHoldState()
+{
+    Q_D(TelepathyProvider);
+    BaseChannelHandler *confHandler = conferenceHandler();
+    if (confHandler) {
+        AbstractVoiceCallHandler::VoiceCallStatus status = AbstractVoiceCallHandler::STATUS_NULL;
+        for (auto it = d->voiceCalls.begin(); it != d->voiceCalls.end(); ++it) {
+            BaseChannelHandler *callHandler = *it;
+            if (callHandler != confHandler && callHandler->parentHandlerId() == confHandler->handlerId()) {
+                if (status == AbstractVoiceCallHandler::STATUS_NULL)
+                    status = callHandler->status();
+                else if (status != callHandler->status())
+                    return;
+            }
+        }
+
+        if (status != AbstractVoiceCallHandler::STATUS_NULL) {
+            StreamChannelHandler *streamHandler = qobject_cast<StreamChannelHandler*>(confHandler);
+            if (streamHandler)
+                streamHandler->getHoldState();
+        }
+    }
 }
 
 void TelepathyProvider::onAccountBecomeReady(Tp::PendingOperation *op)
@@ -177,7 +261,7 @@ void TelepathyProvider::createHandler(Tp::ChannelPtr ch, const QDateTime &userAc
 {
     TRACE
     Q_D(TelepathyProvider);
-    AbstractVoiceCallHandler *handler = 0;
+    BaseChannelHandler *handler = 0;
 
     DEBUG_T(QString("\tProcessing channel: %1").arg(ch->objectPath()));
 
@@ -193,6 +277,13 @@ void TelepathyProvider::createHandler(Tp::ChannelPtr ch, const QDateTime &userAc
     {
         DEBUG_T("Found StreamedMediaChannel interface.");
         handler = new StreamChannelHandler(d->manager->generateHandlerId(), streamChannel, userActionTime, this);
+
+        connect(handler, &BaseChannelHandler::channelMerged, this, &TelepathyProvider::onChannelMerged);
+        connect(handler, &BaseChannelHandler::channelRemoved, this, &TelepathyProvider::onChannelRemoved);
+        connect(streamChannel.data(), &Tp::Channel::conferenceChannelMerged, this, &TelepathyProvider::onChannelMerged);
+        connect(streamChannel.data(), &Tp::Channel::conferenceChannelRemoved, this, [this](const Tp::ChannelPtr &channel, const Tp::Channel::GroupMemberChangeDetails &) {
+            onChannelRemoved(channel);
+        });
     }
 
     if(!handler) return;
@@ -204,6 +295,18 @@ void TelepathyProvider::createHandler(Tp::ChannelPtr ch, const QDateTime &userAc
 
     emit this->voiceCallAdded(handler);
     emit this->voiceCallsChanged();
+}
+
+BaseChannelHandler *TelepathyProvider::conferenceHandler() const
+{
+    Q_D(const TelepathyProvider);
+    for (auto it = d->voiceCalls.begin(); it != d->voiceCalls.end(); ++it) {
+        if ((*it)->isMultiparty()) {
+            return *it;
+        }
+    }
+
+    return 0;
 }
 
 void TelepathyProvider::onPendingRequestFinished(Tp::PendingOperation *op)
@@ -250,7 +353,7 @@ void TelepathyProvider::onHandlerInvalidated(const QString &errorName, const QSt
     TRACE
     Q_D(TelepathyProvider);
 
-    AbstractVoiceCallHandler *handler = qobject_cast<AbstractVoiceCallHandler*>(QObject::sender());
+    BaseChannelHandler *handler = qobject_cast<BaseChannelHandler*>(QObject::sender());
     d->voiceCalls.remove(handler->handlerId());
 
     emit this->voiceCallRemoved(handler->handlerId());
@@ -264,6 +367,43 @@ void TelepathyProvider::onHandlerInvalidated(const QString &errorName, const QSt
         d->errorString = QString("Telepathy Handler Invalidated: %1 - %2").arg(errorName, errorMessage);
         emit this->error(d->errorString);
     }
+}
+
+void TelepathyProvider::onChannelMerged(Tp::ChannelPtr channel)
+{
+    TRACE
+    BaseChannelHandler *confHandler = conferenceHandler();
+    if (!confHandler) {
+        WARNING_T("Channel merged, but no conference call exists");
+        return;
+    }
+
+    BaseChannelHandler *callHandler = voiceCall(channel);
+    if (!callHandler) {
+        WARNING_T(QString("No call handler exists for: ") + channel->objectPath());
+        return;
+    }
+
+    confHandler->addChildCall(callHandler);
+}
+
+void TelepathyProvider::onChannelRemoved(Tp::ChannelPtr channel)
+{
+    TRACE
+    BaseChannelHandler *callHandler = voiceCall(channel);
+
+    if (!callHandler) {
+        WARNING_T(QString("No call handler exists for: ") + channel->objectPath());
+        return;
+    }
+
+    BaseChannelHandler *confHandler = conferenceHandler();
+    if (!confHandler) {
+        WARNING_T("Channel removed, but no conference call exists");
+        return;
+    }
+
+    confHandler->removeChildCall(callHandler);
 }
 
 bool TelepathyProviderPrivate::shouldForceReconnect() const

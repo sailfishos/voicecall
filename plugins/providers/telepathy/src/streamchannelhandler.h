@@ -21,13 +21,13 @@
 #ifndef STREAMCHANNELHANDLER_H
 #define STREAMCHANNELHANDLER_H
 
-#include <abstractvoicecallhandler.h>
+#include "basechannelhandler.h"
 
 #include <TelepathyQt/Channel>
 
 class TelepathyProvider;
 
-class StreamChannelHandler : public AbstractVoiceCallHandler
+class StreamChannelHandler : public BaseChannelHandler
 {
     Q_OBJECT
 
@@ -46,16 +46,17 @@ public:
     bool isEmergency() const;
     bool isForwarded() const;
     bool isRemoteHeld() const;
+    QString parentHandlerId() const override;
+    QList<AbstractVoiceCallHandler*> childCalls() const override;
 
     VoiceCallStatus status() const;
 
-    /*** StreamedMediaChannelHandler Implementation ***/
-    Tp::Channel channel() const;
+    /*** BaseChannelHandler Implementation ***/
+    Tp::ChannelPtr channel() const override;
+    void setParentHandlerId(const QString &handler) override;
 
-Q_SIGNALS:
-    /*** StreamedMediaChannelHandler Implementation ***/
-    void error(const QString &errorMessage);
-    void invalidated(const QString &errorName, const QString &errorMessage);
+    /*** StreamChannelHandler Implementation ***/
+    void getHoldState();
 
 public Q_SLOTS:
     /*** AbstractVoiceCallHandler Implementation ***/
@@ -63,8 +64,9 @@ public Q_SLOTS:
     void hangup();
     void hold(bool on);
     void deflect(const QString &target);
-
     void sendDtmf(const QString &tones);
+    void merge(const QString &callHandle);
+    void split();
 
 protected Q_SLOTS:
     void onStatusChanged();
@@ -95,8 +97,14 @@ protected Q_SLOTS:
 
     void updateEmergencyStatus(const Tp::ServicePoint& servicePoint);
 
+    // StreamedMediaChannel Confernce Interface Handling
+    void onStreamedMediaChannelConferenceSplitChannelFinished(Tp::PendingOperation *op);
+    void onStreamedMediaChannelConferenceMergeChannelFinished(Tp::PendingOperation *op);
+
 protected:
     void timerEvent(QTimerEvent *event);
+    void addChildCall(BaseChannelHandler *handler) override;
+    void removeChildCall(BaseChannelHandler *handler) override;
 
 private:
     void setStatus(VoiceCallStatus newStatus);

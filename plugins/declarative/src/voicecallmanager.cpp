@@ -4,9 +4,12 @@
 #include <NgfClient>
 
 #include <QQmlInfo>
+#include <QQmlEngine>
 #include <QTimer>
 #include <QDBusInterface>
 #include <QDBusPendingReply>
+#include <QSharedPointer>
+#include <QGlobalStatic>
 
 class VoiceCallManagerPrivate
 {
@@ -99,21 +102,18 @@ void VoiceCallManager::initialize(bool notifyError)
 
 QDBusInterface* VoiceCallManager::interface() const
 {
-    TRACE
     Q_D(const VoiceCallManager);
     return d->interface;
 }
 
 VoiceCallModel* VoiceCallManager::voiceCalls() const
 {
-    TRACE
     Q_D(const VoiceCallManager);
     return d->voicecalls;
 }
 
 VoiceCallProviderModel* VoiceCallManager::providers() const
 {
-    TRACE
     Q_D(const VoiceCallManager);
     return d->providers;
 }
@@ -151,7 +151,6 @@ VoiceCallHandler* VoiceCallManager::activeVoiceCall() const
 
 QString VoiceCallManager::modemPath() const
 {
-    TRACE;
     Q_D(const VoiceCallManager);
     return d->modemPath;
 }
@@ -168,7 +167,6 @@ void VoiceCallManager::setModemPath(const QString &modemPath)
 
 QString VoiceCallManager::audioMode() const
 {
-    TRACE
     Q_D(const VoiceCallManager);
     return d->interface->property("audioMode").toString();
 }
@@ -182,14 +180,12 @@ bool VoiceCallManager::isAudioRouted() const
 
 bool VoiceCallManager::isMicrophoneMuted() const
 {
-    TRACE
     Q_D(const VoiceCallManager);
     return d->interface->property("isMicrophoneMuted").toBool();
 }
 
 bool VoiceCallManager::isSpeakerMuted() const
 {
-    TRACE
     Q_D(const VoiceCallManager);
     return d->interface->property("isSpeakerMuted").toBool();
 }
@@ -365,4 +361,27 @@ void VoiceCallManager::onPendingSilenceFinished(QDBusPendingCallWatcher *watcher
     }
 
     watcher->deleteLater();
+}
+
+typedef QMap<QString, QWeakPointer<VoiceCallHandler>> VoiceCallHandlerMap;
+Q_GLOBAL_STATIC(VoiceCallHandlerMap, callHandlers);
+
+QSharedPointer<VoiceCallHandler> VoiceCallManager::getCallHandler(const QString &handlerId)
+{
+    QSharedPointer<VoiceCallHandler> handler = callHandlers->value(handlerId);
+    if (handler.isNull()) {
+        handler.reset(new VoiceCallHandler(handlerId), &QObject::deleteLater);
+        QQmlEngine::setObjectOwnership(handler.data(), QQmlEngine::CppOwnership);
+        callHandlers->insert(handlerId, handler);
+    }
+
+    // Cleanup any destroyed handlers
+    for (auto it = callHandlers->begin(); it != callHandlers->end();) {
+        if (it.value().isNull())
+            it = callHandlers->erase(it);
+        else
+            ++it;
+    }
+
+    return handler;
 }

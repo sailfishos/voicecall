@@ -52,6 +52,9 @@ public:
 
     VoiceCallStatus status() const;
 
+Q_SIGNALS:
+    void validChanged(bool valid);
+
 public Q_SLOTS:
     void answer();
     void hangup();
@@ -61,6 +64,7 @@ public Q_SLOTS:
 
 protected Q_SLOTS:
     void onStatusChanged();
+    void onValidChanged(bool);
 
 protected:
     void timerEvent(QTimerEvent *event);

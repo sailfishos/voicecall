@@ -60,7 +60,6 @@ OfonoVoiceCallHandler::OfonoVoiceCallHandler(const QString &handlerId, const QSt
     Q_D(OfonoVoiceCallHandler);
     d->ofonoVoiceCall = new QOfonoVoiceCall(this);
     d->ofonoVoiceCall->setVoiceCallPath(path);
-    d->isIncoming = d->ofonoVoiceCall->state() == QLatin1String("incoming");
 
     QObject::connect(d->ofonoVoiceCall, SIGNAL(lineIdentificationChanged(QString)), SIGNAL(lineIdChanged(QString)));
     QObject::connect(d->ofonoVoiceCall, SIGNAL(emergencyChanged(bool)), SIGNAL(emergencyChanged(bool)));
@@ -68,7 +67,10 @@ OfonoVoiceCallHandler::OfonoVoiceCallHandler(const QString &handlerId, const QSt
 
     QObject::connect(d->ofonoVoiceCall, SIGNAL(stateChanged(QString)), SLOT(onStatusChanged()));
 
-    onStatusChanged();
+    QObject::connect(d->ofonoVoiceCall, SIGNAL(validChanged(bool)), SLOT(onValidChanged(bool)));
+    if(d->ofonoVoiceCall->isValid()) {
+        onValidChanged(true);
+    }
 }
 
 OfonoVoiceCallHandler::~OfonoVoiceCallHandler()
@@ -76,6 +78,19 @@ OfonoVoiceCallHandler::~OfonoVoiceCallHandler()
     TRACE
     Q_D(const OfonoVoiceCallHandler);
     delete d;
+}
+
+void OfonoVoiceCallHandler::onValidChanged(bool isValid)
+{
+    Q_D(OfonoVoiceCallHandler);
+
+    if (isValid)
+    {
+        // Properties are now ready
+        d->isIncoming = d->ofonoVoiceCall->state() == QLatin1String("incoming");
+    }
+
+    emit validChanged(isValid);
 }
 
 QString OfonoVoiceCallHandler::path() const

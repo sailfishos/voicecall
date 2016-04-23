@@ -43,6 +43,7 @@ public:
     QString modemPath;
 
     QHash<QString,OfonoVoiceCallHandler*> voiceCalls;
+    QHash<QString,OfonoVoiceCallHandler*> invalidVoiceCalls;
 
     QString errorString;
     void setError(const QString &errorString)
@@ -182,17 +183,38 @@ void OfonoVoiceCallProvider::onCallAdded(const QString &call)
 
     qDebug() << "Adding call handler " << call;
     OfonoVoiceCallHandler *handler = new OfonoVoiceCallHandler(d->manager->generateHandlerId(), call, this, d->ofonoManager);
-    d->voiceCalls.insert(call, handler);
+    d->invalidVoiceCalls.insert(call, handler);
+    QObject::connect(handler, SIGNAL(validChanged(bool)), SLOT(onVoiceCallHandlerValidChanged(bool)));
+}
 
-    emit this->voiceCallAdded(handler);
-    emit this->voiceCallsChanged();
+void OfonoVoiceCallProvider::onVoiceCallHandlerValidChanged(bool isValid)
+{
+    TRACE
+    Q_D(OfonoVoiceCallProvider);
+
+    OfonoVoiceCallHandler *handler = static_cast<OfonoVoiceCallHandler *>(QObject::sender());
+    if(handler)
+    {
+        QString call = handler->path();
+
+        if(isValid && !d->voiceCalls.contains(call))
+        {
+            d->voiceCalls.insert(call, handler);
+            d->invalidVoiceCalls.remove(call);
+            emit this->voiceCallAdded(handler);
+            emit this->voiceCallsChanged();
+        }
+    }
 }
 
 void OfonoVoiceCallProvider::onCallRemoved(const QString &call)
 {
     TRACE
     Q_D(OfonoVoiceCallProvider);
-    if(!d->voiceCalls.contains(call)) return;
+    if(!d->voiceCalls.contains(call)) {
+        delete d->invalidVoiceCalls.take(call);
+        return;
+    }
 
     OfonoVoiceCallHandler *handler = d->voiceCalls.value(call);
     QString handlerId = handler->handlerId();

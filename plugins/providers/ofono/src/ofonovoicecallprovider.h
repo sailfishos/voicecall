@@ -55,6 +55,8 @@ protected Q_SLOTS:
 
     void onDialComplete(const bool status);
 
+    void onVoiceCallHandlerValidChanged(bool isValid);
+
 private:
     void initialize();
     class OfonoVoiceCallProviderPrivate *d_ptr;

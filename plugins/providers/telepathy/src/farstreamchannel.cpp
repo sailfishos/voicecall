@@ -277,8 +277,7 @@ void FarstreamChannel::initAudioInput()
         setError("GStreamer audio input bin could not be created");
         return;
     }
-    gst_object_ref(mGstAudioInput);
-    gst_object_sink(mGstAudioInput);
+    gst_object_ref_sink(mGstAudioInput);
 
     GstElement *source = 0;
     source = addElementToBin(mGstAudioInput, source, AUDIO_SOURCE_ELEMENT);
@@ -409,8 +408,7 @@ void FarstreamChannel::initAudioOutput()
         setError("GStreamer audio output could not be created");
         return;
     }
-    gst_object_ref(mGstAudioOutput);
-    gst_object_sink(mGstAudioOutput);
+    gst_object_ref_sink(mGstAudioOutput);
 
     GstElement *source = 0;
     pushElement(mGstAudioOutput, source, "queue", false, &mGstAudioOutputSink, false);

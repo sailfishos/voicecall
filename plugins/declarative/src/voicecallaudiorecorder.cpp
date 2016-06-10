@@ -6,6 +6,7 @@
 #include <QDBusMessage>
 #include <QDir>
 #include <QLocale>
+#include <QDataStream>
 #include <QtDebug>
 
 namespace {

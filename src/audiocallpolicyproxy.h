@@ -55,7 +55,7 @@ public Q_SLOTS:
 protected Q_SLOTS:
     void invokeWithResources(QObject *receiver, const QString &method);
 
-    void onResourceSetError(quint32 errno, const char* errorMessage);
+    void onResourceSetError(quint32 errorno, const char* errorMessage);
     void onResourceSetGranted();
     void onResourceSetDenied();
     void onResourceSetLost();

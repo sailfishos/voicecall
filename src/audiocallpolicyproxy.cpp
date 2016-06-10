@@ -301,9 +301,9 @@ void AudioCallPolicyProxy::disconnectResourceSet()
                         SLOT(onResourceSetReleasedByManager()));
 }
 
-void AudioCallPolicyProxy::onResourceSetError(quint32 errno, const char *errorMessage)
+void AudioCallPolicyProxy::onResourceSetError(quint32 errorno, const char *errorMessage)
 {
-    Q_UNUSED(errno)
+    Q_UNUSED(errorno)
     Q_UNUSED(errorMessage)
     TRACE
     Q_D(AudioCallPolicyProxy);

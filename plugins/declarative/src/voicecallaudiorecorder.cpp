@@ -4,6 +4,8 @@
 #include <QDateTime>
 #include <QDBusConnection>
 #include <QDBusMessage>
+#include <QDBusMetaType>
+#include <QDBusPendingReply>
 #include <QDir>
 #include <QLocale>
 #include <QDataStream>
@@ -18,6 +20,10 @@ const quint16 SampleRate = 8000;
 const quint16 SampleBits = 16;
 const quint32 WaveHeaderLength = 44;
 const quint16 WavePCMFormat = 1;
+
+const QString RouteManagerService("org.nemomobile.Route.Manager");
+const QString RouteManagerPath("/org/nemomobile/Route/Manager");
+const QString RouteManagerInterface("org.nemomobile.Route.Manager");
 
 QAudioFormat getRecordingFormat()
 {
@@ -42,29 +48,80 @@ const QAudioFormat recordingFormat(getRecordingFormat());
 
 QDBusMessage createEnableVoicecallRecordingMessage(bool enable)
 {
-    const QString routeManagerService("org.nemomobile.Route.Manager");
-    const QString routeManagerPath("/org/nemomobile/Route/Manager");
-    const QString routeManagerInterface("org.nemomobile.Route.Manager");
-
-    QDBusMessage msg = QDBusMessage::createMethodCall(routeManagerService,
-                                                      routeManagerPath,
-                                                      routeManagerInterface,
+    QDBusMessage msg = QDBusMessage::createMethodCall(RouteManagerService,
+                                                      RouteManagerPath,
+                                                      RouteManagerInterface,
                                                       enable ? QString("Enable") : QString("Disable"));
     msg.setArguments(QVariantList() << QVariant(QString("voicecallrecord")));
     return msg;
 }
 
+QDBusMessage createVoicecallFeaturesMessage(void)
+{
+    QDBusMessage msg = QDBusMessage::createMethodCall(RouteManagerService,
+                                                      RouteManagerPath,
+                                                      RouteManagerInterface,
+                                                      QString("GetAll"));
+    return msg;
 }
+
+}
+
+
+struct ManagerFeature
+{
+    QString name;
+    unsigned unused1;
+    unsigned unused2;
+};
+typedef QList<ManagerFeature> ManagerFeatureList;
+
+Q_DECLARE_METATYPE(ManagerFeature)
+Q_DECLARE_METATYPE(ManagerFeatureList)
+
+QDBusArgument &operator<<(QDBusArgument &arg, const ManagerFeature &feature)
+{
+    arg.beginStructure();
+    arg << feature.name;
+    arg << feature.unused1;
+    arg << feature.unused2;
+    arg.endStructure();
+    return arg;
+}
+
+const QDBusArgument &operator>>(const QDBusArgument &arg, ManagerFeature &feature)
+{
+    arg.beginStructure();
+    arg >> feature.name;
+    arg >> feature.unused1;
+    arg >> feature.unused2;
+    arg.endStructure();
+    return arg;
+}
+
 
 VoiceCallAudioRecorder::VoiceCallAudioRecorder(QObject *parent)
     : QObject(parent)
+    , featureAvailable(false)
     , active(false)
 {
+    qDBusRegisterMetaType<ManagerFeature>();
+    qDBusRegisterMetaType<ManagerFeatureList>();
+
+    QDBusMessage featuresMsg = createVoicecallFeaturesMessage();
+    QDBusPendingCall featuresCall = QDBusConnection::systemBus().asyncCall(featuresMsg);
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(featuresCall, this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, &VoiceCallAudioRecorder::featuresCallFinished);
 }
 
 VoiceCallAudioRecorder::~VoiceCallAudioRecorder()
 {
     terminateRecording();
+}
+
+bool VoiceCallAudioRecorder::available() const
+{
+    return featureAvailable;
 }
 
 void VoiceCallAudioRecorder::startRecording(const QString &name, const QString &uid, bool incoming)
@@ -121,6 +178,25 @@ bool VoiceCallAudioRecorder::deleteRecording(const QString &fileName)
         qWarning() << "Unable to delete nonexistent recording file:" << fileName;
     }
     return false;
+}
+
+void VoiceCallAudioRecorder::featuresCallFinished(QDBusPendingCallWatcher *watcher)
+{
+    QDBusPendingReply<QString, unsigned, QString, unsigned, ManagerFeatureList> reply = *watcher;
+    if (reply.isError()) {
+        qWarning() << "Unable to query voice call recording feature.";
+    } else {
+        const ManagerFeatureList features = reply.argumentAt<4>();
+        foreach (const ManagerFeature &feature, features) {
+            if (feature.name == QStringLiteral("voicecallrecord")) {
+                featureAvailable = true;
+                emit availableChanged();
+                break;
+            }
+        }
+    }
+
+    watcher->deleteLater();
 }
 
 void VoiceCallAudioRecorder::inputStateChanged(QAudio::State state)

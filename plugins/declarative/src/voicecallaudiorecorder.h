@@ -4,6 +4,7 @@
 #include <QAudioInput>
 #include <QFile>
 #include <QScopedPointer>
+#include <QDBusPendingCallWatcher>
 
 class VoiceCallAudioRecorder : public QObject
 {
@@ -12,6 +13,7 @@ class VoiceCallAudioRecorder : public QObject
 
     Q_ENUMS(ErrorCondition)
 
+    Q_PROPERTY(bool available READ available NOTIFY availableChanged)
     Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
 
 public:
@@ -24,6 +26,8 @@ public:
     explicit VoiceCallAudioRecorder(QObject *parent);
     ~VoiceCallAudioRecorder();
 
+    bool available() const;
+
     Q_INVOKABLE void startRecording(const QString &name, const QString &uid, bool incoming);
     Q_INVOKABLE void stopRecording();
 
@@ -33,11 +37,13 @@ public:
     Q_INVOKABLE bool deleteRecording(const QString &fileName);
 
 signals:
+    void availableChanged();
     void recordingChanged();
     void recordingError(ErrorCondition error);
     void callRecorded(const QString &fileName, const QString &label);
 
 private slots:
+    void featuresCallFinished(QDBusPendingCallWatcher *watcher);
     void inputStateChanged(QAudio::State state);
 
 private:
@@ -47,6 +53,7 @@ private:
     QScopedPointer<QAudioInput> input;
     QScopedPointer<QFile> output;
     QString label;
+    bool featureAvailable;
     bool active;
 };
 

@@ -47,14 +47,19 @@ class VoiceCallModelPrivate
 
 public:
     VoiceCallModelPrivate(VoiceCallModel *q, VoiceCallManager *pManager)
-        : q_ptr(q), manager(pManager)
+        : q_ptr(q), manager(pManager), confHandler(0)
+    {/*...*/}
+
+    VoiceCallModelPrivate(VoiceCallModel *q, VoiceCallHandler *pConf)
+        : q_ptr(q), manager(0), confHandler(pConf)
     {/*...*/}
 
     VoiceCallModel *q_ptr;
 
     VoiceCallManager *manager;
+    VoiceCallHandler *confHandler;
 
-    QList<VoiceCallHandler*> handlers;
+    QList<QSharedPointer<VoiceCallHandler>> handlers;
 
     QHash<int, QByteArray> headerData;
 };
@@ -64,18 +69,18 @@ VoiceCallModel::VoiceCallModel(VoiceCallManager *manager)
 {
     TRACE
     Q_D(VoiceCallModel);
-    d_ptr->headerData.insert(ROLE_ID, "id");
-    d_ptr->headerData.insert(ROLE_PROVIDER_ID, "providerId");
-    d_ptr->headerData.insert(ROLE_HANDLER_ID, "handlerId");
-    d_ptr->headerData.insert(ROLE_STATUS, "status");
-    d_ptr->headerData.insert(ROLE_LINE_ID, "lineId");
-    d_ptr->headerData.insert(ROLE_STARTED_AT, "startedAt");
-    d_ptr->headerData.insert(ROLE_IS_EMERGENCY, "isEmergency");
-    d_ptr->headerData.insert(ROLE_IS_MULTIPARTY, "isMultiparty");
-    d_ptr->headerData.insert(ROLE_INSTANCE, "instance");
-
+    init();
     // Need to listen for signal on the manager, because it handles connectivity to VCM.
     QObject::connect(d->manager, SIGNAL(voiceCallsChanged()), SLOT(onVoiceCallsChanged()));
+}
+
+VoiceCallModel::VoiceCallModel(VoiceCallHandler *conf)
+    : QAbstractListModel(conf), d_ptr(new VoiceCallModelPrivate(this, conf))
+{
+    TRACE
+    Q_D(VoiceCallModel);
+    init();
+    QObject::connect(d->confHandler, SIGNAL(childCallsListChanged()), SLOT(onVoiceCallsChanged()));
 }
 
 VoiceCallModel::~VoiceCallModel()
@@ -83,6 +88,21 @@ VoiceCallModel::~VoiceCallModel()
     TRACE
     Q_D(VoiceCallModel);
     delete d;
+}
+
+void VoiceCallModel::init()
+{
+    d_ptr->headerData.insert(ROLE_ID, "id");
+    d_ptr->headerData.insert(ROLE_PROVIDER_ID, "providerId");
+    d_ptr->headerData.insert(ROLE_HANDLER_ID, "handlerId");
+    d_ptr->headerData.insert(ROLE_STATUS, "status");
+    d_ptr->headerData.insert(ROLE_STATUS_TEXT, "statusText");
+    d_ptr->headerData.insert(ROLE_LINE_ID, "lineId");
+    d_ptr->headerData.insert(ROLE_STARTED_AT, "startedAt");
+    d_ptr->headerData.insert(ROLE_IS_EMERGENCY, "isEmergency");
+    d_ptr->headerData.insert(ROLE_IS_MULTIPARTY, "isMultiparty");
+    d_ptr->headerData.insert(ROLE_INSTANCE, "instance");
+    d_ptr->headerData.insert(ROLE_PARENT_CALL, "parentCall");
 }
 
 QHash<int, QByteArray> VoiceCallModel::roleNames() const
@@ -93,13 +113,11 @@ QHash<int, QByteArray> VoiceCallModel::roleNames() const
 
 int VoiceCallModel::count() const
 {
-    TRACE
     return this->rowCount(QModelIndex());
 }
 
 int VoiceCallModel::rowCount(const QModelIndex &parent) const
 {
-    TRACE
     Q_D(const VoiceCallModel);
     Q_UNUSED(parent)
     return d->handlers.count();
@@ -107,7 +125,6 @@ int VoiceCallModel::rowCount(const QModelIndex &parent) const
 
 QVariant VoiceCallModel::data(const QModelIndex &index, int role) const
 {
-    TRACE
     Q_D(const VoiceCallModel);
     if(!index.isValid() || index.row() >= d->handlers.count()) return QVariant();
 
@@ -123,6 +140,8 @@ QVariant VoiceCallModel::data(const QModelIndex &index, int role) const
         return QVariant(handler->handlerId());
     case ROLE_STATUS:
         return QVariant(handler->status());
+    case ROLE_STATUS_TEXT:
+        return QVariant(handler->statusText());
     case ROLE_LINE_ID:
         return QVariant(handler->lineId());
     case ROLE_STARTED_AT:
@@ -131,6 +150,8 @@ QVariant VoiceCallModel::data(const QModelIndex &index, int role) const
         return QVariant(handler->isEmergency());
     case ROLE_IS_MULTIPARTY:
         return QVariant(handler->isMultiparty());
+    case ROLE_PARENT_CALL:
+        return QVariant::fromValue(static_cast<QObject*>(handler->parentCall()));
     case ROLE_INSTANCE:
         return QVariant::fromValue(static_cast<QObject*>(handler));
     default:
@@ -142,14 +163,19 @@ void VoiceCallModel::onVoiceCallsChanged()
 {
     TRACE
     Q_D(VoiceCallModel);
-    QStringList nIds = d->manager->interface()->property("voiceCalls").toStringList();
+    QStringList nIds;
     QStringList oIds;
 
     QStringList added;
     QStringList removed;
 
+    if (d->manager)
+        nIds = d->manager->interface()->property("voiceCalls").toStringList();
+    else
+        nIds = d->confHandler->interface()->property("childCalls").toStringList();
+
     // Map current call handlers to handler ids for easy indexing.
-    foreach(VoiceCallHandler *handler, d->handlers)
+    foreach(QSharedPointer<VoiceCallHandler> handler, d->handlers)
     {
         oIds.append(handler->handlerId());
     }
@@ -170,13 +196,12 @@ void VoiceCallModel::onVoiceCallsChanged()
     foreach(QString removeId, removed)
     {
         for (int i = 0; i < d->handlers.count(); ++i) {
-            VoiceCallHandler *handler = d->handlers.at(i);
+            VoiceCallHandler *handler = d->handlers.at(i).data();
             if(handler->handlerId() == removeId)
             {
                 beginRemoveRows(QModelIndex(), i, i);
                 handler->disconnect(this);
                 d->handlers.removeAt(i);
-                handler->deleteLater();
                 endRemoveRows();
                 break;
             }
@@ -188,12 +213,13 @@ void VoiceCallModel::onVoiceCallsChanged()
     // Add handlers that need to be added.
     foreach(QString addId, added)
     {
-        VoiceCallHandler *handler = new VoiceCallHandler(addId, this);
-        connect(handler, SIGNAL(emergencyChanged()), this, SLOT(propertyChanged()));
-        connect(handler, SIGNAL(lineIdChanged()), this, SLOT(propertyChanged()));
-        connect(handler, SIGNAL(multipartyChanged()), this, SLOT(propertyChanged()));
-        connect(handler, SIGNAL(startedAtChanged()), this, SLOT(propertyChanged()));
-        connect(handler, SIGNAL(statusChanged()), this, SLOT(propertyChanged()));
+        QSharedPointer<VoiceCallHandler> handler = VoiceCallManager::getCallHandler(addId);
+        connect(handler.data(), SIGNAL(emergencyChanged()), this, SLOT(propertyChanged()));
+        connect(handler.data(), SIGNAL(lineIdChanged()), this, SLOT(propertyChanged()));
+        connect(handler.data(), SIGNAL(multipartyChanged()), this, SLOT(propertyChanged()));
+        connect(handler.data(), SIGNAL(startedAtChanged()), this, SLOT(propertyChanged()));
+        connect(handler.data(), SIGNAL(statusChanged()), this, SLOT(propertyChanged()));
+        connect(handler.data(), SIGNAL(parentCallChanged()), this, SLOT(propertyChanged()));
         d->handlers.append(handler);
     }
     if (added.count())
@@ -204,18 +230,16 @@ void VoiceCallModel::onVoiceCallsChanged()
 
 VoiceCallHandler* VoiceCallModel::instance(int index) const
 {
-    TRACE
     Q_D(const VoiceCallModel);
-    return d->handlers.value(index);
+    return d->handlers.value(index).data();
 }
 
 VoiceCallHandler* VoiceCallModel::instance(const QString &handlerId) const
 {
-    TRACE
     Q_D(const VoiceCallModel);
-    foreach(VoiceCallHandler* handler, d->handlers)
+    foreach(QSharedPointer<VoiceCallHandler> handler, d->handlers)
     {
-        if(handler->handlerId() == handlerId) return handler;
+        if(handler->handlerId() == handlerId) return handler.data();
     }
 
     return NULL;

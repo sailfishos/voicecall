@@ -59,6 +59,8 @@ VoiceCallHandlerDBusAdapter::VoiceCallHandlerDBusAdapter(AbstractVoiceCallHandle
     QObject::connect(d->handler, SIGNAL(multipartyChanged(bool)), SIGNAL(multipartyChanged(bool)));
     QObject::connect(d->handler, SIGNAL(forwardedChanged(bool)), SIGNAL(forwardedChanged(bool)));
     QObject::connect(d->handler, SIGNAL(remoteHeldChanged(bool)), SIGNAL(remoteHeldChanged(bool)));
+    QObject::connect(d->handler, SIGNAL(parentHandlerIdChanged(QString)), SIGNAL(parentHandlerIdChanged(QString)));
+    QObject::connect(d->handler, &AbstractVoiceCallHandler::childCallsChanged, this, [this]() { emit childCallsChanged(childCalls()); });
 }
 
 VoiceCallHandlerDBusAdapter::~VoiceCallHandlerDBusAdapter()
@@ -74,7 +76,6 @@ VoiceCallHandlerDBusAdapter::~VoiceCallHandlerDBusAdapter()
  */
 QString VoiceCallHandlerDBusAdapter::providerId() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->provider()->providerId();
 }
@@ -84,7 +85,6 @@ QString VoiceCallHandlerDBusAdapter::providerId() const
 */
 QString VoiceCallHandlerDBusAdapter::handlerId() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->handlerId();
 }
@@ -94,7 +94,6 @@ QString VoiceCallHandlerDBusAdapter::handlerId() const
 */
 QString VoiceCallHandlerDBusAdapter::lineId() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->lineId();
 }
@@ -104,7 +103,6 @@ QString VoiceCallHandlerDBusAdapter::lineId() const
 */
 QDateTime VoiceCallHandlerDBusAdapter::startedAt() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->startedAt();
 }
@@ -114,7 +112,6 @@ QDateTime VoiceCallHandlerDBusAdapter::startedAt() const
 */
 int VoiceCallHandlerDBusAdapter::duration() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->duration();
 }
@@ -124,7 +121,6 @@ int VoiceCallHandlerDBusAdapter::duration() const
 */
 bool VoiceCallHandlerDBusAdapter::isIncoming() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->isIncoming();
 }
@@ -134,7 +130,6 @@ bool VoiceCallHandlerDBusAdapter::isIncoming() const
 */
 bool VoiceCallHandlerDBusAdapter::isMultiparty() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->isMultiparty();
 }
@@ -144,7 +139,6 @@ bool VoiceCallHandlerDBusAdapter::isMultiparty() const
 */
 bool VoiceCallHandlerDBusAdapter::isForwarded() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->isForwarded();
 }
@@ -154,9 +148,17 @@ bool VoiceCallHandlerDBusAdapter::isForwarded() const
 */
 bool VoiceCallHandlerDBusAdapter::isRemoteHeld() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->isRemoteHeld();
+}
+
+/*!
+  Returns this voice calls' multiparty call handlerId property.
+*/
+QString VoiceCallHandlerDBusAdapter::parentHandlerId() const
+{
+    Q_D(const VoiceCallHandlerDBusAdapter);
+    return d->handler->parentHandlerId();
 }
 
 /*!
@@ -174,7 +176,6 @@ bool VoiceCallHandlerDBusAdapter::isEmergency() const
 */
 int VoiceCallHandlerDBusAdapter::status() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return (int)d->handler->status();
 }
@@ -184,7 +185,6 @@ int VoiceCallHandlerDBusAdapter::status() const
 */
 QString VoiceCallHandlerDBusAdapter::statusText() const
 {
-    TRACE
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->statusText();
 }
@@ -213,6 +213,23 @@ bool VoiceCallHandlerDBusAdapter::hangup()
     Q_D(VoiceCallHandlerDBusAdapter);
     d->handler->hangup();
     return true;
+}
+
+/*!
+  Returns a list of current voice call handler ids contained by this conference call.
+*/
+QStringList VoiceCallHandlerDBusAdapter::childCalls() const
+{
+    TRACE
+    Q_D(const VoiceCallHandlerDBusAdapter);
+    QStringList results;
+
+    foreach(AbstractVoiceCallHandler *handler, d->handler->childCalls())
+    {
+        results.append(handler->handlerId());
+    }
+
+    return results;
 }
 
 /*!
@@ -248,6 +265,30 @@ void VoiceCallHandlerDBusAdapter::sendDtmf(const QString &tones)
     d->handler->sendDtmf(tones);
 }
 
+/*!
+  If this call is not already a conference call then the two calls
+  are merged into a conference, otherwise the call is added to the
+  conference. For GSM one call must be active and the other held.
+*/
+bool VoiceCallHandlerDBusAdapter::merge(const QString &callHandle)
+{
+    TRACE
+    Q_D(VoiceCallHandlerDBusAdapter);
+    d->handler->merge(callHandle);
+    return true;
+}
+
+/*!
+  Initiates splitting this call from a conference call.
+*/
+bool VoiceCallHandlerDBusAdapter::split()
+{
+    TRACE
+    Q_D(VoiceCallHandlerDBusAdapter);
+    d->handler->split();
+    return true;
+}
+
 QVariantMap VoiceCallHandlerDBusAdapter::getProperties()
 {
     TRACE
@@ -265,6 +306,8 @@ QVariantMap VoiceCallHandlerDBusAdapter::getProperties()
     props.insert("isMultiparty", QVariant(isMultiparty()));
     props.insert("isForwarded", QVariant(isForwarded()));
     props.insert("isRemoteHeld", QVariant(isRemoteHeld()));
+    props.insert("parentHandlerId", QVariant(parentHandlerId()));
+    props.insert("childCalls", QVariant(childCalls()));
 
     return props;
 }

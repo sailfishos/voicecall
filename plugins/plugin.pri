@@ -1,6 +1,6 @@
 TEMPLATE = lib
 QT = core
-CONFIG += plugin link_pkgconfig
+CONFIG += plugin link_pkgconfig c++11
 
 QMAKE_CXXFLAGS += -std=c++0x
 

@@ -51,6 +51,8 @@ public:
     bool isMicrophoneMuted() const;
     bool isSpeakerMuted() const;
 
+    static QSharedPointer<VoiceCallHandler> getCallHandler(const QString &handlerId);
+
 Q_SIGNALS:
     void error(const QString &message);
 

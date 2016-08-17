@@ -27,6 +27,7 @@
 
 #include <TelepathyQt/PendingReady>
 #include <TelepathyQt/PendingChannel>
+#include <TelepathyQt/PendingVariant>
 
 #include <TelepathyQt/StreamedMediaChannel>
 
@@ -92,7 +93,10 @@ public:
     StreamChannelHandler  *q_ptr;
 
     QString            handlerId;
+    QString            parentHandlerId;
     TelepathyProvider *provider;
+
+    QList<AbstractVoiceCallHandler*> childCalls;
 
     QDateTime          startedAt;
 
@@ -112,7 +116,7 @@ public:
 };
 
 StreamChannelHandler::StreamChannelHandler(const QString &id, Tp::StreamedMediaChannelPtr channel, const QDateTime &userActionTime, TelepathyProvider *provider)
-    : AbstractVoiceCallHandler(provider), d_ptr(new StreamChannelHandlerPrivate(this, id, channel, userActionTime, provider))
+    : BaseChannelHandler(provider), d_ptr(new StreamChannelHandlerPrivate(this, id, channel, userActionTime, provider))
 {
     TRACE
     Q_D(StreamChannelHandler);
@@ -134,26 +138,49 @@ StreamChannelHandler::StreamChannelHandler(const QString &id, Tp::StreamedMediaC
 StreamChannelHandler::~StreamChannelHandler()
 {
     TRACE
+    Q_D(StreamChannelHandler);
+    if (!d->parentHandlerId.isEmpty()) {
+        if (BaseChannelHandler *confHandler = d->provider->voiceCall(d->parentHandlerId))
+            confHandler->removeChildCall(this);
+    }
+
+    foreach (AbstractVoiceCallHandler *callHandler, d->childCalls) {
+        static_cast<BaseChannelHandler*>(callHandler)->setParentHandlerId(QString());
+    }
+
     delete this->d_ptr;
 }
 
 AbstractVoiceCallProvider* StreamChannelHandler::provider() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     return d->provider;
 }
 
 QString StreamChannelHandler::handlerId() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     return d->handlerId;
 }
 
-QString StreamChannelHandler::lineId() const
+Tp::ChannelPtr StreamChannelHandler::channel() const
+{
+    Q_D(const StreamChannelHandler);
+    return d->channel;
+}
+
+void StreamChannelHandler::setParentHandlerId(const QString &handler)
 {
     TRACE
+    Q_D(StreamChannelHandler);
+    if (handler != d->parentHandlerId) {
+        d->parentHandlerId = handler;
+        emit parentHandlerIdChanged(handler);
+    }
+}
+
+QString StreamChannelHandler::lineId() const
+{
     Q_D(const StreamChannelHandler);
     if(!d->channel->isReady()) return QString::null;
     return d->channel->targetId();
@@ -161,28 +188,24 @@ QString StreamChannelHandler::lineId() const
 
 QDateTime StreamChannelHandler::startedAt() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     return d->startedAt;
 }
 
 int StreamChannelHandler::duration() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     return int(qRound(d->duration/1000.0));
 }
 
 bool StreamChannelHandler::isIncoming() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     return d->isIncoming;
 }
 
 bool StreamChannelHandler::isMultiparty() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     if(!d->channel->isReady()) return false;
     return d->channel->isConference();
@@ -198,7 +221,6 @@ bool StreamChannelHandler::isEmergency() const
 
 bool StreamChannelHandler::isForwarded() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     if(!d->channel->isReady()) return false;
     return d->isForwarded;
@@ -206,15 +228,25 @@ bool StreamChannelHandler::isForwarded() const
 
 bool StreamChannelHandler::isRemoteHeld() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     if(!d->channel->isReady()) return false;
     return d->isRemoteHeld;
 }
 
+QString StreamChannelHandler::parentHandlerId() const
+{
+    Q_D(const StreamChannelHandler);
+    return d->parentHandlerId;
+}
+
+QList<AbstractVoiceCallHandler*> StreamChannelHandler::childCalls() const
+{
+    Q_D(const StreamChannelHandler);
+    return d->childCalls;
+}
+
 AbstractVoiceCallHandler::VoiceCallStatus StreamChannelHandler::status() const
 {
-    TRACE
     Q_D(const StreamChannelHandler);
     return d->status;
 }
@@ -249,6 +281,23 @@ void StreamChannelHandler::hold(bool on)
     holdIface->RequestHold(on);
 }
 
+void StreamChannelHandler::getHoldState()
+{
+    TRACE
+    Q_D(StreamChannelHandler);
+    Tp::Client::ChannelInterfaceHoldInterface *holdIface = new Tp::Client::ChannelInterfaceHoldInterface(d->channel.data(), this);
+    QDBusPendingReply<uint, uint> reply = holdIface->GetHoldState();
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, [this](QDBusPendingCallWatcher *watcher) {
+        QDBusPendingReply<uint, uint> reply = *watcher;
+        if (!reply.isError()) {
+            onStreamedMediaChannelHoldStateChanged(reply.argumentAt(0).toUInt(), reply.argumentAt(1).toUInt());
+        }
+        watcher->deleteLater();
+    });
+}
+
 //FIXME: Don't know what telepathy API provides this.
 void StreamChannelHandler::deflect(const QString &target)
 {
@@ -279,6 +328,37 @@ void StreamChannelHandler::sendDtmf(const QString &tones)
 
     dtmfIface->StartTone(1, toneId, 0);
     //dtmfIface->MultipleTones(tones);
+}
+
+void StreamChannelHandler::split()
+{
+    Q_D(StreamChannelHandler);
+    QObject::connect(d->channel->conferenceSplitChannel(),
+                     SIGNAL(finished(Tp::PendingOperation*)),
+                     SLOT(onStreamedMediaChannelConferenceSplitChannelFinished(Tp::PendingOperation*)));
+}
+
+void StreamChannelHandler::merge(const QString &callHandle)
+{
+    TRACE
+    Q_D(StreamChannelHandler);
+
+    StreamChannelHandler *handler = qobject_cast<StreamChannelHandler*>(d->provider->voiceCall(callHandle));
+
+    if (!handler) {
+        WARNING_T(QString("Cannot merge call: ") + callHandle);
+        return;
+    }
+
+    if (isMultiparty()) {
+        DEBUG_T(QString("Merge %1 into existing conference call").arg(callHandle));
+        QObject::connect(d->channel->conferenceMergeChannel(handler->channel()),
+                         SIGNAL(finished(Tp::PendingOperation*)),
+                         SLOT(onStreamedMediaChannelConferenceMergeChannelFinished(Tp::PendingOperation*)));
+    } else {
+        DEBUG_T("Create a new conference call");
+        d->provider->createConference(d->channel, handler->channel());
+    }
 }
 
 void StreamChannelHandler::updateEmergencyStatus(const Tp::ServicePoint& servicePoint)
@@ -349,10 +429,20 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
     {
         DEBUG_T("Creating Hold interface");
         Tp::Client::ChannelInterfaceHoldInterface *holdIface = new Tp::Client::ChannelInterfaceHoldInterface(d->channel.data(), this);
+        getHoldState();
         QObject::connect(holdIface,
                          SIGNAL(HoldStateChanged(uint,uint)),
                          SLOT(onStreamedMediaChannelHoldStateChanged(uint,uint)));
     }
+
+    if(d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CONFERENCE))
+    {
+        DEBUG_T("Creating Conference interface");
+        QList<Tp::ChannelPtr> channels = d->channel->conferenceChannels();
+        foreach (Tp::ChannelPtr channel, channels)
+            emit channelMerged(channel);
+    }
+
     d->listenToEmergencyStatus();
 
     emit lineIdChanged(lineId());
@@ -360,7 +450,11 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
     emit emergencyChanged(isEmergency());
     emit forwardedChanged(isForwarded());
 
-    if(d->channel->isRequested())
+    if (isMultiparty())
+    {
+        setStatus(STATUS_ACTIVE);
+    }
+    else if(d->channel->isRequested())
     {
         setStatus(STATUS_DIALING);
     }
@@ -383,6 +477,19 @@ void StreamChannelHandler::onStreamedMediaChannelInvalidated(Tp::DBusProxy *, co
                         SIGNAL(invalidated(Tp::DBusProxy*,QString,QString)),
                         this,
                         SLOT(onStreamedMediaChannelInvalidated(Tp::DBusProxy*,QString,QString)));
+
+    if (d->status == STATUS_DISCONNECTED && !d->childCalls.isEmpty()) {
+        // Conference call is in disconnect state and still has children.
+        // Keep the conference handler alive in the disconnected state
+        // until all children have been split or destroyed. This ensures that
+        // the UI can display a disconnected conference call until all connections are
+        // removed, rather than seeing individual calls being disconnected one at a time.
+        return;
+    }
+
+    foreach (AbstractVoiceCallHandler *callHandler, d->childCalls) {
+        static_cast<BaseChannelHandler*>(callHandler)->setParentHandlerId(QString());
+    }
 
     setStatus(STATUS_NULL);
     emit this->invalidated(errorName, errorMessage);
@@ -467,15 +574,17 @@ void StreamChannelHandler::onStreamedMediaChannelCallStateChanged(uint, uint sta
 {
     TRACE
     Q_D(StreamChannelHandler);
-    bool forwarded = state & Tp::ChannelCallStateForwarded;
 
-    if ((d->status == STATUS_HELD) && !state) {
+    bool forwarded = state & Tp::ChannelCallStateForwarded;
+    bool held = state & Tp::ChannelCallStateHeld;
+
+    if ((d->status == STATUS_HELD) && !held) {
         setStatus(STATUS_ACTIVE);
         d->isRemoteHeld = false;
         emit remoteHeldChanged(d->isRemoteHeld);
     }
 
-    if (state & Tp::ChannelCallStateHeld) {
+    if (d->status != STATUS_HELD && held) {
         setStatus(STATUS_HELD);
         d->isRemoteHeld = true;
         emit remoteHeldChanged(d->isRemoteHeld);
@@ -501,6 +610,32 @@ void StreamChannelHandler::onStreamedMediaChannelCallGetCallStatesFinished(QDBus
     call->deleteLater();
 }
 
+void StreamChannelHandler::onStreamedMediaChannelConferenceSplitChannelFinished(Tp::PendingOperation *op)
+{
+    TRACE
+    Q_D(StreamChannelHandler);
+    if(op->isError())
+    {
+        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
+        return;
+    }
+
+    emit channelRemoved(d->channel);
+}
+
+void StreamChannelHandler::onStreamedMediaChannelConferenceMergeChannelFinished(Tp::PendingOperation *op)
+{
+    if(op->isError())
+    {
+        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
+        return;
+    }
+
+    // No need to do anything. We'll get a conferenceChannelMerged signal from the channel.
+}
+
 void StreamChannelHandler::onStreamedMediaChannelGroupMembersChanged(QString message, Tp::UIntList added, Tp::UIntList removed, Tp::UIntList localPending, Tp::UIntList remotePending, uint actor, uint reason)
 {
     Q_UNUSED(message)
@@ -524,7 +659,7 @@ void StreamChannelHandler::onStreamedMediaChannelGroupMembersChanged(QString mes
         {
             setStatus(STATUS_DISCONNECTED);
         }
-        else
+        else if (d->status != STATUS_HELD)
         {
             setStatus(STATUS_ACTIVE);
         }
@@ -534,30 +669,65 @@ void StreamChannelHandler::onStreamedMediaChannelGroupMembersChanged(QString mes
 void StreamChannelHandler::onStreamedMediaChannelHoldStateChanged(uint state, uint reason)
 {
     TRACE
-    Q_UNUSED(reason)
+    Q_D(StreamChannelHandler);
 
     switch(state)
     {
     case Tp::LocalHoldStateUnheld:
-        DEBUG_T("Hold state unheld");
-        setStatus(STATUS_ACTIVE);
+        DEBUG_T(QString("Hold state unheld: ") + lineId());
+        if (status() == STATUS_HELD)
+            setStatus(STATUS_ACTIVE);
         break;
     case Tp::LocalHoldStateHeld:
-        DEBUG_T("Hold state held");
-        setStatus(STATUS_HELD);
+        DEBUG_T(QString("Hold state held: ") + lineId());
+        if (status() == STATUS_ACTIVE)
+            setStatus(STATUS_HELD);
         break;
+    }
+
+    if (!d->parentHandlerId.isEmpty()) {
+        // Force the conference call to get its hold state; it doesn't keep in sync with its children.
+        // tp-ring should really take responsibility for this.
+        d->provider->updateConferenceHoldState();
     }
 }
 
 void StreamChannelHandler::timerEvent(QTimerEvent *event)
 {
-    TRACE
     Q_D(StreamChannelHandler);
 
     if(isOngoing() && event->timerId() == d->durationTimerId)
     {
         d->duration = get_tick() - d->connectedAt;
         emit this->durationChanged(duration());
+    }
+}
+
+void StreamChannelHandler::addChildCall(BaseChannelHandler *handler)
+{
+    TRACE
+    Q_D(StreamChannelHandler);
+    if (d->childCalls.contains(handler))
+        return;
+    DEBUG_T(QString("Added child call: %1").arg(handler->handlerId()));
+    d->childCalls.append(handler);
+    handler->setParentHandlerId(d->handlerId);
+    emit childCallsChanged();
+}
+
+void StreamChannelHandler::removeChildCall(BaseChannelHandler *handler)
+{
+    TRACE
+    Q_D(StreamChannelHandler);
+    DEBUG_T(QString("Removed child call: %1").arg(handler->handlerId()));
+    d->childCalls.removeAll(handler);
+    handler->setParentHandlerId(QString());
+
+    emit childCallsChanged();
+
+    if (!d->channel->isValid() && d->childCalls.isEmpty()) {
+        // Now that all of our children have been destroyed we'll allow ourself to be destroyed.
+        emit invalidated(QString(), QString());
     }
 }
 
@@ -590,4 +760,13 @@ void StreamChannelHandler::setStatus(VoiceCallStatus newStatus)
 
     d->status = newStatus;
     emit statusChanged(d->status);
+
+    if (d->status == STATUS_DISCONNECTED && !d->parentHandlerId.isEmpty()) {
+        BaseChannelHandler *confHandler = d->provider->voiceCall(d->parentHandlerId);
+        if (confHandler && confHandler->status() == STATUS_DISCONNECTED) {
+            // Destroy this call immediately since the conference call is managing the disconnection
+            // and we don't want the hangup to happen in multiple stages.
+            emit invalidated(QString(), QString());
+        }
+    }
 }

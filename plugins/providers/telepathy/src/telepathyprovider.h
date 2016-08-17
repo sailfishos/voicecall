@@ -21,7 +21,7 @@
 #ifndef TELEPATHYPROVIDER_H
 #define TELEPATHYPROVIDER_H
 
-#include <abstractvoicecallprovider.h>
+#include "basechannelhandler.h"
 #include <voicecallmanagerinterface.h>
 
 #include <TelepathyQt/Account>
@@ -44,6 +44,13 @@ public:
 
     QList<AbstractVoiceCallHandler*> voiceCalls() const;
 
+    BaseChannelHandler *voiceCall(const QString &handlerId) const;
+    BaseChannelHandler *voiceCall(Tp::ChannelPtr channel) const;
+    bool createConference(Tp::ChannelPtr channel1, Tp::ChannelPtr channel2);
+    BaseChannelHandler *conferenceHandler() const;
+
+    void updateConferenceHoldState();
+
 public Q_SLOTS:
     bool dial(const QString &msisdn);
 
@@ -55,6 +62,8 @@ protected Q_SLOTS:
     void onPendingRequestFinished(Tp::PendingOperation *op);
     void onDialFailed(const QString &errorName, const QString &errorMessage);
     void onHandlerInvalidated(const QString &errorName, const QString &errorMessage);
+    void onChannelMerged(Tp::ChannelPtr channel);
+    void onChannelRemoved(Tp::ChannelPtr channel);
 
 protected:
     void createHandler(Tp::ChannelPtr ch, const QDateTime &userActionTime);

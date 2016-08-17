@@ -10,13 +10,15 @@ HEADERS += \
     telepathyprovider.h \
     farstreamchannel.h \
     callchannelhandler.h \
-    streamchannelhandler.h
+    streamchannelhandler.h \
+    basechannelhandler.h
 
 SOURCES += \
     telepathyproviderplugin.cpp \
     telepathyprovider.cpp \
     farstreamchannel.cpp \
     callchannelhandler.cpp \
-    streamchannelhandler.cpp
+    streamchannelhandler.cpp \
+    basechannelhandler.cpp
 
 DEFINES += PLUGIN_NAME=\\\"voicecall-telepathy-plugin\\\"

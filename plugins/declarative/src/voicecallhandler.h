@@ -4,7 +4,10 @@
 #include <QObject>
 #include <QDateTime>
 
+#include <QDBusInterface>
 #include <QDBusPendingCallWatcher>
+
+class VoiceCallModel;
 
 class VoiceCallHandler : public QObject
 {
@@ -25,6 +28,8 @@ class VoiceCallHandler : public QObject
     Q_PROPERTY(bool isForwarded READ isForwarded NOTIFY forwardedChanged)
     Q_PROPERTY(bool isReady READ isReady NOTIFY isReadyChanged)
     Q_PROPERTY(bool isRemoteHeld READ isRemoteHeld NOTIFY remoteHeldChanged)
+    Q_PROPERTY(VoiceCallModel* childCalls READ childCalls NOTIFY childCallsChanged)
+    Q_PROPERTY(VoiceCallHandler* parentCall READ parentCall NOTIFY parentCallChanged)
 
 public:
     enum VoiceCallStatus {
@@ -41,6 +46,8 @@ public:
     explicit VoiceCallHandler(const QString &handlerId, QObject *parent = 0);
             ~VoiceCallHandler();
 
+    QDBusInterface* interface() const;
+
     QString handlerId() const;
     QString providerId() const;
     int status() const;
@@ -54,6 +61,8 @@ public:
     bool isForwarded() const;
     bool isReady() const;
     bool isRemoteHeld() const;
+    VoiceCallModel* childCalls() const;
+    VoiceCallHandler* parentCall() const;
 
 Q_SIGNALS:
     void error(const QString &error);
@@ -66,6 +75,9 @@ Q_SIGNALS:
     void forwardedChanged();
     void isReadyChanged();
     void remoteHeldChanged();
+    void childCallsChanged();
+    void childCallsListChanged();
+    void parentCallChanged();
 
 public Q_SLOTS:
     void answer();
@@ -73,6 +85,8 @@ public Q_SLOTS:
     void hold(bool on);
     void deflect(const QString &target);
     void sendDtmf(const QString &tones);
+    void merge(const QString &callHandle);
+    void split();
 
 protected Q_SLOTS:
     void initialize(bool notifyError = false);
@@ -86,6 +100,8 @@ protected Q_SLOTS:
     void onMultipartyChanged(bool multiparty);
     void onForwardedChanged(bool forwarded);
     void onRemoteHeldChanged(bool remoteHeld);
+    void onMultipartyHandlerIdChanged(QString handlerId);
+    void onChildCallsChanged(const QStringList &);
 
 private:
     class VoiceCallHandlerPrivate *d_ptr;

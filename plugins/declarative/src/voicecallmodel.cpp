@@ -41,6 +41,8 @@
 
 #include "voicecallmanager.h"
 
+#include <QSharedPointer>
+
 class VoiceCallModelPrivate
 {
     Q_DECLARE_PUBLIC(VoiceCallModel)

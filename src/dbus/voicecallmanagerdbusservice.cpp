@@ -77,16 +77,15 @@ bool VoiceCallManagerDBusService::configure(VoiceCallManagerInterface *manager)
     d->manager = manager;
     d->managerAdapter = new VoiceCallManagerDBusAdapter(manager);
 
-    if(!QDBusConnection::sessionBus().registerService("org.nemomobile.voicecall"))
-    {
-
-        WARNING_T(QString("Failed to register DBus service: ") + QDBusConnection::sessionBus().lastError().message());
-        return false;
-    }
-
     if(!QDBusConnection::sessionBus().registerObject("/", manager))
     {
         WARNING_T(QString("Failed to register DBus object: ") + QDBusConnection::sessionBus().lastError().message());
+        return false;
+    }
+
+    if(!QDBusConnection::sessionBus().registerService("org.nemomobile.voicecall"))
+    {
+        WARNING_T(QString("Failed to register DBus service: ") + QDBusConnection::sessionBus().lastError().message());
         return false;
     }
 

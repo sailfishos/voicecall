@@ -17,6 +17,7 @@ BuildRequires:  pkgconfig(libresourceqt5)
 BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
 BuildRequires:  pkgconfig(qt5-boostable)
+BuildRequires:  pkgconfig(nemodevicelock)
 
 Provides:   voicecall-core >= 0.4.9
 Provides:   voicecall-libs >= 0.4.9

@@ -7,7 +7,7 @@ CONFIG += link_pkgconfig
 
 INCLUDEPATH += ../lib/src
 
-PKGCONFIG += libresourceqt5
+PKGCONFIG += libresourceqt5 nemodevicelock
 
 packagesExist(qt5-boostable) {
     DEFINES += HAS_BOOSTER

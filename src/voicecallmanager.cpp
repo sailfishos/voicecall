@@ -23,6 +23,7 @@
 
 #include <QHash>
 #include <QUuid>
+#include <nemo-devicelock/devicelock.h>
 
 #include "audiocallpolicyproxy.h"
 
@@ -44,6 +45,7 @@ public:
 
     AbstractVoiceCallHandler *activeVoiceCall;
 
+    NemoDeviceLock::DeviceLock deviceLock;
     QString audioMode;
     bool isAudioRouted;
     bool isMicrophoneMuted;
@@ -324,6 +326,13 @@ void VoiceCallManager::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
 {
     TRACE
     Q_D(VoiceCallManager);
+
+    if (!handler->isEmergency()
+            && d->deviceLock.state() == NemoDeviceLock::DeviceLock::ManagerLockout) {
+        handler->hangup();
+        return;
+
+    }
 
     //AudioCallPolicyProxy *pHandler = new AudioCallPolicyProxy(handler, this);
     d->voiceCalls.insert(handler->handlerId(), handler);

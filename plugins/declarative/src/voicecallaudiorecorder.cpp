@@ -71,8 +71,8 @@ QDBusMessage createVoicecallFeaturesMessage(void)
 struct ManagerFeature
 {
     QString name;
-    unsigned unused1;
-    unsigned unused2;
+    unsigned allowed;
+    unsigned unused;
 };
 typedef QList<ManagerFeature> ManagerFeatureList;
 
@@ -83,8 +83,8 @@ QDBusArgument &operator<<(QDBusArgument &arg, const ManagerFeature &feature)
 {
     arg.beginStructure();
     arg << feature.name;
-    arg << feature.unused1;
-    arg << feature.unused2;
+    arg << feature.allowed;
+    arg << feature.unused;
     arg.endStructure();
     return arg;
 }
@@ -93,8 +93,8 @@ const QDBusArgument &operator>>(const QDBusArgument &arg, ManagerFeature &featur
 {
     arg.beginStructure();
     arg >> feature.name;
-    arg >> feature.unused1;
-    arg >> feature.unused2;
+    arg >> feature.allowed;
+    arg >> feature.unused;
     arg.endStructure();
     return arg;
 }
@@ -188,7 +188,8 @@ void VoiceCallAudioRecorder::featuresCallFinished(QDBusPendingCallWatcher *watch
     } else {
         const ManagerFeatureList features = reply.argumentAt<4>();
         foreach (const ManagerFeature &feature, features) {
-            if (feature.name == QStringLiteral("voicecallrecord")) {
+            if (feature.name == QStringLiteral("voicecallrecord") &&
+                feature.allowed == 1) {
                 featureAvailable = true;
                 emit availableChanged();
                 break;

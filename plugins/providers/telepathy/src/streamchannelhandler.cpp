@@ -61,7 +61,7 @@ class StreamChannelHandlerPrivate
 
 public:
     StreamChannelHandlerPrivate(StreamChannelHandler *q, const QString &id, Tp::StreamedMediaChannelPtr c, const QDateTime &s, TelepathyProvider *p)
-        : q_ptr(q), handlerId(id), provider(p), startedAt(s), status(AbstractVoiceCallHandler::STATUS_NULL),
+        : q_ptr(q), pendingHangup(NULL), handlerId(id), provider(p), startedAt(s), status(AbstractVoiceCallHandler::STATUS_NULL),
           channel(c), servicePointInterface(NULL), duration(0), durationTimerId(-1), isEmergency(false),
           isForwarded(false), isIncoming(false), isRemoteHeld(false)
     { /* ... */ }
@@ -91,6 +91,7 @@ public:
     }
 
     StreamChannelHandler  *q_ptr;
+    QPointer<Tp::PendingOperation>  pendingHangup;
 
     QString            handlerId;
     QString            parentHandlerId;
@@ -268,9 +269,20 @@ void StreamChannelHandler::hangup()
     TRACE
     Q_D(StreamChannelHandler);
 
-    QObject::connect(d->channel.data()->hangupCall(),
-                     SIGNAL(finished(Tp::PendingOperation*)),
-                     SLOT(onStreamedMediaChannelHangupCallFinished(Tp::PendingOperation*)));
+    if (d->pendingHangup) {
+        if (d->pendingHangup->isFinished()) {
+            d->pendingHangup = NULL;
+        } else {
+            DEBUG_T("Filtering out hangup request, earlier request still pending")
+        }
+    }
+
+    if (!d->pendingHangup) {
+        d->pendingHangup = d->channel.data()->hangupCall();
+        QObject::connect(d->pendingHangup,
+                         SIGNAL(finished(Tp::PendingOperation*)),
+                         SLOT(onStreamedMediaChannelHangupCallFinished(Tp::PendingOperation*)));
+    }
 }
 
 void StreamChannelHandler::hold(bool on)
@@ -559,6 +571,9 @@ void StreamChannelHandler::onStreamedMediaChannelAcceptCallFinished(Tp::PendingO
 void StreamChannelHandler::onStreamedMediaChannelHangupCallFinished(Tp::PendingOperation *op)
 {
     TRACE
+    Q_D(StreamChannelHandler);
+    d->pendingHangup = NULL;
+
     if(op->isError())
     {
         WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
@@ -669,6 +684,7 @@ void StreamChannelHandler::onStreamedMediaChannelGroupMembersChanged(QString mes
 void StreamChannelHandler::onStreamedMediaChannelHoldStateChanged(uint state, uint reason)
 {
     TRACE
+    Q_UNUSED(reason)
     Q_D(StreamChannelHandler);
 
     switch(state)

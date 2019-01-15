@@ -4,8 +4,6 @@ QT += dbus
 
 DEFINES += PLUGIN_NAME=\\\"voicecall-playback-manager-plugin\\\"
 
-#DEFINES += WANT_TRACE
-
 HEADERS += \
     playbackmanagerplugin.h
 

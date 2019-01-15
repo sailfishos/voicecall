@@ -269,20 +269,20 @@ void CallChannelHandler::onCallChannelChannelReady(Tp::PendingOperation *op)
     Q_D(CallChannelHandler);
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         return;
     }
 
     DEBUG_T("CallChannel Ready:");
-    qDebug() << "\tType:" << d->channel->channelType();
-    qDebug() << "\tInterfaces:" << d->channel->interfaces();
+    DEBUG_T("\tType: %s", qPrintable(d->channel->channelType()));
+    DEBUG_T("\tInterfaces: %s", qPrintable(d->channel->interfaces().join(QLatin1String(", "))));
 
-    DEBUG_T(QString("\tTransport: %1").arg(d->channel->initialTransportType()));
-    DEBUG_T(QString("\tInitial Audio: %1").arg(d->channel->hasInitialAudio()));
-    DEBUG_T(QString("\tAudio Name: %1").arg(d->channel->initialAudioName()));
-    DEBUG_T(QString("\tInitial Video: %1").arg(d->channel->hasInitialVideo()));
-    DEBUG_T(QString("\tVideo Name: %1").arg(d->channel->initialVideoName()));
+    DEBUG_T("\tTransport: %u", d->channel->initialTransportType());
+    DEBUG_T("\tInitial Audio: %s", d->channel->hasInitialAudio() ? "true" : "false");
+    DEBUG_T("\tAudio Name: %s", qPrintable(d->channel->initialAudioName()));
+    DEBUG_T("\tInitial Video: %s", d->channel->hasInitialVideo() ? "true" : "false");
+    DEBUG_T("\tVideo Name: %s", qPrintable(d->channel->initialVideoName()));
 
     QObject::connect(d->channel.data(),
                      SIGNAL(contentAdded(Tp::CallContentPtr)),
@@ -316,17 +316,17 @@ void CallChannelHandler::onCallChannelChannelReady(Tp::PendingOperation *op)
     }
 
     Tp::CallContents contents = d->channel->contents();
-    DEBUG_T(QString("number of contents: %1").arg(contents.size()));
+    DEBUG_T("number of contents: %d", contents.size());
     if (contents.size() > 0) {
         foreach (const Tp::CallContentPtr &content, contents) {
             Q_ASSERT(!content.isNull());
             DEBUG_T("Call Content");
             Tp::CallStreams streams = content->streams();
             foreach (const Tp::CallStreamPtr &stream, streams) {
-                DEBUG_T(QString("  Call stream: localSendingState=%1").arg(stream->localSendingState()));
-                DEBUG_T(QString("      members: %1").arg(stream.data()->remoteMembers().size()));
+                DEBUG_T("  Call stream: localSendingState=%1", qPrintable(stream->localSendingState()));
+                DEBUG_T("      members: %u", stream.data()->remoteMembers().size());
                 foreach(const Tp::ContactPtr contact, stream.data()->remoteMembers()) {
-                    DEBUG_T(QString("        member %1").arg(contact->id()) + " remoteSendingState=" + stream->remoteSendingState(contact));
+                    DEBUG_T("        member %s remoteSendingState=%s", qPrintable(contact->id()), qPrintable(stream->remoteSendingState(contact)));
                 }
                 //onStreamAdded(stream);
             }
@@ -357,7 +357,7 @@ void CallChannelHandler::onCallChannelChannelInvalidated(Tp::DBusProxy *, const 
     TRACE
     Q_D(CallChannelHandler);
 
-    DEBUG_T(QString("Channel invalidated: ") + errorName + ": " + errorMessage);
+    DEBUG_T("Channel invalidated: %s: %s", qPrintable(errorName), qPrintable(errorMessage));
 
     // It seems to get called twice.
     QObject::disconnect(d->channel.data(),
@@ -427,7 +427,7 @@ void CallChannelHandler::onCallChannelAcceptCallFinished(Tp::PendingOperation *o
     TRACE
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         emit this->invalidated(op->errorName(), op->errorMessage());
         return;
@@ -441,7 +441,7 @@ void CallChannelHandler::onCallChannelHangupCallFinished(Tp::PendingOperation *o
     TRACE
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         emit this->invalidated(op->errorName(), op->errorMessage());
         return;
@@ -457,7 +457,7 @@ void CallChannelHandler::onFarstreamCreateChannelFinished(Tp::PendingOperation *
 
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         this->hangup();
         return;

@@ -28,6 +28,7 @@ class VoiceCallManager : public QObject
     Q_PROPERTY(bool isAudioRouted READ isAudioRouted WRITE setAudioRouted NOTIFY audioRoutedChanged)
     Q_PROPERTY(bool isMicrophoneMuted READ isMicrophoneMuted WRITE setMuteMicrophone NOTIFY microphoneMutedChanged)
     Q_PROPERTY(bool isSpeakerMuted READ isSpeakerMuted WRITE setMuteSpeaker NOTIFY speakerMutedChanged)
+    Q_PROPERTY(bool isDebugEnabled READ isDebugEnabled CONSTANT)
 
 public:
     explicit VoiceCallManager(QObject *parent = 0);
@@ -50,6 +51,8 @@ public:
 
     bool isMicrophoneMuted() const;
     bool isSpeakerMuted() const;
+
+    bool isDebugEnabled() const;
 
     static QSharedPointer<VoiceCallHandler> getCallHandler(const QString &handlerId);
 

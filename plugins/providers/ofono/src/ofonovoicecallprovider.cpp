@@ -54,7 +54,7 @@ public:
 
     void debugMessage(const QString &message)
     {
-        DEBUG_T(QString("OfonoVoiceCallProvider(") + ofonoModem->modemPath() + "): " + message);
+        DEBUG_T("OfonoVoiceCallProvider(%s): %s", qPrintable(ofonoModem->modemPath()), qPrintable(message));
     }
 };
 

@@ -5,8 +5,6 @@ QT += dbus
 
 DEFINES += PLUGIN_NAME=\\\"mce-plugin\\\"
 
-#DEFINES += WANT_TRACE
-
 HEADERS += \
     mceplugin.h
 

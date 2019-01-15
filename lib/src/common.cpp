@@ -18,15 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
-#ifndef COMMON_H
-#define COMMON_H
 
-#include <QLoggingCategory>
+#include "common.h"
 
-Q_DECLARE_LOGGING_CATEGORY(voicecall)
-
-#define WARNING_T(message, ...) qCWarning(voicecall, "%s " message, Q_FUNC_INFO, ##__VA_ARGS__)
-#define TRACE qCInfo(voicecall, "%s:%d %p", Q_FUNC_INFO, __LINE__, this);
-#define DEBUG_T(message, ...) qCDebug(voicecall, "%s " message, Q_FUNC_INFO, ##__VA_ARGS__)
-
-#endif // COMMON_H
+Q_LOGGING_CATEGORY(voicecall, "org.nemomobile.voicecall", QtWarningMsg)

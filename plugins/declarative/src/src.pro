@@ -5,8 +5,6 @@ QT = core dbus qml multimedia
 TARGET = voicecall
 uri = org.nemomobile.voicecall
 
-#DEFINES += WANT_TRACE
-
 PKGCONFIG += ngf-qt5
 
 HEADERS += \
@@ -23,7 +21,8 @@ SOURCES += \
     voicecallmanager.cpp \
     voicecallmodel.cpp \
     voicecallprovidermodel.cpp \
-    voicecallplugin.cpp
+    voicecallplugin.cpp \
+    ../../../lib/src/common.cpp
 
 OTHER_FILES += qmldir
 

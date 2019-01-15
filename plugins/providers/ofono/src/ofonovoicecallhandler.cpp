@@ -125,7 +125,7 @@ QDateTime OfonoVoiceCallHandler::startedAt() const
 {
     TRACE
     Q_D(const OfonoVoiceCallHandler);
-    DEBUG_T(QString("CALL START TIME: ") + d->ofonoVoiceCall->startTime());
+    DEBUG_T("CALL START TIME: %s", qPrintable(d->ofonoVoiceCall->startTime()));
     return QDateTime::fromString(d->ofonoVoiceCall->startTime(), "");
 }
 

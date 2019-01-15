@@ -273,7 +273,7 @@ void StreamChannelHandler::hangup()
         if (d->pendingHangup->isFinished()) {
             d->pendingHangup = NULL;
         } else {
-            DEBUG_T("Filtering out hangup request, earlier request still pending")
+            DEBUG_T("Filtering out hangup request, earlier request still pending");
         }
     }
 
@@ -358,12 +358,12 @@ void StreamChannelHandler::merge(const QString &callHandle)
     StreamChannelHandler *handler = qobject_cast<StreamChannelHandler*>(d->provider->voiceCall(callHandle));
 
     if (!handler) {
-        WARNING_T(QString("Cannot merge call: ") + callHandle);
+        WARNING_T("Cannot merge call: %s", qPrintable(callHandle));
         return;
     }
 
     if (isMultiparty()) {
-        DEBUG_T(QString("Merge %1 into existing conference call").arg(callHandle));
+        DEBUG_T("Merge %s into existing conference call", qPrintable(callHandle));
         QObject::connect(d->channel->conferenceMergeChannel(handler->channel()),
                          SIGNAL(finished(Tp::PendingOperation*)),
                          SLOT(onStreamedMediaChannelConferenceMergeChannelFinished(Tp::PendingOperation*)));
@@ -391,7 +391,7 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
     Q_D(StreamChannelHandler);
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         return;
     }
@@ -482,7 +482,7 @@ void StreamChannelHandler::onStreamedMediaChannelInvalidated(Tp::DBusProxy *, co
 {
     TRACE
     Q_D(StreamChannelHandler);
-    DEBUG_T(QString("Channel invalidated: ") + errorName + ": " + errorMessage);
+    DEBUG_T("Channel invalidated: %s: %s", qPrintable(errorName), qPrintable(errorMessage));
 
     // It seems to get called twice.
     QObject::disconnect(d->channel.data(),
@@ -559,7 +559,7 @@ void StreamChannelHandler::onStreamedMediaChannelAcceptCallFinished(Tp::PendingO
     TRACE
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         this->hangup();
         return;
@@ -576,7 +576,7 @@ void StreamChannelHandler::onStreamedMediaChannelHangupCallFinished(Tp::PendingO
 
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         this->hangup();
         return;
@@ -607,7 +607,7 @@ void StreamChannelHandler::onStreamedMediaChannelCallStateChanged(uint, uint sta
 
     if (forwarded != d->isForwarded) {
         d->isForwarded = forwarded;
-        DEBUG_T(QString("Call forwarded: ") + (forwarded ? "true" : "false"));
+        DEBUG_T("Call forwarded: %s", forwarded ? "true" : "false");
         emit forwardedChanged(d->isForwarded);
     }
 }
@@ -631,7 +631,7 @@ void StreamChannelHandler::onStreamedMediaChannelConferenceSplitChannelFinished(
     Q_D(StreamChannelHandler);
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         return;
     }
@@ -643,7 +643,7 @@ void StreamChannelHandler::onStreamedMediaChannelConferenceMergeChannelFinished(
 {
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         return;
     }
@@ -690,12 +690,12 @@ void StreamChannelHandler::onStreamedMediaChannelHoldStateChanged(uint state, ui
     switch(state)
     {
     case Tp::LocalHoldStateUnheld:
-        DEBUG_T(QString("Hold state unheld: ") + lineId());
+        DEBUG_T("Hold state unheld: %s", qPrintable(lineId()));
         if (status() == STATUS_HELD)
             setStatus(STATUS_ACTIVE);
         break;
     case Tp::LocalHoldStateHeld:
-        DEBUG_T(QString("Hold state held: ") + lineId());
+        DEBUG_T("Hold state held: %s", qPrintable(lineId()));
         if (status() == STATUS_ACTIVE)
             setStatus(STATUS_HELD);
         break;
@@ -725,7 +725,7 @@ void StreamChannelHandler::addChildCall(BaseChannelHandler *handler)
     Q_D(StreamChannelHandler);
     if (d->childCalls.contains(handler))
         return;
-    DEBUG_T(QString("Added child call: %1").arg(handler->handlerId()));
+    DEBUG_T("Added child call: %s", qPrintable(handler->handlerId()));
     d->childCalls.append(handler);
     handler->setParentHandlerId(d->handlerId);
     emit childCallsChanged();
@@ -735,7 +735,7 @@ void StreamChannelHandler::removeChildCall(BaseChannelHandler *handler)
 {
     TRACE
     Q_D(StreamChannelHandler);
-    DEBUG_T(QString("Removed child call: %1").arg(handler->handlerId()));
+    DEBUG_T("Removed child call: %s", qPrintable(handler->handlerId()));
     d->childCalls.removeAll(handler);
     handler->setParentHandlerId(QString());
 

@@ -59,7 +59,7 @@ VoiceCallHandler::VoiceCallHandler(const QString &handlerId, QObject *parent)
 {
     TRACE
     Q_D(VoiceCallHandler);
-    DEBUG_T(QString("Creating D-Bus interface to: ") + handlerId);
+    DEBUG_T("Creating D-Bus interface to: %s", qPrintable(handlerId));
     d->interface = new QDBusInterface("org.nemomobile.voicecall",
                                       "/calls/" + handlerId,
                                       "org.nemomobile.voicecall.VoiceCall",
@@ -445,10 +445,10 @@ void VoiceCallHandler::onPendingCallFinished(QDBusPendingCallWatcher *watcher)
     QDBusPendingReply<bool> reply = *watcher;
 
     if (reply.isError()) {
-        WARNING_T(QString::fromLatin1("Received error reply for member: %1 (%2)").arg(reply.reply().member()).arg(reply.error().message()));
+        WARNING_T("Received error reply for member: %s (%s)", qPrintable(reply.reply().member()), qPrintable(reply.error().message()));
         emit this->error(reply.error().message());
         watcher->deleteLater();
     } else {
-        DEBUG_T(QString::fromLatin1("Received successful reply for member: %1").arg(reply.reply().member()));
+        DEBUG_T("Received successful reply for member: %s", qPrintable(reply.reply().member()));
     }
 }

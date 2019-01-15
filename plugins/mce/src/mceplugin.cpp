@@ -182,7 +182,7 @@ void McePlugin::onVoiceCallsChanged()
         }
     }
 
-    DEBUG_T("STATE: " + state);
+    DEBUG_T("STATE: %s", qPrintable(state));
 
     message << state;
     message << (isEmergency ? "emergency" : "normal");

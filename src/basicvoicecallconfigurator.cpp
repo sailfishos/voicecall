@@ -71,11 +71,11 @@ bool BasicVoiceCallConfigurator::configure(VoiceCallManagerInterface *manager)
     }
 
     QDir pluginPath("/usr/lib/voicecall/plugins");
-    DEBUG_T(QString("Loading dynamic plugins from: ") + pluginPath.absolutePath());
+    DEBUG_T("Loading dynamic plugins from: %s", qPrintable(pluginPath.absolutePath()));
     foreach(QString plugin, pluginPath.entryList((QStringList() << "lib*plugin*so"),
                                                  QDir::NoDotAndDotDot | QDir::Files))
     {
-        DEBUG_T(QString("Attempting to load dynamic plugin: ") + pluginPath.absoluteFilePath(plugin));
+        DEBUG_T("Attempting to load dynamic plugin: %s", qPrintable(pluginPath.absoluteFilePath(plugin)));
 
         QPluginLoader loader(pluginPath.absoluteFilePath(plugin));
         QObject *instance = loader.instance();
@@ -83,7 +83,7 @@ bool BasicVoiceCallConfigurator::configure(VoiceCallManagerInterface *manager)
 
         if(!instance)
         {
-            WARNING_T(QString("Failed to load plugin: ") + loader.errorString());
+            WARNING_T("Failed to load plugin: %s", qPrintable(loader.errorString()));
             loader.unload();
             continue;
         }
@@ -112,7 +112,7 @@ bool BasicVoiceCallConfigurator::installPlugin(AbstractVoiceCallManagerPlugin *p
 {
     TRACE
     Q_D(BasicVoiceCallConfigurator);
-    DEBUG_T(QString::fromLatin1("Attempting to install plugin: %1").arg(plugin->pluginId()));
+    DEBUG_T("Attempting to install plugin: %s", qPrintable(plugin->pluginId()));
 
     if(d->plugins.contains(plugin->pluginId()))
     {

@@ -21,16 +21,12 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <QDebug>
+#include <QLoggingCategory>
 
-#define WARNING_T(message) qWarning() << QString("VoiceCall W: %1: %2").arg(Q_FUNC_INFO).arg(message);
+Q_DECLARE_LOGGING_CATEGORY(voicecall)
 
-#ifndef WANT_TRACE
-#   define TRACE
-#   define DEBUG_T(message) if (false) { };
-#else
-#   define TRACE qDebug() << QString("VoiceCall T: %1:%2").arg(Q_FUNC_INFO).arg(__LINE__) << this;
-#   define DEBUG_T(message) qDebug("%s", QString("VoiceCall D: %1: %2").arg(Q_FUNC_INFO).arg(message).toUtf8().constData());
-#endif
+#define WARNING_T(message, ...) qCWarning(voicecall, "%s " message, Q_FUNC_INFO, ##__VA_ARGS__)
+#define TRACE qCInfo(voicecall, "%s:%d %p", Q_FUNC_INFO, __LINE__, this);
+#define DEBUG_T(message, ...) qCDebug(voicecall, "%s " message, Q_FUNC_INFO, ##__VA_ARGS__)
 
 #endif // COMMON_H

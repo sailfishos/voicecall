@@ -102,7 +102,7 @@ void VoiceCallManager::appendProvider(AbstractVoiceCallProvider *provider)
     Q_D(VoiceCallManager);
     if(d->providers.contains(provider->providerId())) return;
 
-    DEBUG_T(QString("VCM: Registering voice call provider: ") + provider->providerId());
+    DEBUG_T("VCM: Registering voice call provider: %s", qPrintable(provider->providerId()));
     QObject::connect(provider,
                      SIGNAL(voiceCallAdded(AbstractVoiceCallHandler*)),
                      SLOT(onVoiceCallAdded(AbstractVoiceCallHandler*)));
@@ -127,7 +127,7 @@ void VoiceCallManager::removeProvider(AbstractVoiceCallProvider *provider)
     Q_D(VoiceCallManager);
     if(!d->providers.contains(provider->providerId())) return;
 
-    DEBUG_T(QString("VCM: Deregistering voice call provider: ") + provider->providerId());
+    DEBUG_T("VCM: Deregistering voice call provider: %s", qPrintable(provider->providerId()));
     QObject::disconnect(provider,
                         SIGNAL(voiceCallAdded(AbstractVoiceCallHandler*)),
                         this,
@@ -353,7 +353,7 @@ void VoiceCallManager::onVoiceCallRemoved(const QString &handlerId)
     Q_D(VoiceCallManager);
     AbstractVoiceCallHandler *handler = d->voiceCalls.value(handlerId);
     if (!handler) {
-        DEBUG_T(QString("VCM: attempt to remove unregistered handler: ") + handlerId);
+        DEBUG_T("VCM: attempt to remove unregistered handler: %s", qPrintable(handlerId));
         return;
     }
     d->voiceCalls.remove(handlerId);
@@ -374,13 +374,13 @@ void VoiceCallManager::onVoiceCallRemoved(const QString &handlerId)
     if (handler->isIncoming()) {
         int received = settings.value(QLatin1String("Received")).toInt();
         received += handler->duration();
-        DEBUG_T(QString::fromLatin1("Incoming call ended. Total incoming duration is now %1").arg(received));
+        DEBUG_T("Incoming call ended. Total incoming duration is now %d", received);
         settings.setValue(QLatin1String("Received"), received);
         emit totalIncomingCallDurationChanged();
     } else {
         int dialled = settings.value(QLatin1String("Dialled")).toInt();
         dialled += handler->duration();
-        DEBUG_T(QString::fromLatin1("Outgoing call ended. Total outgoing duration is now %1").arg(dialled));
+        DEBUG_T("Outgoing call ended. Total outgoing duration is now %d", dialled);
         settings.setValue(QLatin1String("Dialled"), dialled);
         emit totalOutgoingCallDurationChanged();
     }
@@ -395,7 +395,7 @@ int VoiceCallManager::totalOutgoingCallDuration() const
     QSettings settings;
     settings.beginGroup(QLatin1String("Voice Counters"));
     int dialled = settings.value(QLatin1String("Dialled")).toInt();
-    DEBUG_T(QString::fromLatin1("Request for outgoing call duration. Total: %1").arg(dialled));
+    DEBUG_T("Request for outgoing call duration. Total: %d", dialled);
     return dialled;
 }
 
@@ -404,7 +404,7 @@ int VoiceCallManager::totalIncomingCallDuration() const
     QSettings settings;
     settings.beginGroup(QLatin1String("Voice Counters"));
     int received = settings.value(QLatin1String("Received")).toInt();
-    DEBUG_T(QString::fromLatin1("Request for incoming call duration. Total: %1").arg(received));
+    DEBUG_T("Request for incoming call duration. Total: %d", received);
     return received;
 }
 

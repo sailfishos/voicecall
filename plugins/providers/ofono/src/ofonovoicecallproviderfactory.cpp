@@ -130,7 +130,7 @@ void OfonoVoiceCallProviderFactory::onModemAdded(const QString &modemPath)
 
     if(d->providers.contains(modemPath))
     {
-        WARNING_T(QString("OfonoVoiceCallProviderFactory: Modem already registered") + modemPath);
+        WARNING_T("OfonoVoiceCallProviderFactory: Modem already registered %s", qPrintable(modemPath));
         return;
     }
 

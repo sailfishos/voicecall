@@ -122,7 +122,7 @@ void NgfRingtonePlugin::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
     Q_D(NgfRingtonePlugin);
 
     ++d->activeCallCount;
-    DEBUG_T(QString("Active call count: %1").arg(d->activeCallCount));
+    DEBUG_T("Active call count: %d", d->activeCallCount);
 
     QObject::connect(handler, SIGNAL(statusChanged(VoiceCallStatus)), SLOT(onVoiceCallStatusChanged()));
     QObject::connect(handler, SIGNAL(destroyed()), SLOT(onVoiceCallDestroyed()));
@@ -142,7 +142,7 @@ void NgfRingtonePlugin::onVoiceCallStatusChanged(AbstractVoiceCallHandler *handl
             return;
     }
 
-    DEBUG_T(QString("Voice call status changed to: ") + handler->statusText());
+    DEBUG_T("Voice call status changed to: ", qPrintable(handler->statusText()));
 
     if (handler->status() != AbstractVoiceCallHandler::STATUS_INCOMING)
     {
@@ -171,7 +171,7 @@ void NgfRingtonePlugin::onVoiceCallStatusChanged(AbstractVoiceCallHandler *handl
         }
 
         d->ringtoneEventId = d->ngf->play("ringtone", props);
-        DEBUG_T(QString("Playing ringtone, event id: %1").arg(d->ringtoneEventId));
+        DEBUG_T("Playing ringtone, event id: %u", d->ringtoneEventId);
     }
 }
 
@@ -193,7 +193,7 @@ void NgfRingtonePlugin::onVoiceCallDestroyed()
     }
 
     --d->activeCallCount;
-    DEBUG_T(QString("Active call count: %1").arg(d->activeCallCount));
+    DEBUG_T("Active call count: %d", d->activeCallCount);
 }
 
 void NgfRingtonePlugin::onSilenceRingtoneRequested()
@@ -211,7 +211,7 @@ void NgfRingtonePlugin::onConnectionStatus(bool connected)
 {
     Q_UNUSED(connected)
     TRACE
-    DEBUG_T(QString("Connection to NGF daemon changed to: " + connected ? "connected" : "disconnected"));
+    DEBUG_T("Connection to NGF daemon changed to: %s", connected ? "connected" : "disconnected");
 }
 
 void NgfRingtonePlugin::onEventFailed(quint32 eventId)

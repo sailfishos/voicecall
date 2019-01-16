@@ -224,16 +224,16 @@ void TelepathyProviderPlugin::handleChannels(const Tp::MethodInvocationContextPt
     Q_UNUSED(requestsSatisfied)
     Q_UNUSED(handlerInfo)
 
-    DEBUG_T(QString("Found %1 channel/s.").arg(channels.size()));
+    DEBUG_T("Found %d channel/s.", channels.size());
 
     if(!d->providers.contains(account.data()->uniqueIdentifier()))
     {
-        DEBUG_T(QString("Ignoring channels as account '%1' is not registered.").arg(account.data()->uniqueIdentifier()));
+        DEBUG_T("Ignoring channels as account '%s' is not registered.", qPrintable(account.data()->uniqueIdentifier()));
         return;
     }
 
     TelepathyProvider *provider = d->providers.value(account.data()->uniqueIdentifier());
-    DEBUG_T(QString("Found provider for account %1, invoking provider to create handlers.").arg(account.data()->uniqueIdentifier()));
+    DEBUG_T("Found provider for account %1, invoking provider to create handlers.", qPrintable(account.data()->uniqueIdentifier()));
     foreach(Tp::ChannelPtr ch, channels)
     {
         provider->createHandler(ch, userActionTime.isValid() ? userActionTime : QDateTime::currentDateTime());
@@ -249,11 +249,11 @@ void TelepathyProviderPlugin::registerAccountProvider(Tp::AccountPtr account)
 
     if(d->providers.contains(account.data()->uniqueIdentifier()))
     {
-        DEBUG_T(QString("Ignoring already registered account: %1").arg(account.data()->uniqueIdentifier()));
+        DEBUG_T("Ignoring already registered account: %s", qPrintable(account.data()->uniqueIdentifier()));
         return;
     }
 
-    DEBUG_T(QString("Registering provider for account: %1").arg(account->uniqueIdentifier()));
+    DEBUG_T("Registering provider for account: %s", qPrintable(account->uniqueIdentifier()));
     TelepathyProvider *tp = new TelepathyProvider(account, d->manager, this);
     d->providers.insert(account.data()->uniqueIdentifier(), tp);
 }
@@ -278,7 +278,7 @@ void TelepathyProviderPlugin::onAccountManagerReady(Tp::PendingOperation *op)
     Q_D(TelepathyProviderPlugin);
     if(op->isError())
     {
-        WARNING_T(QString("Operation failed: ") + op->errorName() + ": " + op->errorMessage());
+        WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         return;
     }
 
@@ -293,10 +293,10 @@ void TelepathyProviderPlugin::onAccountManagerReady(Tp::PendingOperation *op)
 void TelepathyProviderPlugin::onNewAccount(Tp::AccountPtr account)
 {
     TRACE
-    DEBUG_T(QString::fromLatin1("Found account: %1").arg(account->displayName()));
-    DEBUG_T(QString::fromLatin1("\tManager Name: %1").arg(account->cmName()));
-    DEBUG_T(QString::fromLatin1("\tProtocol Name: %1").arg(account->protocolName()));
-    DEBUG_T(QString::fromLatin1("\tService Name: %1").arg(account->serviceName()));
+    DEBUG_T("Found account: %s", qPrintable(account->displayName()));
+    DEBUG_T("\tManager Name: %s", qPrintable(account->cmName()));
+    DEBUG_T("\tProtocol Name: %s", qPrintable(account->protocolName()));
+    DEBUG_T("\tService Name: %s", qPrintable(account->serviceName()));
 
     if(account->protocolName() == "tel" || account->protocolName() == "sip")
     {
@@ -307,7 +307,7 @@ void TelepathyProviderPlugin::onNewAccount(Tp::AccountPtr account)
     }
     else
     {
-        DEBUG_T(QString("Ignoring account '%1' due to unrecognised protocol.").arg(account.data()->uniqueIdentifier()));
+        DEBUG_T("Ignoring account '%s' due to unrecognised protocol.", qPrintable(account.data()->uniqueIdentifier()));
     }
 }
 
@@ -321,7 +321,7 @@ void TelepathyProviderPlugin::onAccountInvalidated(Tp::DBusProxy *proxy, const Q
 
     QObject::disconnect(account.data(), SIGNAL(invalidated(Tp::DBusProxy*,QString,QString)), this, SLOT(onAccountInvalidated(Tp::DBusProxy*,QString,QString)));
 
-    DEBUG_T(QString("Account: '%1' invalidated:%2: %3").arg(account.data()->uniqueIdentifier()).arg(errorName).arg(errorMessage));
+    DEBUG_T("Account: '%s' invalidated:%s: %s", qPrintable(account.data()->uniqueIdentifier()), qPrintable(errorName), qPrintable(errorMessage));
     this->deregisterAccountProvider(account);
 }
 

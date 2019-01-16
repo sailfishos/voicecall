@@ -190,6 +190,11 @@ bool VoiceCallManager::isSpeakerMuted() const
     return d->interface->property("isSpeakerMuted").toBool();
 }
 
+bool VoiceCallManager::isDebugEnabled() const
+{
+    return voicecall().isDebugEnabled();
+}
+
 void VoiceCallManager::dial(const QString &msisdn)
 {
     TRACE
@@ -343,7 +348,7 @@ void VoiceCallManager::onPendingCallFinished(QDBusPendingCallWatcher *watcher)
     if (reply.isError()) {
         emit this->error(reply.error().message());
     } else {
-        DEBUG_T(QString("Received successful reply for member: ") + reply.reply().member());
+        DEBUG_T("Received successful reply for member: %s", qPrintable(reply.reply().member()));
     }
 
     watcher->deleteLater();
@@ -357,7 +362,7 @@ void VoiceCallManager::onPendingSilenceFinished(QDBusPendingCallWatcher *watcher
     if (reply.isError()) {
         emit this->error(reply.error().message());
     } else {
-        DEBUG_T(QString("Received successful reply for member: ") + reply.reply().member());
+        DEBUG_T("Received successful reply for member: %s", qPrintable(reply.reply().member()));
     }
 
     watcher->deleteLater();

@@ -3,8 +3,6 @@ TEMPLATE = app
 QT = core dbus
 CONFIG += link_pkgconfig
 
-#DEFINES += WANT_TRACE
-
 INCLUDEPATH += ../lib/src
 
 PKGCONFIG += libresourceqt5 nemodevicelock

@@ -131,7 +131,7 @@ void PlaybackManagerPlugin::setMode(const QString &mode)
         return;
     }
     else
-        DEBUG_T(on ? "Set PrivacyOverride true." : "Set PirvacyOverride false.");
+        DEBUG_T("Set PrivacyOverride %s.", on ? "true" : "false");
 
     d->manager->onAudioModeChanged(mode);
 }
@@ -152,7 +152,7 @@ void PlaybackManagerPlugin::setMuteMicrophone(bool on)
         return;
     }
     else
-        DEBUG_T(on ? "Set Mute true." : "Set Mute false.");
+        DEBUG_T("Set Mute %s.", on ? "true" : "false");
 
     d->manager->onMuteMicrophoneChanged(on);
 }

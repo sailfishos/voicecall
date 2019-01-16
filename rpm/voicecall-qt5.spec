@@ -6,6 +6,7 @@ Group:      Communications/Telephony
 License:    ASL 2.0
 URL:        http://github.com/nemomobile/voicecall
 Source0:    %{name}-%{version}.tar.bz2
+Source1:    %{name}.privileges
 Requires:   systemd
 Requires:   systemd-user-session-targets
 Requires:   voicecall-qt5-plugin-telepathy = %{version}
@@ -84,6 +85,9 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_libdir}/systemd/user/user-session.target.wants
 ln -s ../voicecall-manager.service %{buildroot}%{_libdir}/systemd/user/user-session.target.wants/
 
+mkdir -p %{buildroot}%{_datadir}/mapplauncherd/privileges.d
+install -m 644 -p %{SOURCE1} %{buildroot}%{_datadir}/mapplauncherd/privileges.d/
+
 %post
 /sbin/ldconfig
 if [ "$1" -ge 1 ]; then
@@ -114,6 +118,7 @@ fi
 %{_libdir}/voicecall/plugins/libvoicecall-mce-plugin.so
 %{_libdir}/systemd/user/voicecall-manager.service
 %{_libdir}/systemd/user/user-session.target.wants/voicecall-manager.service
+%{_datadir}/mapplauncherd/privileges.d/*
 
 %files devel
 %defattr(-,root,root,-)

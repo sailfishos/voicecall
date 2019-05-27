@@ -1,7 +1,9 @@
 #include "common.h"
 #include "voicecallmanager.h"
 
+#ifdef WITH_NGF
 #include <NgfClient>
+#endif
 
 #include <QQmlInfo>
 #include <QQmlEngine>
@@ -22,7 +24,9 @@ public:
           voicecalls(NULL),
           providers(NULL),
           activeVoiceCall(NULL),
+#ifdef WITH_NGF
           ngf(0),
+#endif
           eventId(0),
           connected(false)
     { /*...*/ }
@@ -36,7 +40,10 @@ public:
 
     VoiceCallHandler* activeVoiceCall;
 
+#ifdef WITH_NGF
     Ngf::Client *ngf;
+#endif
+
     quint32 eventId;
 
     bool connected;
@@ -74,8 +81,10 @@ void VoiceCallManager::initialize(bool notifyError)
     Q_D(VoiceCallManager);
     bool success = false;
 
+#ifdef WITH_NGF
     d->ngf = new Ngf::Client(this);
     d->ngf->connect();
+#endif
 
     if(d->interface->isValid())
     {
@@ -287,11 +296,14 @@ bool VoiceCallManager::startDtmfTone(const QString &tone)
 
     QMap<QString, QVariant> properties;
     properties.insert("tonegen.value", toneId);
+
+#ifdef WITH_NGF
     if (d->eventId > 0)
     {
         d->ngf->stop(d->eventId);
     }
     d->eventId = d->ngf->play("dtmf", properties);
+#endif
 
     return true;
 }
@@ -303,7 +315,9 @@ bool VoiceCallManager::stopDtmfTone()
 
     if (d->eventId > 0)
     {
+#ifdef WITH_NGF
         d->ngf->stop(d->eventId);
+#endif
         d->eventId = 0;
     }
 

@@ -1,2 +1,6 @@
 TEMPLATE = subdirs
-SUBDIRS = declarative providers ngf playback-manager mce
+SUBDIRS = declarative providers playback-manager mce
+
+enable-ngf {
+    SUBDIRS += ngf
+}

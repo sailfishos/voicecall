@@ -5,6 +5,10 @@ QT = core dbus
 
 CONFIG += c++11
 
+enable-debug {
+    DEFINES += WANT_TRACE
+}
+
 HEADERS += \
     common.h \
     voicecallmanagerinterface.h \

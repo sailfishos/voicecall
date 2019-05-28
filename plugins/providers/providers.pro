@@ -1,2 +1,6 @@
 TEMPLATE = subdirs
-SUBDIRS = ofono telepathy
+SUBDIRS = ofono
+
+enable-telepathy {
+    SUBDIRS += telepathy
+}

@@ -76,6 +76,7 @@ BuildRequires:  pkgconfig(qofono-qt5)
 
 %qmake5 
 
+qmake -qt=5 CONFIG+=enable-ngf CONFIG+=enable-audiopolicy CONFIG+=enable-telepathy CONFIG+=enable-nemo-devicelock CONFIG+=install-servicefiles
 make %{?_smp_mflags}
 
 %install

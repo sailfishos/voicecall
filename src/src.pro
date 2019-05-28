@@ -5,7 +5,10 @@ CONFIG += link_pkgconfig
 
 INCLUDEPATH += ../lib/src
 
-PKGCONFIG += libresourceqt5 nemodevicelock
+enable-nemo-devicelock {
+    PKGCONFIG += libresourceqt5 nemodevicelock
+    DEFINES += WITH_NEMO_DEVICELOCK
+}
 
 packagesExist(qt5-boostable) {
     DEFINES += HAS_BOOSTER
@@ -14,25 +17,27 @@ packagesExist(qt5-boostable) {
     warning("qt5-boostable not available; startup times will be slower")
 }
 
-
-
 QT += multimedia # for basic ringtone plugin.
 LIBS += -L../lib/src -lvoicecall
 
 HEADERS += \
     dbus/voicecallmanagerdbusservice.h \
     basicvoicecallconfigurator.h \
-    audiocallpolicyproxy.h \
     voicecallmanager.h \
     basicringtonenotificationprovider.h
 
 SOURCES += \
     dbus/voicecallmanagerdbusservice.cpp \
     basicvoicecallconfigurator.cpp \
-    audiocallpolicyproxy.cpp \
     voicecallmanager.cpp \
     main.cpp \
     basicringtonenotificationprovider.cpp
+
+enable-audiopolicy {
+    HEADERS += audiocallpolicyproxy.h
+    SOURCES += audiocallpolicyproxy.cpp
+    DEFINES += WITH_AUDIOPOLICY
+}
 
 target.path = /usr/bin
 
@@ -43,5 +48,6 @@ OTHER_FILES += voicecall-manager.desktop voicecall-manager.service
 systemd_service_entry.files = voicecall-manager.service
 systemd_service_entry.path = /usr/lib/systemd/user
 
-INSTALLS += autostart_entry systemd_service_entry
-
+install-servicefiles {
+    INSTALLS += systemd_service_entry
+}

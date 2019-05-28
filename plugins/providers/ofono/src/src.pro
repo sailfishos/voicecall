@@ -4,6 +4,10 @@ QT += dbus
 
 PKGCONFIG += qofono-qt5
 
+enable-debug {
+    DEFINES += WANT_TRACE
+}
+
 HEADERS += \
     ofonovoicecallhandler.h  \
     ofonovoicecallprovider.h \

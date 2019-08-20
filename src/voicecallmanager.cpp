@@ -339,13 +339,11 @@ void VoiceCallManager::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
 #ifdef WITH_NEMO_DEVICELOCK
     if (!handler->isEmergency()
             && d->deviceLock.state() == NemoDeviceLock::DeviceLock::ManagerLockout) {
-#else
-    if (!handler->isEmergency()) {
-#endif
         handler->hangup();
         return;
 
     }
+#endif
 
     //AudioCallPolicyProxy *pHandler = new AudioCallPolicyProxy(handler, this);
     d->voiceCalls.insert(handler->handlerId(), handler);

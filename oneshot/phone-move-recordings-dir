@@ -1,0 +1,14 @@
+#!/bin/sh
+
+USERS=$(getent group users | cut -d ":" -f 4 | tr "," "\n")
+for user in $USERS; do
+    USERHOME=$(eval echo ~${user})
+
+    legacy_dir="${USERHOME}/CallRecordings"
+    new_dir="${USERHOME}/.local/share/system/privileged/Phone"
+    if [ -d $legacy_dir -a ! -d "${new_dir}/CallRecordings" ]; then
+        mkdir -p $new_dir
+        mv $legacy_dir $new_dir
+        chown -R ${user}:privileged $new_dir
+    fi
+done

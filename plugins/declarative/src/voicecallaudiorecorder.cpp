@@ -33,6 +33,8 @@
 #include <QStandardPaths>
 #include <QtDebug>
 
+#include <unistd.h>
+
 namespace {
 
 const QString RecordingsDir("CallRecordings");
@@ -248,9 +250,11 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
         return false;
     }
 
-    if (!outputDir.isReadable()) {
-        // We can't easily test writability
-        qWarning() << "Unreadable directory:" << outputDir;
+    const QByteArray &dirPathBytes = CallRecordingsDirPath.toUtf8();
+    if (::euidaccess(dirPathBytes.constData(), W_OK) == -1) {
+        qWarning() << "Cannot write to directory:" << dirPathBytes;
+        emit recordingError(FileCreation);
+        return false;
     }
 
     const QString filePath(outputDir.filePath(QString("%1.wav").arg(QString::fromLocal8Bit(QFile::encodeName(fileName)))));

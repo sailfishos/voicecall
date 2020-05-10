@@ -1,3 +1,24 @@
+/*
+ * This file is a part of the Voice Call Manager project
+ *
+ * Copyright (c) 2016 - 2019 Jolla Ltd.
+ * Copyright (c) 2020 Open Mobile Platform LLC.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ */
 
 #include "voicecallaudiorecorder.h"
 
@@ -9,11 +30,17 @@
 #include <QDir>
 #include <QLocale>
 #include <QDataStream>
+#include <QStandardPaths>
 #include <QtDebug>
+
+#include <unistd.h>
 
 namespace {
 
-const QString recordingsDir("CallRecordings");
+const QString RecordingsDir("CallRecordings");
+const QString CallRecordingsDirPath = QStringLiteral("%1/system/privileged/Phone/%2")
+        .arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation))
+        .arg(RecordingsDir);
 
 const quint16 ChannelCount = 1;
 const quint16 SampleRate = 8000;
@@ -154,6 +181,11 @@ bool VoiceCallAudioRecorder::recording() const
     return active;
 }
 
+QString VoiceCallAudioRecorder::recordingsDirPath() const
+{
+    return CallRecordingsDirPath;
+}
+
 QString VoiceCallAudioRecorder::decodeRecordingFileName(const QString &fileName)
 {
     return QFile::decodeName(fileName.toLocal8Bit());
@@ -161,13 +193,7 @@ QString VoiceCallAudioRecorder::decodeRecordingFileName(const QString &fileName)
 
 bool VoiceCallAudioRecorder::deleteRecording(const QString &fileName)
 {
-    const QString outputPath(QDir::home().path() + QDir::separator() + recordingsDir);
-    QDir outputDir(outputPath);
-    if (!outputDir.isReadable()) {
-        // We can't easily test writability
-        qWarning() << "Unreadable directory:" << outputDir;
-    }
-
+    QDir outputDir(CallRecordingsDirPath);
     if (outputDir.exists(fileName)) {
         if (outputDir.remove(fileName)) {
             return true;
@@ -216,20 +242,19 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
 {
     terminateRecording();
 
-    if (!QDir::home().exists(recordingsDir)) {
-        // Create the directory for recordings
-        QDir::home().mkdir(recordingsDir);
-        if (!QDir::home().exists(recordingsDir)) {
-            qWarning() << "Unable to create:" << recordingsDir;
-            emit recordingError(FileCreation);
-            return false;
-        }
+    // Create the directory for recordings
+    QDir outputDir(CallRecordingsDirPath);
+    if (!outputDir.mkpath(".")) {
+        qWarning() << "Unable to create:" << outputDir.absolutePath();
+        emit recordingError(FileCreation);
+        return false;
     }
-    const QString outputPath(QDir::home().path() + QDir::separator() + recordingsDir);
-    QDir outputDir(outputPath);
-    if (!outputDir.isReadable()) {
-        // We can't easily test writability
-        qWarning() << "Unreadable directory:" << outputDir;
+
+    const QByteArray &dirPathBytes = CallRecordingsDirPath.toUtf8();
+    if (::euidaccess(dirPathBytes.constData(), W_OK) == -1) {
+        qWarning() << "Cannot write to directory:" << dirPathBytes;
+        emit recordingError(FileCreation);
+        return false;
     }
 
     const QString filePath(outputDir.filePath(QString("%1.wav").arg(QString::fromLocal8Bit(QFile::encodeName(fileName)))));

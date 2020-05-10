@@ -19,6 +19,8 @@ BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
 BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
+BuildRequires: oneshot
+%{_oneshot_requires_post}
 
 Provides:   voicecall-core >= 0.4.9
 Provides:   voicecall-libs >= 0.4.9
@@ -89,12 +91,17 @@ ln -s ../voicecall-manager.service %{buildroot}%{_libdir}/systemd/user/user-sess
 mkdir -p %{buildroot}%{_datadir}/mapplauncherd/privileges.d
 install -m 644 -p %{SOURCE1} %{buildroot}%{_datadir}/mapplauncherd/privileges.d/
 
+chmod +x %{buildroot}/%{_oneshotdir}/*
+
 %post
 /sbin/ldconfig
 if [ "$1" -ge 1 ]; then
 systemctl-user daemon-reload || :
 systemctl-user restart voicecall-manager.service || :
 fi
+
+# run now for sufficient permissions to move to privileged dir
+%{_bindir}/add-oneshot --now phone-move-recordings-dir || :
 
 %postun
 /sbin/ldconfig
@@ -120,6 +127,7 @@ fi
 %{_libdir}/systemd/user/voicecall-manager.service
 %{_libdir}/systemd/user/user-session.target.wants/voicecall-manager.service
 %{_datadir}/mapplauncherd/privileges.d/*
+%{_oneshotdir}/phone-move-recordings-dir
 
 %files devel
 %defattr(-,root,root,-)

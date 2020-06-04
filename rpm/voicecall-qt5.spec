@@ -2,9 +2,8 @@ Name:       voicecall-qt5
 Summary:    Dialer engine for Nemo Mobile
 Version:    0.6.20
 Release:    1
-Group:      Communications/Telephony
 License:    ASL 2.0
-URL:        http://github.com/nemomobile/voicecall
+URL:        https://git.sailfishos.org/mer-core/voicecall
 Source0:    %{name}-%{version}.tar.bz2
 Source1:    %{name}.privileges
 Requires:   systemd
@@ -19,7 +18,8 @@ BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
 BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
-BuildRequires: oneshot
+BuildRequires:  oneshot
+BuildRequires:  systemd
 %{_oneshot_requires_post}
 
 Provides:   voicecall-core >= 0.4.9
@@ -40,7 +40,6 @@ Obsoletes:   voicecall-qt5-plugin-resource-policy < 0.5.1
 
 %package devel
 Summary:    Voicecall development package
-Group:      Communications/Telephony
 Requires:   %{name} = %{version}-%{release}
 Provides:   voicecall-devel >= 0.4.9
 Obsoletes:  voicecall-devel < 0.4.9
@@ -50,7 +49,6 @@ Obsoletes:  voicecall-devel < 0.4.9
 
 %package plugin-telepathy
 Summary:    Voicecall plugin for calls using telepathy
-Group:      Communications/Telephony
 Requires:   %{name} = %{version}-%{release}
 Conflicts:  voicecall-qt5-plugin-ofono
 BuildRequires:  pkgconfig(TelepathyQt5)
@@ -61,7 +59,6 @@ BuildRequires:  pkgconfig(TelepathyQt5Farstream)
 
 %package plugin-ofono
 Summary:    Voicecall plugin for calls using ofono
-Group:      Communications/Telephony
 Requires:   %{name} = %{version}-%{release}
 Provides:   voicecall-plugin-ofono >= 0.4.9
 Conflicts:  voicecall-qt5-plugin-telepathy
@@ -85,8 +82,8 @@ make %{?_smp_mflags}
 rm -rf %{buildroot}
 %qmake5_install
 
-mkdir -p %{buildroot}%{_libdir}/systemd/user/user-session.target.wants
-ln -s ../voicecall-manager.service %{buildroot}%{_libdir}/systemd/user/user-session.target.wants/
+mkdir -p %{buildroot}%{_userunitdir}/user-session.target.wants
+ln -s ../voicecall-manager.service %{buildroot}%{_userunitdir}/user-session.target.wants/
 
 mkdir -p %{buildroot}%{_datadir}/mapplauncherd/privileges.d
 install -m 644 -p %{SOURCE1} %{buildroot}%{_datadir}/mapplauncherd/privileges.d/
@@ -124,8 +121,8 @@ fi
 %{_libdir}/voicecall/plugins/libvoicecall-playback-manager-plugin.so
 %{_libdir}/voicecall/plugins/libvoicecall-ngf-plugin.so
 %{_libdir}/voicecall/plugins/libvoicecall-mce-plugin.so
-%{_libdir}/systemd/user/voicecall-manager.service
-%{_libdir}/systemd/user/user-session.target.wants/voicecall-manager.service
+%{_userunitdir}/voicecall-manager.service
+%{_userunitdir}/user-session.target.wants/voicecall-manager.service
 %{_datadir}/mapplauncherd/privileges.d/*
 %{_oneshotdir}/phone-move-recordings-dir
 

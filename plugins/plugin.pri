@@ -14,6 +14,6 @@ INCLUDEPATH += $$PWD/../lib/src
 
 # used as e.g. the declarative plugin is a QML plugin, not a voicecall plugin
 !no_plugininstall {
-    target.path = /usr/lib/voicecall/plugins
+    target.path = $$[QT_INSTALL_LIBS]/voicecall/plugins
     INSTALLS += target
 }

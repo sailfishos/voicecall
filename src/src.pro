@@ -5,6 +5,8 @@ CONFIG += link_pkgconfig
 
 INCLUDEPATH += ../lib/src
 
+DEFINES += VOICECALL_PLUGIN_DIRECTORY=\"\\\"$$[QT_INSTALL_LIBS]/voicecall/plugins\\\"\"
+
 enable-nemo-devicelock {
     PKGCONFIG += libresourceqt5 nemodevicelock
     DEFINES += WITH_NEMO_DEVICELOCK

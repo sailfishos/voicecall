@@ -25,7 +25,7 @@ SOURCES += \
     abstractvoicecallhandler.cpp \
     common.cpp
 
-target.path = /usr/lib
+target.path = $$[QT_INSTALL_LIBS]
 
 INSTALLS += target
 

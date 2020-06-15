@@ -8,6 +8,6 @@ OTHER_FILES = LICENSE makedist rpm/voicecall-qt5.spec
 
 
 oneshot.files = oneshot/phone-move-recordings-dir
-oneshot.path  = /usr/lib/oneshot.d
+oneshot.path  = $$[QT_INSTALL_PREFIX]/lib/oneshot.d
 
 INSTALLS += oneshot

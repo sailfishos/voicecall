@@ -1,0 +1,5 @@
+add_subdirectory(declarative)
+add_subdirectory(mce)
+add_subdirectory(ngf)
+add_subdirectory(playback-manager)
+add_subdirectory(providers)

@@ -323,10 +323,10 @@ void CallChannelHandler::onCallChannelChannelReady(Tp::PendingOperation *op)
             DEBUG_T("Call Content");
             Tp::CallStreams streams = content->streams();
             foreach (const Tp::CallStreamPtr &stream, streams) {
-                DEBUG_T("  Call stream: localSendingState=%1", qPrintable(stream->localSendingState()));
+                DEBUG_T("  Call stream: localSendingState=%1", stream->localSendingState());
                 DEBUG_T("      members: %u", stream.data()->remoteMembers().size());
                 foreach(const Tp::ContactPtr contact, stream.data()->remoteMembers()) {
-                    DEBUG_T("        member %s remoteSendingState=%s", qPrintable(contact->id()), qPrintable(stream->remoteSendingState(contact)));
+                    DEBUG_T("        member %s remoteSendingState=%s", qPrintable(contact->id()), stream->remoteSendingState(contact));
                 }
                 //onStreamAdded(stream);
             }

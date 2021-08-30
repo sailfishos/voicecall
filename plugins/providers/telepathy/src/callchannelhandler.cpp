@@ -293,9 +293,6 @@ void CallChannelHandler::onCallChannelChannelReady(Tp::PendingOperation *op)
     QObject::connect(d->channel.data(),
                      SIGNAL(callStateChanged(Tp::CallState)),
                      SLOT(onCallChannelCallStateChanged(Tp::CallState)));
-    QObject::connect(d->channel.data(),
-                     SIGNAL(localHoldStateChanged(Tp::LocalHoldState,Tp::LocalHoldStateReason)),
-                     SLOT(onCallChannelCallLocalHoldStateChanged(Tp::LocalHoldState,Tp::LocalHoldStateReason)));
 
     if(d->channel->hasInitialAudio())
     {

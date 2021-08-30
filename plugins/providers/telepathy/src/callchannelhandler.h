@@ -83,7 +83,6 @@ protected Q_SLOTS:
 
     void onCallChannelCallContentAdded(Tp::CallContentPtr content);
     void onCallChannelCallContentRemoved(Tp::CallContentPtr content, Tp::CallStateReason reason);
-    void onCallChannelCallLocalHoldStateChanged(Tp::LocalHoldState state,Tp::LocalHoldStateReason reason);
 
     void onCallChannelAcceptCallFinished(Tp::PendingOperation *op);
     void onCallChannelHangupCallFinished(Tp::PendingOperation *op);

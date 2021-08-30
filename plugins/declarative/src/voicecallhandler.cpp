@@ -146,7 +146,6 @@ void VoiceCallHandler::initialize(bool notifyError)
                 emit childCallsChanged();
             }
 
-            emit isReadyChanged();
         } else if (notifyError) {
             emit this->error("Failed to getProperties() from VCM D-Bus service.");
         }

@@ -231,6 +231,7 @@ void VoiceCallHandler::onMultipartyHandlerIdChanged(QString handlerId)
 
 void VoiceCallHandler::onChildCallsChanged(const QStringList &calls)
 {
+    Q_UNUSED(calls);
     TRACE
     emit childCallsListChanged();
 }

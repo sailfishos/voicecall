@@ -146,7 +146,6 @@ void VoiceCallHandler::initialize(bool notifyError)
                 emit childCallsChanged();
             }
 
-            emit isReadyChanged();
         } else if (notifyError) {
             emit this->error("Failed to getProperties() from VCM D-Bus service.");
         }
@@ -232,6 +231,7 @@ void VoiceCallHandler::onMultipartyHandlerIdChanged(QString handlerId)
 
 void VoiceCallHandler::onChildCallsChanged(const QStringList &calls)
 {
+    Q_UNUSED(calls);
     TRACE
     emit childCallsListChanged();
 }

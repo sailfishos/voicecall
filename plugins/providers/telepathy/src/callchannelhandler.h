@@ -58,7 +58,7 @@ public:
     Tp::ChannelPtr channel() const override;
 
     // TODO: unimplemented
-    void setParentHandlerId(const QString &handler) override {}
+    void setParentHandlerId(const QString &/*handler*/) override {}
 
 public Q_SLOTS:
     /*** AbstractVoiceCallHandler Implementation ***/
@@ -83,7 +83,6 @@ protected Q_SLOTS:
 
     void onCallChannelCallContentAdded(Tp::CallContentPtr content);
     void onCallChannelCallContentRemoved(Tp::CallContentPtr content, Tp::CallStateReason reason);
-    void onCallChannelCallLocalHoldStateChanged(Tp::LocalHoldState state,Tp::LocalHoldStateReason reason);
 
     void onCallChannelAcceptCallFinished(Tp::PendingOperation *op);
     void onCallChannelHangupCallFinished(Tp::PendingOperation *op);
@@ -95,8 +94,8 @@ protected:
     void timerEvent(QTimerEvent *event);
 
     // TODO: unimplemented
-    void addChildCall(BaseChannelHandler *handler) override {}
-    void removeChildCall(BaseChannelHandler *handler) override {}
+    void addChildCall(BaseChannelHandler */*handler*/) override {}
+    void removeChildCall(BaseChannelHandler */*handler*/) override {}
 
 private:
     void setStatus(VoiceCallStatus newStatus);

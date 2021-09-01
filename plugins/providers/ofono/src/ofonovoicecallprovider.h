@@ -46,8 +46,6 @@ public:
 public Q_SLOTS:
     bool dial(const QString &msisdn);
 
-    bool setPoweredAndOnline(bool on = true);
-
 protected Q_SLOTS:
     void interfacesChanged(const QStringList &interfaces);
     void onCallAdded(const QString &call);

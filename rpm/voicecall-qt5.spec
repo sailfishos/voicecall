@@ -18,8 +18,8 @@ BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
 BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
+BuildRequires:  pkgconfig(systemd)
 BuildRequires:  oneshot
-BuildRequires:  systemd
 %{_oneshot_requires_post}
 
 Provides:   voicecall-core >= 0.4.9

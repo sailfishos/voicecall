@@ -1,4 +1,2 @@
 TEMPLATE = subdirs
 SUBDIRS = src test
-
-OTHER_FILES += LICENSE

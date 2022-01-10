@@ -150,7 +150,7 @@ void BasicRingtoneNotificationProvider::onVoiceCallStatusChanged()
         d->player->setPosition(0);
 
         d->currentCall = NULL;
-    } else if (d->player->mediaStatus() != QMediaPlayer::PlayingState) {
+    } else if (d->player->state() != QMediaPlayer::PlayingState) {
         d->player->setPosition(0);
         d->player->play();
     }

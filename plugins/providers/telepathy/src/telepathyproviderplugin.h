@@ -38,7 +38,7 @@ class TelepathyProviderPlugin : public AbstractVoiceCallManagerPlugin, public Tp
 
 public:
     explicit TelepathyProviderPlugin(QObject *parent = 0);
-            ~TelepathyProviderPlugin();
+    ~TelepathyProviderPlugin();
 
     QString pluginId() const;
 

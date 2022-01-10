@@ -33,7 +33,7 @@ class PlaybackManagerPlugin : public AbstractVoiceCallManagerPlugin
 
 public:
     explicit PlaybackManagerPlugin(QObject *parent = 0);
-            ~PlaybackManagerPlugin();
+    ~PlaybackManagerPlugin();
 
     QString pluginId() const;
 

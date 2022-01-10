@@ -78,8 +78,7 @@ bool OfonoVoiceCallProviderFactory::configure(VoiceCallManagerInterface *manager
 {
     TRACE
     Q_D(OfonoVoiceCallProviderFactory);
-    if(d->isConfigured)
-    {
+    if (d->isConfigured) {
         WARNING_T("OfonoVoiceCallProviderFactory is already configured!");
         return false;
     }
@@ -91,8 +90,7 @@ bool OfonoVoiceCallProviderFactory::configure(VoiceCallManagerInterface *manager
 
     d->isConfigured = true;
 
-    foreach(QString modemPath, d->ofonoModemManager->modems())
-    {
+    foreach (QString modemPath, d->ofonoModemManager->modems()) {
         this->onModemAdded(modemPath);
     }
 
@@ -128,8 +126,7 @@ void OfonoVoiceCallProviderFactory::onModemAdded(const QString &modemPath)
     Q_D(OfonoVoiceCallProviderFactory);
     OfonoVoiceCallProvider *provider;
 
-    if(d->providers.contains(modemPath))
-    {
+    if (d->providers.contains(modemPath)) {
         WARNING_T("OfonoVoiceCallProviderFactory: Modem already registered %s", qPrintable(modemPath));
         return;
     }
@@ -137,8 +134,7 @@ void OfonoVoiceCallProviderFactory::onModemAdded(const QString &modemPath)
     provider = new OfonoVoiceCallProvider(modemPath, d->manager, this);
     d->providers.insert(modemPath, provider);
 
-    if(d->isConfigured)
-    {
+    if (d->isConfigured) {
         d->manager->appendProvider(provider);
     }
 }
@@ -149,7 +145,8 @@ void OfonoVoiceCallProviderFactory::onModemRemoved(const QString &modemPath)
     Q_D(OfonoVoiceCallProviderFactory);
     OfonoVoiceCallProvider *provider;
 
-    if(!d->providers.contains(modemPath)) return;
+    if (!d->providers.contains(modemPath))
+        return;
 
     provider = d->providers.value(modemPath);
     d->providers.remove(modemPath);

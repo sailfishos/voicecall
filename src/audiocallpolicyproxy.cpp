@@ -184,8 +184,7 @@ void AudioCallPolicyProxy::createResourceSet()
     TRACE
     Q_D(AudioCallPolicyProxy);
 
-    if(d->resourceSet)
-    {
+    if (d->resourceSet) {
         DEBUG_T("Resource set already configured");
         return;
     }
@@ -212,8 +211,7 @@ void AudioCallPolicyProxy::deleteResourceSet()
     TRACE
     Q_D(AudioCallPolicyProxy);
 
-    if(!d->resourceSet)
-    {
+    if (!d->resourceSet) {
         DEBUG_T("Resource set not configured");
         return;
     }
@@ -229,8 +227,7 @@ void AudioCallPolicyProxy::connectResourceSet()
     TRACE
     Q_D(AudioCallPolicyProxy);
 
-    if(!d->resourceSet)
-    {
+    if (!d->resourceSet) {
         DEBUG_T("Resource set not configured.");
         return;
     }
@@ -264,8 +261,7 @@ void AudioCallPolicyProxy::disconnectResourceSet()
     TRACE
     Q_D(AudioCallPolicyProxy);
 
-    if(!d->resourceSet)
-    {
+    if (!d->resourceSet) {
         DEBUG_T("Resource set not configured.");
         return;
     }
@@ -316,8 +312,7 @@ void AudioCallPolicyProxy::onResourceSetGranted()
 {
     TRACE
     Q_D(AudioCallPolicyProxy);
-    if(!d->onAcquireReceiver || d->onAcquireMethod.isNull() || d->onAcquireMethod.isEmpty())
-    {
+    if (!d->onAcquireReceiver || d->onAcquireMethod.isNull() || d->onAcquireMethod.isEmpty()) {
         DEBUG_T("No receiver or method to invoke.");
         return;
     }

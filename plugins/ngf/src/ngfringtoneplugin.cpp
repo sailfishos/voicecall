@@ -135,8 +135,7 @@ void NgfRingtonePlugin::onVoiceCallStatusChanged(AbstractVoiceCallHandler *handl
     TRACE
     Q_D(NgfRingtonePlugin);
 
-    if (!handler)
-    {
+    if (!handler) {
         handler = qobject_cast<AbstractVoiceCallHandler*>(sender());
         if (!handler)
             return;
@@ -144,13 +143,11 @@ void NgfRingtonePlugin::onVoiceCallStatusChanged(AbstractVoiceCallHandler *handl
 
     DEBUG_T("Voice call status changed to: ", qPrintable(handler->statusText()));
 
-    if (handler->status() != AbstractVoiceCallHandler::STATUS_INCOMING)
-    {
+    if (handler->status() != AbstractVoiceCallHandler::STATUS_INCOMING) {
         if (d->currentCall == handler) {
             d->currentCall = NULL;
 
-            if (d->ringtoneEventId)
-            {
+            if (d->ringtoneEventId) {
                 DEBUG_T("Stopping ringtone");
                 d->ngf->stop("ringtone");
                 d->ringtoneEventId = 0;
@@ -160,13 +157,11 @@ void NgfRingtonePlugin::onVoiceCallStatusChanged(AbstractVoiceCallHandler *handl
         d->currentCall = handler;
 
         QMap<QString, QVariant> props;
-        if (d->activeCallCount > 1)
-        {
+        if (d->activeCallCount > 1) {
             props.insert("play.mode", "short");
         }
 
-        if (handler->provider()->providerType() != "tel")
-        {
+        if (handler->provider()->providerType() != "tel") {
             props.insert("type", "voip");
         }
 
@@ -180,12 +175,10 @@ void NgfRingtonePlugin::onVoiceCallDestroyed()
     TRACE
     Q_D(NgfRingtonePlugin);
 
-    if (d->currentCall == sender())
-    {
+    if (d->currentCall == sender()) {
         d->currentCall = NULL;
 
-        if (d->ringtoneEventId)
-        {
+        if (d->ringtoneEventId) {
             DEBUG_T("Stopping ringtone");
             d->ngf->stop("ringtone");
             d->ringtoneEventId = 0;
@@ -200,8 +193,7 @@ void NgfRingtonePlugin::onSilenceRingtoneRequested()
 {
     TRACE
     Q_D(NgfRingtonePlugin);
-    if (d->ringtoneEventId)
-    {
+    if (d->ringtoneEventId) {
         DEBUG_T("Pausing ringtone due to silence");
         d->ngf->pause("ringtone");
     }

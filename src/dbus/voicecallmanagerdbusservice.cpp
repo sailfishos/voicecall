@@ -77,14 +77,12 @@ bool VoiceCallManagerDBusService::configure(VoiceCallManagerInterface *manager)
     d->manager = manager;
     d->managerAdapter = new VoiceCallManagerDBusAdapter(manager);
 
-    if(!QDBusConnection::sessionBus().registerObject("/", manager))
-    {
+    if (!QDBusConnection::sessionBus().registerObject("/", manager)) {
         WARNING_T("Failed to register DBus object: %s", qPrintable(QDBusConnection::sessionBus().lastError().message()));
         return false;
     }
 
-    if(!QDBusConnection::sessionBus().registerService("org.nemomobile.voicecall"))
-    {
+    if (!QDBusConnection::sessionBus().registerService("org.nemomobile.voicecall")) {
         WARNING_T("Failed to register DBus service: %s", qPrintable(QDBusConnection::sessionBus().lastError().message()));
         return false;
     }
@@ -127,8 +125,7 @@ void VoiceCallManagerDBusService::onVoiceCallAdded(AbstractVoiceCallHandler *han
 
     new VoiceCallHandlerDBusAdapter(handler);
 
-    if(!QDBusConnection::sessionBus().registerObject("/calls/" + handler->handlerId(), handler))
-    {
+    if (!QDBusConnection::sessionBus().registerObject("/calls/" + handler->handlerId(), handler)) {
         WARNING_T("Failed to register DBus object: %s", qPrintable(QDBusConnection::sessionBus().lastError().message()));
     }
 }
@@ -146,13 +143,10 @@ void VoiceCallManagerDBusService::onActiveVoiceCallChanged()
     TRACE
     Q_D(VoiceCallManagerDBusService);
 
-    if(d->manager->activeVoiceCall())
-    {
+    if (d->manager->activeVoiceCall()) {
         DEBUG_T("VoiceCallManagerDBusService:: registering active voice call interface.");
         QDBusConnection::sessionBus().registerObject("/calls/active", d->manager->activeVoiceCall());
-    }
-    else
-    {
+    } else {
         QDBusConnection::sessionBus().unregisterObject("/calls/active");
     }
 }

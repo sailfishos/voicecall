@@ -34,7 +34,7 @@ class OfonoVoiceCallProvider : public AbstractVoiceCallProvider
 
 public:
     explicit OfonoVoiceCallProvider(const QString &path, VoiceCallManagerInterface *manager, QObject *parent = 0);
-            ~OfonoVoiceCallProvider();
+    ~OfonoVoiceCallProvider();
 
     QString providerId() const;
     QString providerType() const;

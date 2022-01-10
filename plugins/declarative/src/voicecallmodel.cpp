@@ -128,7 +128,8 @@ int VoiceCallModel::rowCount(const QModelIndex &parent) const
 QVariant VoiceCallModel::data(const QModelIndex &index, int role) const
 {
     Q_D(const VoiceCallModel);
-    if(!index.isValid() || index.row() >= d->handlers.count()) return QVariant();
+    if (!index.isValid() || index.row() >= d->handlers.count())
+        return QVariant();
 
     VoiceCallHandler *handler = this->instance(index.row());
 
@@ -177,30 +178,25 @@ void VoiceCallModel::onVoiceCallsChanged()
         nIds = d->confHandler->interface()->property("childCalls").toStringList();
 
     // Map current call handlers to handler ids for easy indexing.
-    foreach(QSharedPointer<VoiceCallHandler> handler, d->handlers)
-    {
+    foreach (QSharedPointer<VoiceCallHandler> handler, d->handlers) {
         oIds.append(handler->handlerId());
     }
 
     // Index new handlers to be added.
-    foreach(QString nId, nIds)
-    {
-        if(!oIds.contains(nId)) added.append(nId);
+    foreach (QString nId, nIds) {
+        if (!oIds.contains(nId)) added.append(nId);
     }
 
     // Index old handlers to be removed.
-    foreach(QString oId, oIds)
-    {
-        if(!nIds.contains(oId)) removed.append(oId);
+    foreach (QString oId, oIds) {
+        if (!nIds.contains(oId)) removed.append(oId);
     }
 
     // Remove handlers that need to be removed.
-    foreach(QString removeId, removed)
-    {
+    foreach (QString removeId, removed) {
         for (int i = 0; i < d->handlers.count(); ++i) {
             VoiceCallHandler *handler = d->handlers.at(i).data();
-            if(handler->handlerId() == removeId)
-            {
+            if (handler->handlerId() == removeId) {
                 beginRemoveRows(QModelIndex(), i, i);
                 handler->disconnect(this);
                 d->handlers.removeAt(i);
@@ -213,8 +209,7 @@ void VoiceCallModel::onVoiceCallsChanged()
     if (added.count())
         beginInsertRows(QModelIndex(), d->handlers.count(), d->handlers.count() + added.count() - 1);
     // Add handlers that need to be added.
-    foreach(QString addId, added)
-    {
+    foreach (QString addId, added) {
         QSharedPointer<VoiceCallHandler> handler = VoiceCallManager::getCallHandler(addId);
         connect(handler.data(), SIGNAL(emergencyChanged()), this, SLOT(propertyChanged()));
         connect(handler.data(), SIGNAL(lineIdChanged()), this, SLOT(propertyChanged()));
@@ -239,9 +234,9 @@ VoiceCallHandler* VoiceCallModel::instance(int index) const
 VoiceCallHandler* VoiceCallModel::instance(const QString &handlerId) const
 {
     Q_D(const VoiceCallModel);
-    foreach(QSharedPointer<VoiceCallHandler> handler, d->handlers)
-    {
-        if(handler->handlerId() == handlerId) return handler.data();
+    foreach (QSharedPointer<VoiceCallHandler> handler, d->handlers) {
+        if (handler->handlerId() == handlerId)
+            return handler.data();
     }
 
     return NULL;

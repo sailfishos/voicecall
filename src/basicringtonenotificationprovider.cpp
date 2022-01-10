@@ -80,8 +80,7 @@ bool BasicRingtoneNotificationProvider::initialize()
 {
     TRACE
     Q_D(BasicRingtoneNotificationProvider);
-    if(d->player)
-    {
+    if (d->player) {
         DEBUG_T("BasicRingtoneNotificationProvider: Already initialized!");
         return false;
     }
@@ -143,8 +142,7 @@ void BasicRingtoneNotificationProvider::onVoiceCallStatusChanged()
     TRACE
     Q_D(BasicRingtoneNotificationProvider);
 
-    if(d->currentCall->status() != AbstractVoiceCallHandler::STATUS_INCOMING)
-    {
+    if (d->currentCall->status() != AbstractVoiceCallHandler::STATUS_INCOMING) {
         DEBUG_T("Disconnecting from handler.");
         QObject::disconnect(d->currentCall, SIGNAL(statusChanged(VoiceCallStatus)), this, SLOT(onVoiceCallStatusChanged()));
 
@@ -152,9 +150,7 @@ void BasicRingtoneNotificationProvider::onVoiceCallStatusChanged()
         d->player->setPosition(0);
 
         d->currentCall = NULL;
-    }
-    else if(d->player->mediaStatus() != QMediaPlayer::PlayingState)
-    {
+    } else if (d->player->mediaStatus() != QMediaPlayer::PlayingState) {
         d->player->setPosition(0);
         d->player->play();
     }
@@ -165,8 +161,7 @@ void BasicRingtoneNotificationProvider::onMediaPlayerMediaStatusChanged()
     TRACE
     Q_D(BasicRingtoneNotificationProvider);
 
-    if (d->player->mediaStatus() == QMediaPlayer::EndOfMedia)
-    {
+    if (d->player->mediaStatus() == QMediaPlayer::EndOfMedia) {
         d->player->setPosition(0);
         d->player->play();
     }

@@ -35,7 +35,7 @@ class TelepathyProvider : public AbstractVoiceCallProvider
 
 public:
     explicit TelepathyProvider(Tp::AccountPtr account, VoiceCallManagerInterface *manager, QObject *parent = 0);
-            ~TelepathyProvider();
+    ~TelepathyProvider();
 
     QString errorString() const;
 

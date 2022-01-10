@@ -37,22 +37,22 @@
 static quint64 get_tick()
 {
 #if defined(CLOCK_BOOTTIME)
-   int id = CLOCK_BOOTTIME;
+    int id = CLOCK_BOOTTIME;
 #else
-   int id = CLOCK_MONOTONIC;
+    int id = CLOCK_MONOTONIC;
 #endif
 
-  quint64 res = 0;
+    quint64 res = 0;
 
-  struct timespec ts;
+    struct timespec ts;
 
-  if(clock_gettime(id, &ts) == 0) {
-    res = ts.tv_sec;
-    res *= 1000;
-    res += ts.tv_nsec / 1000000;
-  }
+    if (clock_gettime(id, &ts) == 0) {
+        res = ts.tv_sec;
+        res *= 1000;
+        res += ts.tv_nsec / 1000000;
+    }
 
-  return res;
+    return res;
 }
 
 class StreamChannelHandlerPrivate
@@ -208,7 +208,8 @@ bool StreamChannelHandler::isIncoming() const
 bool StreamChannelHandler::isMultiparty() const
 {
     Q_D(const StreamChannelHandler);
-    if(!d->channel->isReady()) return false;
+    if (!d->channel->isReady())
+        return false;
     return d->channel->isConference();
 }
 
@@ -216,21 +217,24 @@ bool StreamChannelHandler::isEmergency() const
 {
     TRACE
     Q_D(const StreamChannelHandler);
-    if(!d->channel->isReady()) return false;
+    if (!d->channel->isReady())
+        return false;
     return d->isEmergency;
 }
 
 bool StreamChannelHandler::isForwarded() const
 {
     Q_D(const StreamChannelHandler);
-    if(!d->channel->isReady()) return false;
+    if (!d->channel->isReady())
+        return false;
     return d->isForwarded;
 }
 
 bool StreamChannelHandler::isRemoteHeld() const
 {
     Q_D(const StreamChannelHandler);
-    if(!d->channel->isReady()) return false;
+    if (!d->channel->isReady())
+        return false;
     return d->isRemoteHeld;
 }
 
@@ -327,14 +331,13 @@ void StreamChannelHandler::sendDtmf(const QString &tones)
     bool ok = true;
     unsigned int toneId = tones.toInt(&ok);
 
-    if(!ok)
-    {
+    if (!ok) {
         if (tones == "*") toneId = 10;
-        else if(tones == "#") toneId = 11;
-        else if(tones == "A") toneId = 12;
-        else if(tones == "B") toneId = 13;
-        else if(tones == "C") toneId = 14;
-        else if(tones == "D") toneId = 15;
+        else if (tones == "#") toneId = 11;
+        else if (tones == "A") toneId = 12;
+        else if (tones == "B") toneId = 13;
+        else if (tones == "C") toneId = 14;
+        else if (tones == "D") toneId = 15;
         else return;
     }
 
@@ -389,8 +392,7 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
 {
     TRACE
     Q_D(StreamChannelHandler);
-    if(op->isError())
-    {
+    if (op->isError()) {
         WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         return;
@@ -416,8 +418,7 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
                      SIGNAL(streamStateChanged(Tp::StreamedMediaStreamPtr,Tp::MediaStreamState)),
                      SLOT(onStreamedMediaChannelStreamStateChanged(Tp::StreamedMediaStreamPtr,Tp::MediaStreamState)));
 
-    if(d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CALL_STATE))
-    {
+    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CALL_STATE)) {
         DEBUG_T("Creating CallState interface");
         Tp::Client::ChannelInterfaceCallStateInterface *csIface = new Tp::Client::ChannelInterfaceCallStateInterface(d->channel.data(), this);
         QDBusPendingReply<Tp::ChannelCallStateMap> reply = csIface->GetCallStates();
@@ -429,16 +430,14 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
                          SLOT(onStreamedMediaChannelCallStateChanged(uint,uint)));
     }
 
-    if(d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_GROUP))
-    {
+    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_GROUP)) {
         DEBUG_T("Creating Group interface");
         Tp::Client::ChannelInterfaceGroupInterface *groupIface = new Tp::Client::ChannelInterfaceGroupInterface(d->channel.data(), this);
         QObject::connect(groupIface, SIGNAL(MembersChanged(QString,Tp::UIntList,Tp::UIntList,Tp::UIntList,Tp::UIntList,uint,uint)),
                          SLOT(onStreamedMediaChannelGroupMembersChanged(QString,Tp::UIntList,Tp::UIntList,Tp::UIntList,Tp::UIntList,uint,uint)));
     }
 
-    if(d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_HOLD))
-    {
+    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_HOLD)) {
         DEBUG_T("Creating Hold interface");
         Tp::Client::ChannelInterfaceHoldInterface *holdIface = new Tp::Client::ChannelInterfaceHoldInterface(d->channel.data(), this);
         getHoldState();
@@ -447,8 +446,7 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
                          SLOT(onStreamedMediaChannelHoldStateChanged(uint,uint)));
     }
 
-    if(d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CONFERENCE))
-    {
+    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CONFERENCE)) {
         DEBUG_T("Creating Conference interface");
         QList<Tp::ChannelPtr> channels = d->channel->conferenceChannels();
         foreach (Tp::ChannelPtr channel, channels)
@@ -462,16 +460,11 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
     emit emergencyChanged(isEmergency());
     emit forwardedChanged(isForwarded());
 
-    if (isMultiparty())
-    {
+    if (isMultiparty()) {
         setStatus(STATUS_ACTIVE);
-    }
-    else if(d->channel->isRequested())
-    {
+    } else if (d->channel->isRequested()) {
         setStatus(STATUS_DIALING);
-    }
-    else
-    {
+    } else {
         setStatus(STATUS_INCOMING);
     }
 
@@ -557,8 +550,7 @@ void StreamChannelHandler::onStreamedMediaChannelStreamStateChanged(const Tp::St
 void StreamChannelHandler::onStreamedMediaChannelAcceptCallFinished(Tp::PendingOperation *op)
 {
     TRACE
-    if(op->isError())
-    {
+    if (op->isError()) {
         WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         this->hangup();
@@ -574,8 +566,7 @@ void StreamChannelHandler::onStreamedMediaChannelHangupCallFinished(Tp::PendingO
     Q_D(StreamChannelHandler);
     d->pendingHangup = NULL;
 
-    if(op->isError())
-    {
+    if (op->isError()) {
         WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         this->hangup();
@@ -629,8 +620,7 @@ void StreamChannelHandler::onStreamedMediaChannelConferenceSplitChannelFinished(
 {
     TRACE
     Q_D(StreamChannelHandler);
-    if(op->isError())
-    {
+    if (op->isError()) {
         WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         return;
@@ -641,8 +631,7 @@ void StreamChannelHandler::onStreamedMediaChannelConferenceSplitChannelFinished(
 
 void StreamChannelHandler::onStreamedMediaChannelConferenceMergeChannelFinished(Tp::PendingOperation *op)
 {
-    if(op->isError())
-    {
+    if (op->isError()) {
         WARNING_T("Operation failed: %s: %s", qPrintable(op->errorName()), qPrintable(op->errorMessage()));
         emit this->error(QString("Telepathy Operation Failed: %1 - %2").arg(op->errorName(), op->errorMessage()));
         return;
@@ -668,14 +657,10 @@ void StreamChannelHandler::onStreamedMediaChannelGroupMembersChanged(QString mes
     QDBusPendingReply<Tp::UIntList> reply = groupIface->GetMembers();
     reply.waitForFinished();
 
-    if(reply.isValid())
-    {
-        if(reply.value().count() == 0)
-        {
+    if (reply.isValid()) {
+        if (reply.value().count() == 0) {
             setStatus(STATUS_DISCONNECTED);
-        }
-        else if (d->status != STATUS_HELD)
-        {
+        } else if (d->status != STATUS_HELD) {
             setStatus(STATUS_ACTIVE);
         }
     }
@@ -712,8 +697,7 @@ void StreamChannelHandler::timerEvent(QTimerEvent *event)
 {
     Q_D(StreamChannelHandler);
 
-    if(isOngoing() && event->timerId() == d->durationTimerId)
-    {
+    if (isOngoing() && event->timerId() == d->durationTimerId) {
         d->duration = get_tick() - d->connectedAt;
         emit this->durationChanged(duration());
     }
@@ -752,16 +736,13 @@ void StreamChannelHandler::onStatusChanged()
     TRACE
     Q_D(StreamChannelHandler);
 
-    if(isOngoing())
-    {
+    if (isOngoing()) {
         if (d->durationTimerId == -1) {
             d->durationTimerId = this->startTimer(1000);
             d->elapsedTimer.start();
             d->connectedAt = get_tick();
         }
-    }
-    else if (d->durationTimerId != -1)
-    {
+    } else if (d->durationTimerId != -1) {
         this->killTimer(d->durationTimerId);
         d->durationTimerId = -1;
     }

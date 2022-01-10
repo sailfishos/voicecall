@@ -32,7 +32,7 @@ class BasicVoiceCallConfigurator : public QObject
 
 public:
     explicit BasicVoiceCallConfigurator(QObject *parent = 0);
-            ~BasicVoiceCallConfigurator();
+    ~BasicVoiceCallConfigurator();
 
 Q_SIGNALS:
 

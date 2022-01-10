@@ -34,7 +34,7 @@ class CallChannelHandler : public BaseChannelHandler
 
 public:
     explicit CallChannelHandler(const QString &id, Tp::CallChannelPtr channel, const QDateTime &userActionTime, TelepathyProvider *provider = 0);
-            ~CallChannelHandler();
+    ~CallChannelHandler();
 
     /*** AbstractVoiceCallHandler Implementation ***/
     AbstractVoiceCallProvider* provider() const;

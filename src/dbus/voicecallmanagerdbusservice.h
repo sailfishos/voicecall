@@ -30,7 +30,7 @@ class VoiceCallManagerDBusService : public AbstractVoiceCallManagerPlugin
 
 public:
     explicit VoiceCallManagerDBusService(QObject *parent = 0);
-            ~VoiceCallManagerDBusService();
+    ~VoiceCallManagerDBusService();
 
     QString pluginId() const;
 

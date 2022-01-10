@@ -184,7 +184,7 @@ void FarstreamChannel::deinitGstreamer()
 {
     LIFETIME_TRACER();
 
-    foreach(FsElementAddedNotifier * notifier, mFsNotifiers) {
+    foreach (FsElementAddedNotifier *notifier, mFsNotifiers) {
         fs_element_added_notifier_remove(notifier, GST_BIN(mGstPipeline));
         g_object_unref(notifier);
     }
@@ -336,8 +336,7 @@ GstElement *FarstreamChannel::pushElement(GstElement *bin, GstElement *&last, co
     if (!e) {
         if (optional) {
             qDebug() << "Failed to create or link optional element " << factory;
-        }
-        else {
+        } else {
             setError(QString("Failed to create or link element ") + factory);
         }
         return NULL;
@@ -417,8 +416,7 @@ void FarstreamChannel::initAudioOutput()
     if (strcmp(AUDIO_SINK_ELEMENT, "pulsesink")) {
         pushElement(mGstAudioOutput, source, "audioresample", true, NULL, false);
         pushElement(mGstAudioOutput, source, "volume", true, &mGstAudioOutputVolume, false);
-    }
-    else {
+    } else {
         mGstAudioOutputVolume = NULL;
     }
     pushElement(mGstAudioOutput, source, AUDIO_SINK_ELEMENT, false, &mGstAudioOutputActualSink ,false);
@@ -739,9 +737,9 @@ double FarstreamChannel::volume() const
 
 void FarstreamChannel::stop()
 {
-  if (mGstPipeline) {
-    gst_element_set_state(mGstPipeline, GST_STATE_NULL);
-  }
+    if (mGstPipeline) {
+        gst_element_set_state(mGstPipeline, GST_STATE_NULL);
+    }
 }
 
 GstElement *FarstreamChannel::addElementToBin(GstElement *bin, GstElement *src, const char *factoryName, bool checkLink)
@@ -785,10 +783,10 @@ GstElement *FarstreamChannel::addAndLink(GstBin *binobj, GstElement *src, GstEle
     }
 
     if (checkLink) {
-      res = gst_element_link(src, ret);
+        res = gst_element_link(src, ret);
     }
     else {
-      res = gst_element_link_pads_full(src, NULL, ret, NULL, GST_PAD_LINK_CHECK_NOTHING);
+        res = gst_element_link_pads_full(src, NULL, ret, NULL, GST_PAD_LINK_CHECK_NOTHING);
     }
     if (!res) {
         setError(QLatin1String("Failed to link "));
@@ -813,8 +811,7 @@ void FarstreamChannel::onFsConferenceAdded(TfChannel *tfc, FsConference * conf, 
 
     /* Add notifier to set the various element properties as needed */
     GKeyFile *keyfile = fs_utils_get_default_element_properties(GST_ELEMENT(conf));
-    if (keyfile != NULL)
-    {
+    if (keyfile != NULL) {
         qDebug() << "Loaded default codecs for " << GST_ELEMENT_NAME(conf);
         FsElementAddedNotifier *notifier = fs_element_added_notifier_new();
         fs_element_added_notifier_set_properties_from_keyfile(notifier, keyfile);
@@ -866,15 +863,15 @@ void FarstreamChannel::onFsConferenceRemoved(TfChannel *tfc, FsConference * conf
 
 static const char *get_media_type_string(guint type)
 {
-  switch (type) {
+    switch (type) {
     case TP_MEDIA_STREAM_TYPE_AUDIO:
-      return "audio";
+        return "audio";
     case TP_MEDIA_STREAM_TYPE_VIDEO:
-      return "video";
+        return "video";
     default:
-      Q_ASSERT(false);
-      return "unknown";
-  }
+        Q_ASSERT(false);
+        return "unknown";
+    }
 }
 
 void FarstreamChannel::addBin(GstElement *bin)
@@ -992,12 +989,10 @@ void FarstreamChannel::removeBin(GstElement *bin, bool isSink)
     if (!peer) {
         if (isSink) {
           qDebug() << "Pad has no peer, but it's from a sink which may not have been added, done";
-        }
-        else {
+        } else {
           setError("Pad has no peer");
         }
-    }
-    else {
+    } else {
         bool resUnlink = GST_PAD_IS_SRC (pad) ? gst_pad_unlink (pad, peer) : gst_pad_unlink(peer, pad);
         if (!resUnlink) {
             setError("GStreamer could not unlink output bin pad");

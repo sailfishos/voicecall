@@ -68,7 +68,7 @@ OfonoVoiceCallHandler::OfonoVoiceCallHandler(const QString &handlerId, const QSt
     QObject::connect(d->ofonoVoiceCall, SIGNAL(stateChanged(QString)), SLOT(onStatusChanged()));
 
     QObject::connect(d->ofonoVoiceCall, SIGNAL(validChanged(bool)), SLOT(onValidChanged(bool)));
-    if(d->ofonoVoiceCall->isValid()) {
+    if (d->ofonoVoiceCall->isValid()) {
         onValidChanged(true);
     }
 }
@@ -84,8 +84,7 @@ void OfonoVoiceCallHandler::onValidChanged(bool isValid)
 {
     Q_D(OfonoVoiceCallHandler);
 
-    if (isValid)
-    {
+    if (isValid) {
         // Properties are now ready
         d->isIncoming = d->ofonoVoiceCall->state() == QLatin1String("incoming");
     }
@@ -176,20 +175,21 @@ AbstractVoiceCallHandler::VoiceCallStatus OfonoVoiceCallHandler::status() const
     Q_D(const OfonoVoiceCallHandler);
     QString state = d->ofonoVoiceCall->state();
 
-    if(state == "active")
+    if (state == "active") {
         return STATUS_ACTIVE;
-    else if(state == "held")
+    } else if (state == "held") {
         return STATUS_HELD;
-    else if(state == "dialing")
+    } else if (state == "dialing") {
         return STATUS_DIALING;
-    else if(state == "alerting")
+    } else if (state == "alerting") {
         return STATUS_ALERTING;
-    else if(state == "incoming")
+    } else if (state == "incoming") {
         return STATUS_INCOMING;
-    else if(state == "waiting")
+    } else if (state == "waiting") {
         return STATUS_WAITING;
-    else if(state == "disconnected")
+    } else if (state == "disconnected") {
         return STATUS_DISCONNECTED;
+    }
 
     return STATUS_NULL;
 }
@@ -243,8 +243,7 @@ void OfonoVoiceCallHandler::timerEvent(QTimerEvent *event)
     Q_D(OfonoVoiceCallHandler);
 
     // Whilst call is active, increase duration by a second each second.
-    if(isOngoing() && event->timerId() == d->durationTimerId)
-    {
+    if (isOngoing() && event->timerId() == d->durationTimerId) {
         d->duration += d->elapsedTimer.restart();
         emit this->durationChanged(d->duration);
     }
@@ -255,15 +254,12 @@ void OfonoVoiceCallHandler::onStatusChanged()
     TRACE
     Q_D(OfonoVoiceCallHandler);
 
-    if (isOngoing())
-    {
+    if (isOngoing()) {
         if (d->durationTimerId == -1) {
             d->durationTimerId = this->startTimer(1000);
             d->elapsedTimer.start();
         }
-    }
-    else if (d->durationTimerId != -1)
-    {
+    } else if (d->durationTimerId != -1) {
         this->killTimer(d->durationTimerId);
         d->durationTimerId = -1;
     }

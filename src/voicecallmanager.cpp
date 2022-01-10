@@ -109,7 +109,8 @@ void VoiceCallManager::appendProvider(AbstractVoiceCallProvider *provider)
 {
     TRACE
     Q_D(VoiceCallManager);
-    if(d->providers.contains(provider->providerId())) return;
+    if (d->providers.contains(provider->providerId()))
+        return;
 
     DEBUG_T("VCM: Registering voice call provider: %s", qPrintable(provider->providerId()));
     QObject::connect(provider,
@@ -134,7 +135,8 @@ void VoiceCallManager::removeProvider(AbstractVoiceCallProvider *provider)
 {
     TRACE
     Q_D(VoiceCallManager);
-    if(!d->providers.contains(provider->providerId())) return;
+    if (!d->providers.contains(provider->providerId()))
+        return;
 
     DEBUG_T("VCM: Deregistering voice call provider: %s", qPrintable(provider->providerId()));
     QObject::disconnect(provider,
@@ -168,8 +170,7 @@ int VoiceCallManager::voiceCallCount() const
     Q_D(const VoiceCallManager);
     int result = 0;
 
-    foreach(AbstractVoiceCallProvider *provider, d->providers.values())
-    {
+    foreach (AbstractVoiceCallProvider *provider, d->providers.values()) {
         result += provider->voiceCalls().length();
     }
 
@@ -182,8 +183,7 @@ QList<AbstractVoiceCallHandler*> VoiceCallManager::voiceCalls() const
     Q_D(const VoiceCallManager);
     QList<AbstractVoiceCallHandler*> results;
 
-    foreach(AbstractVoiceCallProvider *provider, d->providers)
-    {
+    foreach (AbstractVoiceCallProvider *provider, d->providers) {
         results.append(provider->voiceCalls());
     }
 
@@ -292,8 +292,7 @@ bool VoiceCallManager::dial(const QString &providerId, const QString &msisdn)
     Q_D(VoiceCallManager);
     AbstractVoiceCallProvider *provider = d->providers.value(providerId);
 
-    if(!provider)
-    {
+    if (!provider) {
         this->setError(QString("*** Unable to find voice call provider with id: ") + providerId);
         return false;
     }
@@ -341,7 +340,6 @@ void VoiceCallManager::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
             && d->deviceLock.state() == NemoDeviceLock::DeviceLock::ManagerLockout) {
         handler->hangup();
         return;
-
     }
 #endif
 
@@ -351,8 +349,7 @@ void VoiceCallManager::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
     emit this->voiceCallAdded(handler);
     emit this->voiceCallsChanged();
 
-    if(!d->activeVoiceCall)
-    {
+    if (!d->activeVoiceCall) {
         d->activeVoiceCall = handler;
         emit this->activeVoiceCallChanged();
     }
@@ -372,8 +369,7 @@ void VoiceCallManager::onVoiceCallRemoved(const QString &handlerId)
     emit this->voiceCallRemoved(handlerId);
     emit this->voiceCallsChanged();
 
-    if (d->activeVoiceCall && d->activeVoiceCall->handlerId() == handlerId)
-    {
+    if (d->activeVoiceCall && d->activeVoiceCall->handlerId() == handlerId) {
         d->activeVoiceCall = NULL;
         emit this->activeVoiceCallChanged();
     }

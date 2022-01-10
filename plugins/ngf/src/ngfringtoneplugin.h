@@ -33,7 +33,7 @@ class NgfRingtonePlugin : public AbstractVoiceCallManagerPlugin
 
 public:
     explicit NgfRingtonePlugin(QObject *parent = 0);
-            ~NgfRingtonePlugin();
+    ~NgfRingtonePlugin();
 
     QString pluginId() const;
 

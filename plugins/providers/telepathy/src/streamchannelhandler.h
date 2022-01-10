@@ -33,7 +33,7 @@ class StreamChannelHandler : public BaseChannelHandler
 
 public:
     explicit StreamChannelHandler(const QString &id, Tp::StreamedMediaChannelPtr channel, const QDateTime &userActionTime, TelepathyProvider *provider = 0);
-            ~StreamChannelHandler();
+    ~StreamChannelHandler();
 
     /*** AbstractVoiceCallHandler Implementation ***/
     AbstractVoiceCallProvider* provider() const;

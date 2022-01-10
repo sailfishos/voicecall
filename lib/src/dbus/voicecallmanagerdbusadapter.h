@@ -48,7 +48,7 @@ class VoiceCallManagerDBusAdapter : public QDBusAbstractAdaptor
 
 public:
     explicit VoiceCallManagerDBusAdapter(QObject *parent = 0);
-            ~VoiceCallManagerDBusAdapter();
+    ~VoiceCallManagerDBusAdapter();
 
     void configure(VoiceCallManagerInterface *manager);
 

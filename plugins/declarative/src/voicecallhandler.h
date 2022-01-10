@@ -43,7 +43,7 @@ public:
     };
 
     explicit VoiceCallHandler(const QString &handlerId, QObject *parent = 0);
-            ~VoiceCallHandler();
+    ~VoiceCallHandler();
 
     QDBusInterface* interface() const;
 

@@ -231,7 +231,7 @@ void TelepathyProviderPlugin::handleChannels(const Tp::MethodInvocationContextPt
     }
 
     TelepathyProvider *provider = d->providers.value(account.data()->uniqueIdentifier());
-    DEBUG_T("Found provider for account %1, invoking provider to create handlers.", qPrintable(account.data()->uniqueIdentifier()));
+    DEBUG_T("Found provider for account %s, invoking provider to create handlers.", qPrintable(account.data()->uniqueIdentifier()));
     foreach (Tp::ChannelPtr ch, channels) {
         provider->createHandler(ch, userActionTime.isValid() ? userActionTime : QDateTime::currentDateTime());
     }

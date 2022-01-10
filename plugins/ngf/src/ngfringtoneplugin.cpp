@@ -141,7 +141,7 @@ void NgfRingtonePlugin::onVoiceCallStatusChanged(AbstractVoiceCallHandler *handl
             return;
     }
 
-    DEBUG_T("Voice call status changed to: ", qPrintable(handler->statusText()));
+    DEBUG_T("Voice call status changed to: %s", qPrintable(handler->statusText()));
 
     if (handler->status() != AbstractVoiceCallHandler::STATUS_INCOMING) {
         if (d->currentCall == handler) {

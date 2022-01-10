@@ -118,7 +118,7 @@ QString VoiceCallManagerDBusAdapter::activeVoiceCall() const
     if (d->manager->activeVoiceCall()) {
         return d->manager->activeVoiceCall()->handlerId();
     }
-    return QString::null;
+    return QString();
 }
 
 /*!

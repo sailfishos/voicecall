@@ -132,7 +132,8 @@ QString CallChannelHandler::lineId() const
 {
     TRACE
     Q_D(const CallChannelHandler);
-    if(!d->channel->isReady()) return QString::null;
+    if (!d->channel->isReady())
+        return QString();
     return d->channel->targetId();
 }
 
@@ -394,7 +395,7 @@ void CallChannelHandler::onCallChannelCallStateChanged(Tp::CallState state)
 
     case Tp::CallStateEnded:
         setStatus(STATUS_DISCONNECTED);
-        this->invalidated(QString::null, QString::null);
+        this->invalidated(QString(), QString());
         break;
 
     default:

@@ -183,7 +183,8 @@ void StreamChannelHandler::setParentHandlerId(const QString &handler)
 QString StreamChannelHandler::lineId() const
 {
     Q_D(const StreamChannelHandler);
-    if(!d->channel->isReady()) return QString::null;
+    if (!d->channel->isReady())
+        return QString();
     return d->channel->targetId();
 }
 

@@ -121,7 +121,7 @@ QVariant VoiceCallProviderModel::data(const QModelIndex &index, int role) const
         return QVariant();
 
     QStringList keys = d->providers.keys();
-    qSort(keys);
+    std::sort(keys.begin(), keys.end());
 
     VoiceCallProviderData provider = d->providers.value(keys.value(index.row()));
 
@@ -166,7 +166,7 @@ QString VoiceCallProviderModel::id(int index) const
     if(index > d->providers.count()) return QString::null;
 
     QStringList keys = d->providers.keys();
-    qSort(keys);
+    std::sort(keys.begin(), keys.end());
 
     VoiceCallProviderData provider = d->providers.value(keys.value(index));
     return provider.id;
@@ -178,7 +178,7 @@ QString VoiceCallProviderModel::type(int index) const
     Q_D(const VoiceCallProviderModel);
     if(index > d->providers.count()) return QString::null;
     QStringList keys = d->providers.keys();
-    qSort(keys);
+    std::sort(keys.begin(), keys.end());
 
     VoiceCallProviderData provider = d->providers.value(keys.value(index));
     return provider.type;
@@ -190,7 +190,7 @@ QString VoiceCallProviderModel::label(int index) const
     Q_D(const VoiceCallProviderModel);
     if(index > d->providers.count()) return QString::null;
     QStringList keys = d->providers.keys();
-    qSort(keys);
+    std::sort(keys.begin(), keys.end());
 
     VoiceCallProviderData provider = d->providers.value(keys.value(index));
     return provider.label;

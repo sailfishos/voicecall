@@ -117,7 +117,6 @@ bool TelepathyProviderPlugin::initialize()
     Tp::enableWarnings(true);
 #endif
 
-    g_type_init();
     gst_init(&argc, &argv);
 
     d->am = Tp::AccountManager::create();

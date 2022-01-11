@@ -35,7 +35,7 @@ class McePlugin : public AbstractVoiceCallManagerPlugin {
 
 public:
     explicit McePlugin(QObject *parent = 0);
-            ~McePlugin();
+    ~McePlugin();
 
     QString pluginId() const;
 

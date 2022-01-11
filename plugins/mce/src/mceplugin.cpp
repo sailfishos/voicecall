@@ -118,25 +118,20 @@ void McePlugin::onVoiceCallsChanged()
     Q_D(McePlugin);
 
     QString state = "none";
-    bool    isEmergency = false;
+    bool isEmergency = false;
 
     QDBusMessage message = QDBusMessage::createMethodCall(MCE_SERVICE, MCE_PATH, MCE_IFACE, "req_call_state_change");
 
-    if(d->manager->voiceCallCount() == 0)
-    {
+    if (d->manager->voiceCallCount() == 0) {
         d->calls.clear();
-    }
-    else
-    {
+    } else {
         QStringList handlerIds;
 
         // Go through call handlers and start processing status changes.
-        foreach(AbstractVoiceCallHandler *call, d->manager->voiceCalls())
-        {
+        foreach (AbstractVoiceCallHandler *call, d->manager->voiceCalls()) {
             handlerIds.append(call->handlerId());
 
-            if(!d->calls.contains(call->handlerId()))
-            {
+            if (!d->calls.contains(call->handlerId())) {
                 DEBUG_T("Registering call handler from internal dictionary.");
 
                 QObject::connect(call, SIGNAL(statusChanged(VoiceCallStatus)), SLOT(onVoiceCallsChanged()));
@@ -162,15 +157,16 @@ void McePlugin::onVoiceCallsChanged()
             case AbstractVoiceCallHandler::STATUS_HELD:
             case AbstractVoiceCallHandler::STATUS_WAITING:
                 DEBUG_T("ACTIVE");
-                if(state != "ringing") state = "active";
+                if (state != "ringing")
+                    state = "active";
                 continue;
             }
         }
 
         // Check for, and remove, removed calls from our call dictionary.
-        foreach(QString callId, d->calls.keys())
-        {
-            if(handlerIds.contains(callId)) continue;
+        foreach (QString callId, d->calls.keys()) {
+            if (handlerIds.contains(callId))
+                continue;
 
             AbstractVoiceCallHandler *call = d->calls.value(callId);
 

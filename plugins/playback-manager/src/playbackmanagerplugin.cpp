@@ -114,8 +114,7 @@ void PlaybackManagerPlugin::setMode(const QString &mode)
     Q_D(PlaybackManagerPlugin);
     bool on = false;
 
-    if(mode == "ihf")
-    {
+    if (mode == "ihf") {
         on = true;
     }
 
@@ -125,13 +124,12 @@ void PlaybackManagerPlugin::setMode(const QString &mode)
                                                           ORG_MAEMO_PLAYBACK_REQUEST_PRIVACY_OVERRIDE);
     message << on;
 
-    if(!QDBusConnection::sessionBus().send(message))
-    {
+    if (!QDBusConnection::sessionBus().send(message)) {
         WARNING_T("Failed to send RequestPrivacyOverride method call.");
         return;
-    }
-    else
+    } else {
         DEBUG_T("Set PrivacyOverride %s.", on ? "true" : "false");
+    }
 
     d->manager->onAudioModeChanged(mode);
 }
@@ -146,13 +144,12 @@ void PlaybackManagerPlugin::setMuteMicrophone(bool on)
                                                           ORG_MAEMO_PLAYBACK_REQUEST_MUTE);
     message << on;
 
-    if(!QDBusConnection::sessionBus().send(message))
-    {
+    if (!QDBusConnection::sessionBus().send(message)) {
         WARNING_T("Failed to send RequestMute method call.");
         return;
-    }
-    else
+    } else {
         DEBUG_T("Set Mute %s.", on ? "true" : "false");
+    }
 
     d->manager->onMuteMicrophoneChanged(on);
 }
@@ -167,8 +164,7 @@ void PlaybackManagerPlugin::setMuteSpeaker(bool on)
                                                           ORG_MAEMO_PLAYBACK_REQUEST_MUTE);
     message << !on;
 
-    if(!QDBusConnection::sessionBus().send(message))
-    {
+    if (!QDBusConnection::sessionBus().send(message)) {
         WARNING_T("Failed to send RequestMute method call.");
         return;
     }
@@ -181,11 +177,9 @@ void PlaybackManagerPlugin::onVoiceCallsChanged()
     TRACE
     Q_D(PlaybackManagerPlugin);
 
-    if(d->manager->voiceCalls().empty())
-    {
+    if (d->manager->voiceCalls().empty()) {
         d->manager->onAudioModeChanged("earpiece");
         d->manager->onMuteMicrophoneChanged(false);
         d->manager->onMuteSpeakerChanged(false);
     }
 }
-

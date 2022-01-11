@@ -53,7 +53,7 @@ public:
     };
 
     explicit VoiceCallProviderModel(VoiceCallManager *manager);
-            ~VoiceCallProviderModel();
+    ~VoiceCallProviderModel();
 
     int count() const;
     int rowCount(const QModelIndex &parent) const;

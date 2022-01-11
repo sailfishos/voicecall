@@ -1,9 +1,9 @@
 Name:       voicecall-qt5
 Summary:    Dialer engine for Nemo Mobile
-Version:    0.6.20
+Version:    0.7.14
 Release:    1
-License:    ASL 2.0
-URL:        https://git.sailfishos.org/mer-core/voicecall
+License:    ASL 2.0 and GPLv2+ and LGPLv2+ and BSD
+URL:        https://github.com/sailfishos/voicecall
 Source0:    %{name}-%{version}.tar.bz2
 Source1:    %{name}.privileges
 Requires:   systemd
@@ -22,27 +22,12 @@ BuildRequires:  pkgconfig(systemd)
 BuildRequires:  oneshot
 %{_oneshot_requires_post}
 
-Provides:   voicecall-core >= 0.4.9
-Provides:   voicecall-libs >= 0.4.9
-Provides:   voicecall-plugin-pulseaudio >= 0.4.9
-Provides:   voicecall-qt5-plugin-pulseaudio >= 0.5.1
-Provides:   voicecall-plugin-resource-policy >= 0.4.9
-Provides:   voicecall-qt5-plugin-resource-policy >= 0.5.1
-Obsoletes:   voicecall-core < 0.4.9
-Obsoletes:   voicecall-libs < 0.4.9
-Obsoletes:   voicecall-plugin-pulseaudio < 0.4.9
-Obsoletes:   voicecall-qt5-plugin-pulseaudio < 0.5.1
-Obsoletes:   voicecall-plugin-resource-policy < 0.4.9
-Obsoletes:   voicecall-qt5-plugin-resource-policy < 0.5.1
-
 %description
 %{summary}.
 
 %package devel
 Summary:    Voicecall development package
 Requires:   %{name} = %{version}-%{release}
-Provides:   voicecall-devel >= 0.4.9
-Obsoletes:  voicecall-devel < 0.4.9
 
 %description devel
 %{summary}.
@@ -60,9 +45,7 @@ BuildRequires:  pkgconfig(TelepathyQt5Farstream)
 %package plugin-ofono
 Summary:    Voicecall plugin for calls using ofono
 Requires:   %{name} = %{version}-%{release}
-Provides:   voicecall-plugin-ofono >= 0.4.9
 Conflicts:  voicecall-qt5-plugin-telepathy
-Obsoletes:  voicecall-plugin-ofono < 0.4.9
 BuildRequires:  pkgconfig(qofono-qt5)
 
 %description plugin-ofono
@@ -109,6 +92,7 @@ fi
 
 %files
 %defattr(-,root,root,-)
+%license LICENSE.LGPL21 LICENSE.GPL2 LICENSE.ASL2 LICENSE.BSD
 %{_libdir}/libvoicecall.so.1
 %{_libdir}/libvoicecall.so.1.0
 %{_libdir}/libvoicecall.so.1.0.0

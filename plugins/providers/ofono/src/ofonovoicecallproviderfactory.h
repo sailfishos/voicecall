@@ -30,7 +30,7 @@ class OfonoVoiceCallProviderFactory : public AbstractVoiceCallManagerPlugin
     Q_PLUGIN_METADATA(IID "org.nemomobile.voicecall.ofono")
 public:
     explicit OfonoVoiceCallProviderFactory(QObject *parent = 0);
-            ~OfonoVoiceCallProviderFactory();
+    ~OfonoVoiceCallProviderFactory();
 
     QString pluginId() const;
 

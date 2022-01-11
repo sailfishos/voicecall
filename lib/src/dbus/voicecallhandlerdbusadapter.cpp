@@ -224,8 +224,7 @@ QStringList VoiceCallHandlerDBusAdapter::childCalls() const
     Q_D(const VoiceCallHandlerDBusAdapter);
     QStringList results;
 
-    foreach(AbstractVoiceCallHandler *handler, d->handler->childCalls())
-    {
+    foreach (AbstractVoiceCallHandler *handler, d->handler->childCalls()) {
         results.append(handler->handlerId());
     }
 

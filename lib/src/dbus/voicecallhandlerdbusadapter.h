@@ -48,7 +48,7 @@ class VoiceCallHandlerDBusAdapter : public QDBusAbstractAdaptor
 
 public:
     explicit VoiceCallHandlerDBusAdapter(AbstractVoiceCallHandler *parent = 0);
-            ~VoiceCallHandlerDBusAdapter();
+    ~VoiceCallHandlerDBusAdapter();
 
     QString providerId() const;
     QString handlerId() const;

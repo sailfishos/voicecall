@@ -29,7 +29,7 @@ class VoiceCallManager : public VoiceCallManagerInterface
 
 public:
     explicit VoiceCallManager(QObject *parent = 0);
-            ~VoiceCallManager();
+    ~VoiceCallManager();
 
     QList<AbstractVoiceCallProvider*> providers() const;
 

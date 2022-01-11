@@ -30,7 +30,7 @@ class AudioCallPolicyProxyPrivate
 public:
     AudioCallPolicyProxyPrivate(AudioCallPolicyProxy *q, AbstractVoiceCallHandler *s)
         : q_ptr(q), subject(s),
-          resourceSet(NULL), onAcquireReceiver(NULL), onAcquireMethod(QString::null)
+          resourceSet(NULL), onAcquireReceiver(NULL)
     { /* ... */ }
 
     AudioCallPolicyProxy        *q_ptr;
@@ -184,8 +184,7 @@ void AudioCallPolicyProxy::createResourceSet()
     TRACE
     Q_D(AudioCallPolicyProxy);
 
-    if(d->resourceSet)
-    {
+    if (d->resourceSet) {
         DEBUG_T("Resource set already configured");
         return;
     }
@@ -212,8 +211,7 @@ void AudioCallPolicyProxy::deleteResourceSet()
     TRACE
     Q_D(AudioCallPolicyProxy);
 
-    if(!d->resourceSet)
-    {
+    if (!d->resourceSet) {
         DEBUG_T("Resource set not configured");
         return;
     }
@@ -229,8 +227,7 @@ void AudioCallPolicyProxy::connectResourceSet()
     TRACE
     Q_D(AudioCallPolicyProxy);
 
-    if(!d->resourceSet)
-    {
+    if (!d->resourceSet) {
         DEBUG_T("Resource set not configured.");
         return;
     }
@@ -264,8 +261,7 @@ void AudioCallPolicyProxy::disconnectResourceSet()
     TRACE
     Q_D(AudioCallPolicyProxy);
 
-    if(!d->resourceSet)
-    {
+    if (!d->resourceSet) {
         DEBUG_T("Resource set not configured.");
         return;
     }
@@ -308,7 +304,7 @@ void AudioCallPolicyProxy::onResourceSetError(quint32 errorno, const char *error
     TRACE
     Q_D(AudioCallPolicyProxy);
     d->onAcquireReceiver = NULL;
-    d->onAcquireMethod = QString::null;
+    d->onAcquireMethod.clear();
     this->hangup();
 }
 
@@ -316,15 +312,14 @@ void AudioCallPolicyProxy::onResourceSetGranted()
 {
     TRACE
     Q_D(AudioCallPolicyProxy);
-    if(!d->onAcquireReceiver || d->onAcquireMethod.isNull() || d->onAcquireMethod.isEmpty())
-    {
+    if (!d->onAcquireReceiver || d->onAcquireMethod.isEmpty()) {
         DEBUG_T("No receiver or method to invoke.");
         return;
     }
 
     QTimer::singleShot(0, d->onAcquireReceiver, qPrintable(d->onAcquireMethod));
     d->onAcquireReceiver = NULL;
-    d->onAcquireMethod = QString::null;
+    d->onAcquireMethod.clear();
 }
 
 void AudioCallPolicyProxy::onResourceSetDenied()
@@ -332,7 +327,7 @@ void AudioCallPolicyProxy::onResourceSetDenied()
     TRACE
     Q_D(AudioCallPolicyProxy);
     d->onAcquireReceiver = NULL;
-    d->onAcquireMethod = QString::null;
+    d->onAcquireMethod.clear();
     this->hangup();
 }
 
@@ -341,7 +336,7 @@ void AudioCallPolicyProxy::onResourceSetLost()
     TRACE
     Q_D(AudioCallPolicyProxy);
     d->onAcquireReceiver = NULL;
-    d->onAcquireMethod = QString::null;
+    d->onAcquireMethod.clear();
     this->hangup();
 }
 

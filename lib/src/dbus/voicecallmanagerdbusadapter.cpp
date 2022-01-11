@@ -85,8 +85,7 @@ QStringList VoiceCallManagerDBusAdapter::providers() const
     Q_D(const VoiceCallManagerDBusAdapter);
     QStringList results;
 
-    foreach(AbstractVoiceCallProvider *provider, d->manager->providers())
-    {
+    foreach (AbstractVoiceCallProvider *provider, d->manager->providers()) {
         results.append(provider->providerId() + ":" + provider->providerType());
     }
 
@@ -102,8 +101,7 @@ QStringList VoiceCallManagerDBusAdapter::voiceCalls() const
     Q_D(const VoiceCallManagerDBusAdapter);
     QStringList results;
 
-    foreach(AbstractVoiceCallHandler *handler, d->manager->voiceCalls())
-    {
+    foreach (AbstractVoiceCallHandler *handler, d->manager->voiceCalls()) {
         results.append(handler->handlerId());
     }
 
@@ -117,11 +115,10 @@ QString VoiceCallManagerDBusAdapter::activeVoiceCall() const
 {
     TRACE
     Q_D(const VoiceCallManagerDBusAdapter);
-    if(d->manager->activeVoiceCall())
-    {
+    if (d->manager->activeVoiceCall()) {
         return d->manager->activeVoiceCall()->handlerId();
     }
-    return QString::null;
+    return QString();
 }
 
 /*!
@@ -253,8 +250,7 @@ bool VoiceCallManagerDBusAdapter::dial(const QString &provider, const QString &m
 {
     TRACE
     Q_D(VoiceCallManagerDBusAdapter);
-    if(!d->manager->dial(provider, msisdn))
-    {
+    if (!d->manager->dial(provider, msisdn)) {
         emit this->error(d->manager->errorString());
         return false;
     }

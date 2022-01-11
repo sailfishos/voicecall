@@ -30,7 +30,7 @@ class BasicRingtoneNotificationProvider : public AbstractVoiceCallManagerPlugin
 
 public:
     explicit BasicRingtoneNotificationProvider(QObject *parent = 0);
-            ~BasicRingtoneNotificationProvider();
+    ~BasicRingtoneNotificationProvider();
 
     QString pluginId() const;
 

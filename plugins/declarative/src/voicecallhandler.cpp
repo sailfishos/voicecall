@@ -89,8 +89,7 @@ void VoiceCallHandler::initialize(bool notifyError)
     Q_D(VoiceCallHandler);
     bool success = false;
 
-    if(d->interface->isValid())
-    {
+    if (d->interface->isValid()) {
         success = true;
         success &= (bool)QObject::connect(d->interface, SIGNAL(error(QString)), SIGNAL(error(QString)));
         success &= (bool)QObject::connect(d->interface, SIGNAL(statusChanged(int,QString)), SLOT(onStatusChanged(int,QString)));
@@ -105,10 +104,10 @@ void VoiceCallHandler::initialize(bool notifyError)
         success &= (bool)QObject::connect(d->interface, SIGNAL(childCallsChanged(QStringList)), SLOT(onChildCallsChanged(QStringList)));
     }
 
-    if(!(d->connected = success))
-    {
+    if (!(d->connected = success)) {
         QTimer::singleShot(2000, this, SLOT(initialize()));
-        if(notifyError) emit this->error("Failed to connect to VCM D-Bus service.");
+        if (notifyError)
+            emit this->error("Failed to connect to VCM D-Bus service.");
     } else {
         QDBusReply<QVariantMap> reply = d->interface->call("getProperties");
         if (reply.isValid()) {

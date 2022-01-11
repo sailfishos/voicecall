@@ -8,12 +8,7 @@ QMAKE_CXXFLAGS += -std=c++0x
 # it's only used for some macros.
 INCLUDEPATH += $$PWD/../lib/src
 
-!no_libvoicecall {
-    LIBS += -L$$PWD/../lib/src -lvoicecall
-}
+LIBS += -L$$PWD/../lib/src -lvoicecall
 
-# used as e.g. the declarative plugin is a QML plugin, not a voicecall plugin
-!no_plugininstall {
-    target.path = $$[QT_INSTALL_LIBS]/voicecall/plugins
-    INSTALLS += target
-}
+target.path = $$[QT_INSTALL_LIBS]/voicecall/plugins
+INSTALLS += target

@@ -30,7 +30,7 @@ class AudioCallPolicyProxy : public AbstractVoiceCallHandler
 
 public:
     explicit AudioCallPolicyProxy(AbstractVoiceCallHandler *subject, QObject *parent = 0);
-            ~AudioCallPolicyProxy();
+    ~AudioCallPolicyProxy();
 
     AbstractVoiceCallProvider* provider() const;
 

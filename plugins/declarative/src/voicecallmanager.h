@@ -32,7 +32,7 @@ class VoiceCallManager : public QObject
 
 public:
     explicit VoiceCallManager(QObject *parent = 0);
-            ~VoiceCallManager();
+    ~VoiceCallManager();
 
     QDBusInterface* interface() const;
 

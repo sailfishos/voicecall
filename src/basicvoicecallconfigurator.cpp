@@ -72,17 +72,15 @@ bool BasicVoiceCallConfigurator::configure(VoiceCallManagerInterface *manager)
 
     QDir pluginPath(VOICECALL_PLUGIN_DIRECTORY);
     DEBUG_T("Loading dynamic plugins from: %s", qPrintable(pluginPath.absolutePath()));
-    foreach(QString plugin, pluginPath.entryList((QStringList() << "lib*plugin*so"),
-                                                 QDir::NoDotAndDotDot | QDir::Files))
-    {
+    foreach (QString plugin, pluginPath.entryList((QStringList() << "lib*plugin*so"),
+                                                 QDir::NoDotAndDotDot | QDir::Files)) {
         DEBUG_T("Attempting to load dynamic plugin: %s", qPrintable(pluginPath.absoluteFilePath(plugin)));
 
         QPluginLoader loader(pluginPath.absoluteFilePath(plugin));
         QObject *instance = loader.instance();
         AbstractVoiceCallManagerPlugin *managerPlugin = NULL;
 
-        if(!instance)
-        {
+        if (!instance) {
             WARNING_T("Failed to load plugin: %s", qPrintable(loader.errorString()));
             loader.unload();
             continue;
@@ -90,8 +88,7 @@ bool BasicVoiceCallConfigurator::configure(VoiceCallManagerInterface *manager)
 
         managerPlugin = qobject_cast<AbstractVoiceCallManagerPlugin*>(instance);
 
-        if(!managerPlugin)
-        {
+        if (!managerPlugin) {
             WARNING_T("Failed to load plugin: No manager plugin interface.");
             loader.unload();
             continue;
@@ -114,8 +111,7 @@ bool BasicVoiceCallConfigurator::installPlugin(AbstractVoiceCallManagerPlugin *p
     Q_D(BasicVoiceCallConfigurator);
     DEBUG_T("Attempting to install plugin: %s", qPrintable(plugin->pluginId()));
 
-    if(d->plugins.contains(plugin->pluginId()))
-    {
+    if (d->plugins.contains(plugin->pluginId())) {
         DEBUG_T("Plugin already installed");
         return false;
     }
@@ -133,7 +129,8 @@ void BasicVoiceCallConfigurator::removePlugin(AbstractVoiceCallManagerPlugin *pl
 {
     TRACE
     Q_D(BasicVoiceCallConfigurator);
-    if(!d->plugins.contains(plugin->pluginId())) return;
+    if (!d->plugins.contains(plugin->pluginId()))
+        return;
 
     plugin->suspend();
     plugin->finalize();

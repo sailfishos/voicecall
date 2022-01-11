@@ -1,13 +1,12 @@
-CONFIG += no_libvoicecall no_plugininstall
-include(../../plugin.pri)
+TEMPLATE = lib
+CONFIG += plugin link_pkgconfig
+# just for common.h
+INCLUDEPATH += $$PWD/../../../lib/src
+
 QT = core dbus qml multimedia
 
 TARGET = voicecall
 uri = org.nemomobile.voicecall
-
-enable-debug {
-    DEFINES += WANT_TRACE
-}
 
 enable-ngf {
     PKGCONFIG += ngf-qt5

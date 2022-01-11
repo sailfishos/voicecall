@@ -112,8 +112,7 @@ QList<AbstractVoiceCallHandler*> OfonoVoiceCallProvider::voiceCalls() const
     Q_D(const OfonoVoiceCallProvider);
     QList<AbstractVoiceCallHandler*> results;
 
-    foreach(AbstractVoiceCallHandler* handler, d->voiceCalls.values())
-    {
+    foreach (AbstractVoiceCallHandler* handler, d->voiceCalls.values()) {
         results.append(handler);
     }
 
@@ -131,8 +130,7 @@ bool OfonoVoiceCallProvider::dial(const QString &msisdn)
 {
     TRACE
     Q_D(OfonoVoiceCallProvider);
-    if(!d->ofonoManager || !d->ofonoManager->isValid())
-    {
+    if (!d->ofonoManager || !d->ofonoManager->isValid()) {
         d->setError("ofono connection is not valid");
         return false;
     }
@@ -179,7 +177,8 @@ void OfonoVoiceCallProvider::onCallAdded(const QString &call)
 {
     TRACE
     Q_D(OfonoVoiceCallProvider);
-    if(d->voiceCalls.contains(call)) return;
+    if (d->voiceCalls.contains(call))
+        return;
 
     qDebug() << "Adding call handler " << call;
     OfonoVoiceCallHandler *handler = new OfonoVoiceCallHandler(d->manager->generateHandlerId(), call, this, d->ofonoManager);
@@ -193,12 +192,10 @@ void OfonoVoiceCallProvider::onVoiceCallHandlerValidChanged(bool isValid)
     Q_D(OfonoVoiceCallProvider);
 
     OfonoVoiceCallHandler *handler = static_cast<OfonoVoiceCallHandler *>(QObject::sender());
-    if(handler)
-    {
+    if (handler) {
         QString call = handler->path();
 
-        if(isValid && !d->voiceCalls.contains(call))
-        {
+        if (isValid && !d->voiceCalls.contains(call)) {
             d->voiceCalls.insert(call, handler);
             d->invalidVoiceCalls.remove(call);
             emit this->voiceCallAdded(handler);
@@ -211,7 +208,7 @@ void OfonoVoiceCallProvider::onCallRemoved(const QString &call)
 {
     TRACE
     Q_D(OfonoVoiceCallProvider);
-    if(!d->voiceCalls.contains(call)) {
+    if (!d->voiceCalls.contains(call)) {
         delete d->invalidVoiceCalls.take(call);
         return;
     }

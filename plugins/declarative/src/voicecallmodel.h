@@ -63,7 +63,7 @@ public:
 
     explicit VoiceCallModel(VoiceCallManager *manager);
     explicit VoiceCallModel(VoiceCallHandler *conf);
-            ~VoiceCallModel();
+    ~VoiceCallModel();
 
     int count() const;
     int rowCount(const QModelIndex &parent) const;

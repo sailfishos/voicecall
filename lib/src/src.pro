@@ -8,7 +8,6 @@ CONFIG += c++11
 HEADERS += \
     common.h \
     voicecallmanagerinterface.h \
-    abstractnotificationprovider.h \
     abstractvoicecallhandler.h \
     abstractvoicecallprovider.h \
     abstractvoicecallmanagerplugin.h \

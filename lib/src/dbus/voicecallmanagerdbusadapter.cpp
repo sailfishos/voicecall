@@ -191,7 +191,7 @@ int VoiceCallManagerDBusAdapter::totalIncomingCallDuration() const
 
     \sa totalOutgoingCallDuration(), totalIncomingCallDuration()
 */
-Q_INVOKABLE void VoiceCallManagerDBusAdapter::resetCallDurationCounters()
+void VoiceCallManagerDBusAdapter::resetCallDurationCounters()
 {
     TRACE
     Q_D(VoiceCallManagerDBusAdapter);

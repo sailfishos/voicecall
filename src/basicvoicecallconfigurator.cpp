@@ -22,7 +22,6 @@
 #include "basicvoicecallconfigurator.h"
 
 #include "dbus/voicecallmanagerdbusservice.h"
-#include "basicringtonenotificationprovider.h"
 
 #include <QDir>
 #include <QPluginLoader>
@@ -73,7 +72,7 @@ bool BasicVoiceCallConfigurator::configure(VoiceCallManagerInterface *manager)
     QDir pluginPath(VOICECALL_PLUGIN_DIRECTORY);
     DEBUG_T("Loading dynamic plugins from: %s", qPrintable(pluginPath.absolutePath()));
     foreach (QString plugin, pluginPath.entryList((QStringList() << "lib*plugin*so"),
-                                                 QDir::NoDotAndDotDot | QDir::Files)) {
+                                                  QDir::NoDotAndDotDot | QDir::Files)) {
         DEBUG_T("Attempting to load dynamic plugin: %s", qPrintable(pluginPath.absoluteFilePath(plugin)));
 
         QPluginLoader loader(pluginPath.absoluteFilePath(plugin));

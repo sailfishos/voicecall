@@ -25,13 +25,6 @@ BuildRequires:  oneshot
 %description
 %{summary}.
 
-%package devel
-Summary:    Voicecall development package
-Requires:   %{name} = %{version}-%{release}
-
-%description devel
-%{summary}.
-
 %package plugin-telepathy
 Summary:    Voicecall plugin for calls using telepathy
 Requires:   %{name} = %{version}-%{release}
@@ -96,6 +89,7 @@ fi
 %{_libdir}/libvoicecall.so.1
 %{_libdir}/libvoicecall.so.1.0
 %{_libdir}/libvoicecall.so.1.0.0
+%exclude %{_libdir}/libvoicecall.so
 %dir %{_libdir}/qt5/qml/org/nemomobile/voicecall
 %{_libdir}/qt5/qml/org/nemomobile/voicecall/libvoicecall.so
 %{_libdir}/qt5/qml/org/nemomobile/voicecall/qmldir
@@ -109,10 +103,6 @@ fi
 %{_userunitdir}/user-session.target.wants/voicecall-manager.service
 %{_datadir}/mapplauncherd/privileges.d/*
 %{_oneshotdir}/phone-move-recordings-dir
-
-%files devel
-%defattr(-,root,root,-)
-%{_libdir}/libvoicecall.so
 
 %files plugin-telepathy
 %defattr(-,root,root,-)

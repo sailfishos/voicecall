@@ -222,7 +222,16 @@ void VoiceCallManager::dial(const QString &provider, const QString &msisdn)
     QDBusPendingCall call = d->interface->asyncCall("dial", provider, msisdn);
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingBoolCallFinished(QDBusPendingCallWatcher*)));
+}
+
+void VoiceCallManager::playRingtone()
+{
+    TRACE
+    Q_D(const VoiceCallManager);
+    QDBusPendingCall call = d->interface->asyncCall("playRingtone");
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
+    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingVoidCallFinished(QDBusPendingCallWatcher*)));
 }
 
 void VoiceCallManager::silenceRingtone()
@@ -231,7 +240,7 @@ void VoiceCallManager::silenceRingtone()
     Q_D(const VoiceCallManager);
     QDBusPendingCall call = d->interface->asyncCall("silenceRingtone");
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingSilenceFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingVoidCallFinished(QDBusPendingCallWatcher*)));
 }
 
 /*
@@ -346,7 +355,7 @@ void VoiceCallManager::onActiveVoiceCallChanged()
     emit this->activeVoiceCallChanged();
 }
 
-void VoiceCallManager::onPendingCallFinished(QDBusPendingCallWatcher *watcher)
+void VoiceCallManager::onPendingBoolCallFinished(QDBusPendingCallWatcher *watcher)
 {
     TRACE
     QDBusPendingReply<bool> reply = *watcher;
@@ -360,7 +369,7 @@ void VoiceCallManager::onPendingCallFinished(QDBusPendingCallWatcher *watcher)
     watcher->deleteLater();
 }
 
-void VoiceCallManager::onPendingSilenceFinished(QDBusPendingCallWatcher *watcher)
+void VoiceCallManager::onPendingVoidCallFinished(QDBusPendingCallWatcher *watcher)
 {
     TRACE
     QDBusPendingReply<> reply = *watcher;

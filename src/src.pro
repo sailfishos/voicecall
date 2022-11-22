@@ -19,21 +19,18 @@ packagesExist(qt5-boostable) {
     warning("qt5-boostable not available; startup times will be slower")
 }
 
-QT += multimedia # for basic ringtone plugin.
 LIBS += -L../lib/src -lvoicecall
 
 HEADERS += \
     dbus/voicecallmanagerdbusservice.h \
     basicvoicecallconfigurator.h \
     voicecallmanager.h \
-    basicringtonenotificationprovider.h
 
 SOURCES += \
     dbus/voicecallmanagerdbusservice.cpp \
     basicvoicecallconfigurator.cpp \
     voicecallmanager.cpp \
     main.cpp \
-    basicringtonenotificationprovider.cpp
 
 enable-audiopolicy {
     HEADERS += audiocallpolicyproxy.h

@@ -93,6 +93,7 @@ bool NgfRingtonePlugin::start()
     Q_D(NgfRingtonePlugin);
 
     QObject::connect(d->manager, SIGNAL(voiceCallAdded(AbstractVoiceCallHandler*)), SLOT(onVoiceCallAdded(AbstractVoiceCallHandler*)));
+    QObject::connect(d->manager, SIGNAL(playRingtoneRequested()), SLOT(onPlayRingtoneRequested()));
     QObject::connect(d->manager, SIGNAL(silenceRingtoneRequested()), SLOT(onSilenceRingtoneRequested()));
 
     d->ngf->connect();
@@ -153,20 +154,8 @@ void NgfRingtonePlugin::onVoiceCallStatusChanged(AbstractVoiceCallHandler *handl
                 d->ringtoneEventId = 0;
             }
         }
-    } else if (!d->ringtoneEventId && !d->currentCall) {
+    } else if (!d->currentCall) {
         d->currentCall = handler;
-
-        QMap<QString, QVariant> props;
-        if (d->activeCallCount > 1) {
-            props.insert("play.mode", "short");
-        }
-
-        if (handler->provider()->providerType() != "tel") {
-            props.insert("type", "voip");
-        }
-
-        d->ringtoneEventId = d->ngf->play("ringtone", props);
-        DEBUG_T("Playing ringtone, event id: %u", d->ringtoneEventId);
     }
 }
 
@@ -187,6 +176,28 @@ void NgfRingtonePlugin::onVoiceCallDestroyed()
 
     --d->activeCallCount;
     DEBUG_T("Active call count: %d", d->activeCallCount);
+}
+
+void NgfRingtonePlugin::onPlayRingtoneRequested()
+{
+    TRACE
+    Q_D(NgfRingtonePlugin);
+
+    if (d->ringtoneEventId != 0 || !d->currentCall) {
+        return;
+    }
+
+    QMap<QString, QVariant> props;
+    if (d->activeCallCount > 1) {
+        props.insert("play.mode", "short");
+    }
+
+    if (d->currentCall->provider()->providerType() != "tel") {
+        props.insert("type", "voip");
+    }
+
+    d->ringtoneEventId = d->ngf->play("ringtone", props);
+    DEBUG_T("Playing ringtone, event id: %u", d->ringtoneEventId);
 }
 
 void NgfRingtonePlugin::onSilenceRingtoneRequested()

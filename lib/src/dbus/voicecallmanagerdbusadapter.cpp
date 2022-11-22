@@ -191,7 +191,7 @@ int VoiceCallManagerDBusAdapter::totalIncomingCallDuration() const
 
     \sa totalOutgoingCallDuration(), totalIncomingCallDuration()
 */
-Q_INVOKABLE void VoiceCallManagerDBusAdapter::resetCallDurationCounters()
+void VoiceCallManagerDBusAdapter::resetCallDurationCounters()
 {
     TRACE
     Q_D(VoiceCallManagerDBusAdapter);
@@ -256,6 +256,16 @@ bool VoiceCallManagerDBusAdapter::dial(const QString &provider, const QString &m
     }
 
     return true;
+}
+
+/*!
+  Starts playing the ringtone for an incoming call.
+ */
+void VoiceCallManagerDBusAdapter::playRingtone()
+{
+    TRACE
+    Q_D(VoiceCallManagerDBusAdapter);
+    d->manager->playRingtone();
 }
 
 /*!

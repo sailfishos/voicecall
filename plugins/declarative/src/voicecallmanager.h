@@ -76,6 +76,7 @@ public Q_SLOTS:
     void dial(const QString &msisdn);
     void dial(const QString &provider, const QString &msisdn);
 
+    void playRingtone();
     void silenceRingtone();
 
     bool setAudioMode(const QString &mode);
@@ -93,8 +94,8 @@ protected Q_SLOTS:
     void onVoiceCallsChanged();
     void onActiveVoiceCallChanged();
 
-    void onPendingCallFinished(QDBusPendingCallWatcher *watcher);
-    void onPendingSilenceFinished(QDBusPendingCallWatcher *watcher);
+    void onPendingBoolCallFinished(QDBusPendingCallWatcher *watcher);
+    void onPendingVoidCallFinished(QDBusPendingCallWatcher *watcher);
 
 private:
     class VoiceCallManagerPrivate *d_ptr;

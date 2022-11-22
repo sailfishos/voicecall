@@ -300,6 +300,12 @@ bool VoiceCallManager::dial(const QString &providerId, const QString &msisdn)
     return provider->dial(msisdn);
 }
 
+void VoiceCallManager::playRingtone()
+{
+    TRACE
+    emit this->playRingtoneRequested();
+}
+
 void VoiceCallManager::silenceRingtone()
 {
     TRACE

@@ -49,6 +49,7 @@ protected Q_SLOTS:
     void onVoiceCallAdded(AbstractVoiceCallHandler *handler);
     void onVoiceCallStatusChanged(AbstractVoiceCallHandler *handler = 0);
     void onVoiceCallDestroyed();
+    void onPlayRingtoneRequested();
     void onSilenceRingtoneRequested();
 
 protected Q_SLOTS:

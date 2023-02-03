@@ -225,11 +225,11 @@ void VoiceCallManager::dial(const QString &provider, const QString &msisdn)
     QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingBoolCallFinished(QDBusPendingCallWatcher*)));
 }
 
-void VoiceCallManager::playRingtone()
+void VoiceCallManager::playRingtone(const QString &ringtonePath)
 {
     TRACE
     Q_D(const VoiceCallManager);
-    QDBusPendingCall call = d->interface->asyncCall("playRingtone");
+    QDBusPendingCall call = d->interface->asyncCall("playRingtone", ringtonePath);
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
     QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingVoidCallFinished(QDBusPendingCallWatcher*)));
 }

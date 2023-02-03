@@ -76,7 +76,7 @@ public Q_SLOTS:
     void dial(const QString &msisdn);
     void dial(const QString &provider, const QString &msisdn);
 
-    void playRingtone();
+    void playRingtone(const QString &ringtonePath = QString());
     void silenceRingtone();
 
     bool setAudioMode(const QString &mode);

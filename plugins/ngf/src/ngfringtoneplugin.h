@@ -49,7 +49,7 @@ protected Q_SLOTS:
     void onVoiceCallAdded(AbstractVoiceCallHandler *handler);
     void onVoiceCallStatusChanged(AbstractVoiceCallHandler *handler = 0);
     void onVoiceCallDestroyed();
-    void onPlayRingtoneRequested();
+    void onPlayRingtoneRequested(const QString &ringtonePath);
     void onSilenceRingtoneRequested();
 
 protected Q_SLOTS:

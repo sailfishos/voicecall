@@ -93,7 +93,7 @@ bool NgfRingtonePlugin::start()
     Q_D(NgfRingtonePlugin);
 
     QObject::connect(d->manager, SIGNAL(voiceCallAdded(AbstractVoiceCallHandler*)), SLOT(onVoiceCallAdded(AbstractVoiceCallHandler*)));
-    QObject::connect(d->manager, SIGNAL(playRingtoneRequested()), SLOT(onPlayRingtoneRequested()));
+    QObject::connect(d->manager, SIGNAL(playRingtoneRequested(QString)), SLOT(onPlayRingtoneRequested(QString)));
     QObject::connect(d->manager, SIGNAL(silenceRingtoneRequested()), SLOT(onSilenceRingtoneRequested()));
 
     d->ngf->connect();
@@ -178,7 +178,7 @@ void NgfRingtonePlugin::onVoiceCallDestroyed()
     DEBUG_T("Active call count: %d", d->activeCallCount);
 }
 
-void NgfRingtonePlugin::onPlayRingtoneRequested()
+void NgfRingtonePlugin::onPlayRingtoneRequested(const QString &ringtonePath)
 {
     TRACE
     Q_D(NgfRingtonePlugin);
@@ -194,6 +194,10 @@ void NgfRingtonePlugin::onPlayRingtoneRequested()
 
     if (d->currentCall->provider()->providerType() != "tel") {
         props.insert("type", "voip");
+    }
+
+    if (!ringtonePath.isEmpty()) {
+        props.insert("sound.filename", ringtonePath);
     }
 
     d->ringtoneEventId = d->ngf->play("ringtone", props);

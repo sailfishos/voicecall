@@ -97,7 +97,7 @@ Q_SIGNALS:
     void microphoneMutedChanged();
     void speakerMutedChanged();
 
-    void playRingtoneRequested();
+    void playRingtoneRequested(const QString &ringtonePath);
     void silenceRingtoneRequested();
 
     void setAudioModeRequested(const QString &mode);
@@ -123,7 +123,7 @@ public Q_SLOTS:
 
     virtual bool dial(const QString &providerId, const QString &msisdn) = 0;
 
-    virtual void playRingtone() = 0;
+    virtual void playRingtone(const QString &ringtonePath) = 0;
     virtual void silenceRingtone() = 0;
 
     virtual void setAudioMode(const QString &mode) = 0;

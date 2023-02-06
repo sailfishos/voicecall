@@ -261,11 +261,11 @@ bool VoiceCallManagerDBusAdapter::dial(const QString &provider, const QString &m
 /*!
   Starts playing the ringtone for an incoming call.
  */
-void VoiceCallManagerDBusAdapter::playRingtone()
+void VoiceCallManagerDBusAdapter::playRingtone(const QString &ringtonePath)
 {
     TRACE
     Q_D(VoiceCallManagerDBusAdapter);
-    d->manager->playRingtone();
+    d->manager->playRingtone(ringtonePath);
 }
 
 /*!

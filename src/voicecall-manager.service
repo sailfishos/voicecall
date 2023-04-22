@@ -5,7 +5,7 @@ Wants=ngfd.service
 After=dbus.socket pre-user-session.target booster-qt5.service
 
 [Service]
-ExecStart=/usr/bin/invoker -o --type=qt5 /usr/bin/voicecall-manager
+ExecStart=/usr/bin/voicecall-manager
 Restart=always
 
 [Install]

@@ -21,8 +21,8 @@
 #include "common.h"
 
 #include "voicecallmanagerdbusservice.h"
-#include <dbus/voicecallmanagerdbusadapter.h>
-#include <dbus/voicecallhandlerdbusadapter.h>
+#include "voicecallmanagerdbusadapter.h"
+#include "voicecallhandlerdbusadapter.h"
 
 #include <voicecallmanagerinterface.h>
 

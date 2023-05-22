@@ -16,6 +16,9 @@ SOURCES += \
 
 target.path = $$[QT_INSTALL_LIBS]
 
-INSTALLS += target
+develheaders.path = /usr/include/voicecall
+develheaders.files = $$HEADERS
+
+INSTALLS += target develheaders
 
 OTHER_FILES +=

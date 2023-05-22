@@ -25,9 +25,13 @@ HEADERS += \
     dbus/voicecallmanagerdbusservice.h \
     basicvoicecallconfigurator.h \
     voicecallmanager.h \
+    dbus/voicecallmanagerdbusadapter.h \
+    dbus/voicecallhandlerdbusadapter.h
 
 SOURCES += \
     dbus/voicecallmanagerdbusservice.cpp \
+    dbus/voicecallmanagerdbusadapter.cpp \
+    dbus/voicecallhandlerdbusadapter.cpp \
     basicvoicecallconfigurator.cpp \
     voicecallmanager.cpp \
     main.cpp \

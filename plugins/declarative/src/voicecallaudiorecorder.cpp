@@ -34,6 +34,7 @@
 
 #include "voicecallaudiorecorder.h"
 
+#include <QAudioFormat>
 #include <QDateTime>
 #include <QDBusConnection>
 #include <QDBusMessage>
@@ -44,7 +45,10 @@
 #include <QDataStream>
 #include <QStandardPaths>
 #include <QtDebug>
-
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QAudioDevice>
+#include <QMediaDevices>
+#endif
 #include <unistd.h>
 
 namespace {
@@ -69,17 +73,25 @@ QAudioFormat getRecordingFormat()
     QAudioFormat format;
 
     format.setChannelCount(ChannelCount);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    format.setSampleFormat(QAudioFormat::Int16);
     format.setSampleRate(SampleRate);
+
+    QAudioDevice device(QMediaDevices::defaultAudioInput());
+    if (!device.isFormatSupported(format)) {
+        format = device.preferredFormat();
+    }
+#else
     format.setSampleSize(SampleBits);
     format.setCodec(QStringLiteral("audio/pcm"));
     format.setByteOrder(QAudioFormat::LittleEndian);
     format.setSampleType(QAudioFormat::UnSignedInt);
-
     QAudioDeviceInfo info(QAudioDeviceInfo::defaultInputDevice());
+
     if (!info.isFormatSupported(format)) {
         format = info.nearestFormat(format);
     }
-
+#endif
     return format;
 }
 
@@ -241,11 +253,13 @@ void VoiceCallAudioRecorder::featuresCallFinished(QDBusPendingCallWatcher *watch
 void VoiceCallAudioRecorder::inputStateChanged(QAudio::State state)
 {
     if (state == QAudio::StoppedState) {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
         if (input) {
             if (input->error() != QAudio::NoError) {
                 qWarning() << "Recording stopped due to error:" << input->error();
             }
         }
+#endif
         terminateRecording();
     }
 }
@@ -303,10 +317,13 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
     }
 
     output.swap(file);
-
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    input.reset(new QAudioSource(recordingFormat));
+    connect(input.data(), &QAudioSource::stateChanged, this, &VoiceCallAudioRecorder::inputStateChanged);
+#else
     input.reset(new QAudioInput(recordingFormat));
     connect(input.data(), &QAudioInput::stateChanged, this, &VoiceCallAudioRecorder::inputStateChanged);
-
+#endif
     input->start(output.data());
     active = true;
     emit recordingChanged();

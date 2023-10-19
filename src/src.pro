@@ -7,18 +7,18 @@ INCLUDEPATH += ../lib/src
 
 DEFINES += VOICECALL_PLUGIN_DIRECTORY=\"\\\"$$[QT_INSTALL_LIBS]/voicecall/plugins\\\"\"
 
-PKGCONFIG += mlite5 qofono-qt5
+PKGCONFIG += mlite$${QT_MAJOR_VERSION} qofono-qt$${QT_MAJOR_VERSION}
 
 enable-nemo-devicelock {
     PKGCONFIG += nemodevicelock
     DEFINES += WITH_NEMO_DEVICELOCK
 }
 
-packagesExist(qt5-boostable) {
+packagesExist(qt$${QT_MAJOR_VERSION}-boostable) {
     DEFINES += HAS_BOOSTER
-    PKGCONFIG += qt5-boostable
+    PKGCONFIG += qt$${QT_MAJOR_VERSION}-boostable
 } else {
-    warning("qt5-boostable not available; startup times will be slower")
+    warning("qt$${QT_MAJOR_VERSION}-boostable not available; startup times will be slower")
 }
 
 LIBS += -L../lib/src -lvoicecall
@@ -47,7 +47,7 @@ SOURCES += \
     main.cpp \
 
 enable-audiopolicy {
-    PKGCONFIG += libresourceqt5
+    PKGCONFIG += libresourceqt$${QT_MAJOR_VERSION}
     HEADERS += audiocallpolicyproxy.h
     SOURCES += audiocallpolicyproxy.cpp
     DEFINES += WITH_AUDIOPOLICY

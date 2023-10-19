@@ -9,7 +9,7 @@ TARGET = voicecall
 uri = org.nemomobile.voicecall
 
 enable-ngf {
-    PKGCONFIG += ngf-qt5
+    PKGCONFIG += ngf-qt$${QT_MAJOR_VERSION}
     DEFINES += WITH_NGF
 }
 

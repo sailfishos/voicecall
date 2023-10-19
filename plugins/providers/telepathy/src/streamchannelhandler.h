@@ -24,6 +24,7 @@
 #include "basechannelhandler.h"
 
 #include <TelepathyQt/Channel>
+#include <TelepathyQt/StreamedMediaStream>
 
 class TelepathyProvider;
 

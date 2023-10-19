@@ -8,7 +8,7 @@ INCLUDEPATH += ../lib/src
 DEFINES += VOICECALL_PLUGIN_DIRECTORY=\"\\\"$$[QT_INSTALL_LIBS]/voicecall/plugins\\\"\"
 
 enable-nemo-devicelock {
-    PKGCONFIG += libresourceqt5 nemodevicelock
+    PKGCONFIG += libresourceqt$${QT_MAJOR_VERSION} nemodevicelock
     DEFINES += WITH_NEMO_DEVICELOCK
 }
 

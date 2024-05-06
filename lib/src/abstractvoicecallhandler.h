@@ -56,7 +56,15 @@ public:
         STATUS_ALERTING,
         STATUS_INCOMING,
         STATUS_WAITING,
-        STATUS_DISCONNECTED
+        STATUS_DISCONNECTED,
+        STATUS_REJECTED,
+        STATUS_IGNORED
+    };
+
+    enum VoiceCallFilterAction {
+        ACTION_CONTINUE,
+        ACTION_IGNORE,
+        ACTION_BLOCK
     };
 
     explicit AbstractVoiceCallHandler(QObject *parent = 0) : QObject(parent) {/* ... */}
@@ -101,6 +109,7 @@ public Q_SLOTS:
     virtual void sendDtmf(const QString &tones) = 0;
     virtual void merge(const QString &callHandle) = 0;
     virtual void split() = 0;
+    virtual void filter(VoiceCallFilterAction action) = 0;
 };
 
 #endif // ABSTRACTVOICECALLHANDLER_H

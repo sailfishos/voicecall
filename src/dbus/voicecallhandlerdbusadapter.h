@@ -81,6 +81,7 @@ Q_SIGNALS:
 public Q_SLOTS:
     bool answer();
     bool hangup();
+    bool filter(AbstractVoiceCallHandler::VoiceCallFilterAction action);
     bool hold(bool on);
     bool deflect(const QString &target);
     void sendDtmf(const QString &tones);

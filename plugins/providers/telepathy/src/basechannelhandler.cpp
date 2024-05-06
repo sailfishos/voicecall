@@ -26,3 +26,22 @@ BaseChannelHandler::BaseChannelHandler(QObject *parent)
 {
 
 }
+
+void BaseChannelHandler::filter(VoiceCallFilterAction action)
+{
+    if (status() != STATUS_INCOMING) {
+        return;
+    }
+
+    switch (action) {
+    case ACTION_BLOCK:
+        hangup();
+        setStatus(STATUS_REJECTED);
+        break;
+    case ACTION_IGNORE:
+        setStatus(STATUS_IGNORED);
+        break;
+    default:
+        break;
+    }
+}

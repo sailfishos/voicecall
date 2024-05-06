@@ -90,6 +90,12 @@ public:
             event.setEndTime(event.startTime().addSecs(handler.duration()));
             // No need to save the changes now, the voiceCallEnded will do it.
             break;
+        case AbstractVoiceCallHandler::STATUS_IGNORED:
+            event.setIncomingStatus(CommHistory::Event::Ignored);
+            break;
+        case AbstractVoiceCallHandler::STATUS_REJECTED:
+            event.setIncomingStatus(CommHistory::Event::Rejected);
+            break;
         default:
             break;
         }
@@ -121,9 +127,11 @@ public:
     void voiceCallEnded(const QString &id)
     {
         CommHistory::Event event = m_calls.take(id);
+
         if (event.direction() == CommHistory::Event::Inbound
+            && event.incomingStatus() == CommHistory::Event::Received
             && !event.isValid()) {
-            event.setIsMissedCall(true);
+            event.setIncomingStatus(CommHistory::Event::NotAnswered);
             event.setStartTime(QDateTime::currentDateTime());
             event.setEndTime(event.startTime());
         }

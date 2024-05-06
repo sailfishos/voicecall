@@ -33,3 +33,22 @@ QString BaseChannelHandler::subscriberId() const
     return properties.value("SubscriberIdentity").toString();
 }
 
+void BaseChannelHandler::filter(VoiceCallFilterAction action)
+{
+    if (status() != STATUS_NULL) {
+        return;
+    }
+
+    switch (action) {
+    case ACTION_REJECT:
+        hangup();
+        setStatus(STATUS_REJECTED);
+        break;
+    case ACTION_IGNORE:
+        setStatus(STATUS_IGNORED);
+        break;
+    default:
+        setStatus(STATUS_INCOMING);
+        break;
+    }
+}

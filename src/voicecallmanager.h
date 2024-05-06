@@ -59,6 +59,8 @@ public Q_SLOTS:
 
     bool dial(const QString &providerId, const QString &msisdn);
 
+    void setCallFiltering(bool on = true) override;
+
     void playRingtone(const QString &ringtonePath);
     void silenceRingtone();
 

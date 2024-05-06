@@ -16,7 +16,7 @@ BuildRequires:  pkgconfig(Qt5Multimedia)
 BuildRequires:  pkgconfig(libresourceqt5)
 BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
-BuildRequires:  pkgconfig(commhistory-qt5)
+BuildRequires:  pkgconfig(commhistory-qt5) >= 1.12.6
 BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
 BuildRequires:  pkgconfig(systemd)

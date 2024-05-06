@@ -41,6 +41,10 @@ QString AbstractVoiceCallHandler::statusText() const
             return "waiting";
         case STATUS_DISCONNECTED:
             return "disconnected";
+        case STATUS_REJECTED:
+            return "rejected";
+        case STATUS_IGNORED:
+            return "ignored";
 
         default:
             return "null";

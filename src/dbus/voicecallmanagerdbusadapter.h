@@ -83,6 +83,8 @@ Q_SIGNALS:
 public Q_SLOTS:
     bool dial(const QString &provider, const QString &msisdn);
 
+    void setCallFiltering(bool on = true);
+
     void playRingtone(const QString &ringtonePath);
     void silenceRingtone();
 

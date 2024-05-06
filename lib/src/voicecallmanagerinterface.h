@@ -123,6 +123,8 @@ public Q_SLOTS:
 
     virtual bool dial(const QString &providerId, const QString &msisdn) = 0;
 
+    virtual void setCallFiltering(bool on = true) = 0;
+
     virtual void playRingtone(const QString &ringtonePath) = 0;
     virtual void silenceRingtone() = 0;
 

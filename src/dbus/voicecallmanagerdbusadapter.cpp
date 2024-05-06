@@ -258,6 +258,13 @@ bool VoiceCallManagerDBusAdapter::dial(const QString &provider, const QString &m
     return true;
 }
 
+void VoiceCallManagerDBusAdapter::setCallFiltering(bool on)
+{
+    TRACE
+    Q_D(VoiceCallManagerDBusAdapter);
+    d->manager->setCallFiltering(on);
+}
+
 /*!
   Starts playing the ringtone for an incoming call.
  */

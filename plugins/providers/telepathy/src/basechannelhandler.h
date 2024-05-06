@@ -50,6 +50,13 @@ Q_SIGNALS:
     void channelMerged(Tp::ChannelPtr channel);
     void channelRemoved(Tp::ChannelPtr channel);
 
+public Q_SLOTS:
+    /*** AbstractVoiceCallHandler Implementation ***/
+    void filter(VoiceCallFilterAction action);
+
+protected:
+    virtual void setStatus(VoiceCallStatus newStatus) = 0;
+
 private:
     Q_DISABLE_COPY(BaseChannelHandler)
 };

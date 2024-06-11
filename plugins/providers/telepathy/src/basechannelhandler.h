@@ -41,6 +41,7 @@ public:
 
 Q_SIGNALS:
     /*** StreamedMediaChannelHandler Implementation ***/
+    void ready();
     void error(const QString &errorMessage);
     void invalidated(const QString &errorName, const QString &errorMessage);
 

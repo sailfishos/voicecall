@@ -470,6 +470,8 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
     }
 
     d->isIncoming = !d->channel->isRequested();
+
+    emit ready();
 }
 
 void StreamChannelHandler::onStreamedMediaChannelInvalidated(Tp::DBusProxy *, const QString &errorName, const QString &errorMessage)

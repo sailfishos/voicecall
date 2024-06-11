@@ -66,6 +66,7 @@ public:
 
     virtual QString handlerId() const = 0;
     virtual QString lineId() const = 0;
+    virtual QString subscriberId() const = 0;
     virtual QDateTime startedAt() const = 0;
     virtual int duration() const = 0;
     virtual bool isIncoming() const = 0;

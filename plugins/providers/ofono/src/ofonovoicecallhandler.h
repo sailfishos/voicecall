@@ -43,6 +43,7 @@ public:
 
     QString handlerId() const;
     QString lineId() const;
+    QString subscriberId() const override;
     QDateTime startedAt() const;
     int duration() const;
     bool isIncoming() const;

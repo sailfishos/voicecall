@@ -39,6 +39,8 @@ public:
     virtual void addChildCall(BaseChannelHandler *handler) = 0;
     virtual void removeChildCall(BaseChannelHandler *handler) = 0;
 
+    QString subscriberId() const override;
+
 Q_SIGNALS:
     /*** StreamedMediaChannelHandler Implementation ***/
     void ready();

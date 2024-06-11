@@ -62,33 +62,9 @@ class StreamChannelHandlerPrivate
 public:
     StreamChannelHandlerPrivate(StreamChannelHandler *q, const QString &id, Tp::StreamedMediaChannelPtr c, const QDateTime &s, TelepathyProvider *p)
         : q_ptr(q), pendingHangup(NULL), handlerId(id), provider(p), startedAt(s), status(AbstractVoiceCallHandler::STATUS_NULL),
-          channel(c), servicePointInterface(NULL), duration(0), durationTimerId(-1), isEmergency(false),
+          channel(c), duration(0), durationTimerId(-1), isEmergency(false),
           isForwarded(false), isIncoming(false), isRemoteHeld(false)
     { /* ... */ }
-
-    void listenToEmergencyStatus()
-    {
-        TRACE
-        if (channel && channel->isReady() && !servicePointInterface) {
-            servicePointInterface = channel->optionalInterface<Tp::Client::ChannelInterfaceServicePointInterface>();
-            if (servicePointInterface) {
-                // listen to changes in emergency call state, dictated by service point type
-                q_ptr->connect(servicePointInterface, SIGNAL(ServicePointChanged(const Tp::ServicePoint &)),
-                        q_ptr, SLOT(updateEmergencyStatus(const Tp::ServicePoint &)));
-
-                // fetch initial emergency call status
-                QString initialServicePointProperty = TP_QT_IFACE_CHANNEL_INTERFACE_SERVICE_POINT+QLatin1String(".InitialServicePoint");
-                QVariant servicePointProperty = channel->immutableProperties().value(initialServicePointProperty);
-                if (servicePointProperty.isValid()) {
-                    const Tp::ServicePoint servicePoint = qdbus_cast<Tp::ServicePoint>(servicePointProperty);
-                    q_ptr->updateEmergencyStatus(servicePoint);
-                } else {
-                    const Tp::ServicePoint servicePoint = servicePointInterface->property("CurrentServicePoint").value<Tp::ServicePoint>();
-                    q_ptr->updateEmergencyStatus(servicePoint);
-                }
-            }
-        }
-    }
 
     StreamChannelHandler  *q_ptr;
     QPointer<Tp::PendingOperation>  pendingHangup;
@@ -104,7 +80,6 @@ public:
     AbstractVoiceCallHandler::VoiceCallStatus status;
 
     Tp::StreamedMediaChannelPtr channel;
-    Tp::Client::ChannelInterfaceServicePointInterface *servicePointInterface;
 
     quint64 duration;
     quint64 connectedAt;
@@ -132,7 +107,6 @@ StreamChannelHandler::StreamChannelHandler(const QString &id, Tp::StreamedMediaC
                      SIGNAL(invalidated(Tp::DBusProxy*,QString,QString)),
                      SLOT(onStreamedMediaChannelInvalidated(Tp::DBusProxy*,QString,QString)));
 
-    d->listenToEmergencyStatus();
     emit this->startedAtChanged(startedAt());
 }
 
@@ -454,11 +428,29 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
             emit channelMerged(channel);
     }
 
-    d->listenToEmergencyStatus();
+    Tp::Client::ChannelInterfaceServicePointInterface *servicePointInterface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceServicePointInterface>();
+    if (servicePointInterface) {
+        DEBUG_T("Creating Service point interface");
+        // listen to changes in emergency call state, dictated by service point type
+        QObject::connect(servicePointInterface,
+                         SIGNAL(ServicePointChanged(const Tp::ServicePoint &)),
+                         SLOT(updateEmergencyStatus(const Tp::ServicePoint &)));
+
+        // fetch initial emergency call status
+        QString initialServicePointProperty = TP_QT_IFACE_CHANNEL_INTERFACE_SERVICE_POINT+QLatin1String(".InitialServicePoint");
+        QVariant servicePointProperty = d->channel->immutableProperties().value(initialServicePointProperty);
+        if (servicePointProperty.isValid()) {
+            const Tp::ServicePoint servicePoint = qdbus_cast<Tp::ServicePoint>(servicePointProperty);
+            updateEmergencyStatus(servicePoint);
+        } else {
+            const Tp::ServicePoint servicePoint = servicePointInterface->property("CurrentServicePoint").value<Tp::ServicePoint>();
+            updateEmergencyStatus(servicePoint);
+        }
+    }
 
     emit lineIdChanged(lineId());
     emit multipartyChanged(isMultiparty());
-    emit emergencyChanged(isEmergency());
     emit forwardedChanged(isForwarded());
 
     if (isMultiparty()) {

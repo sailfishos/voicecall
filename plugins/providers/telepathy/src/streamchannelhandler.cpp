@@ -62,33 +62,9 @@ class StreamChannelHandlerPrivate
 public:
     StreamChannelHandlerPrivate(StreamChannelHandler *q, const QString &id, Tp::StreamedMediaChannelPtr c, const QDateTime &s, TelepathyProvider *p)
         : q_ptr(q), pendingHangup(NULL), handlerId(id), provider(p), startedAt(s), status(AbstractVoiceCallHandler::STATUS_NULL),
-          channel(c), servicePointInterface(NULL), duration(0), durationTimerId(-1), isEmergency(false),
+          channel(c), duration(0), durationTimerId(-1), isEmergency(false),
           isForwarded(false), isIncoming(false), isRemoteHeld(false)
     { /* ... */ }
-
-    void listenToEmergencyStatus()
-    {
-        TRACE
-        if (channel && channel->isReady() && !servicePointInterface) {
-            servicePointInterface = channel->optionalInterface<Tp::Client::ChannelInterfaceServicePointInterface>();
-            if (servicePointInterface) {
-                // listen to changes in emergency call state, dictated by service point type
-                q_ptr->connect(servicePointInterface, SIGNAL(ServicePointChanged(const Tp::ServicePoint &)),
-                        q_ptr, SLOT(updateEmergencyStatus(const Tp::ServicePoint &)));
-
-                // fetch initial emergency call status
-                QString initialServicePointProperty = TP_QT_IFACE_CHANNEL_INTERFACE_SERVICE_POINT+QLatin1String(".InitialServicePoint");
-                QVariant servicePointProperty = channel->immutableProperties().value(initialServicePointProperty);
-                if (servicePointProperty.isValid()) {
-                    const Tp::ServicePoint servicePoint = qdbus_cast<Tp::ServicePoint>(servicePointProperty);
-                    q_ptr->updateEmergencyStatus(servicePoint);
-                } else {
-                    const Tp::ServicePoint servicePoint = servicePointInterface->property("CurrentServicePoint").value<Tp::ServicePoint>();
-                    q_ptr->updateEmergencyStatus(servicePoint);
-                }
-            }
-        }
-    }
 
     StreamChannelHandler  *q_ptr;
     QPointer<Tp::PendingOperation>  pendingHangup;
@@ -104,7 +80,6 @@ public:
     AbstractVoiceCallHandler::VoiceCallStatus status;
 
     Tp::StreamedMediaChannelPtr channel;
-    Tp::Client::ChannelInterfaceServicePointInterface *servicePointInterface;
 
     quint64 duration;
     quint64 connectedAt;
@@ -132,7 +107,6 @@ StreamChannelHandler::StreamChannelHandler(const QString &id, Tp::StreamedMediaC
                      SIGNAL(invalidated(Tp::DBusProxy*,QString,QString)),
                      SLOT(onStreamedMediaChannelInvalidated(Tp::DBusProxy*,QString,QString)));
 
-    d->listenToEmergencyStatus();
     emit this->startedAtChanged(startedAt());
 }
 
@@ -294,15 +268,25 @@ void StreamChannelHandler::hold(bool on)
 {
     TRACE
     Q_D(StreamChannelHandler);
-    Tp::Client::ChannelInterfaceHoldInterface *holdIface = new Tp::Client::ChannelInterfaceHoldInterface(d->channel.data(), this);
-    holdIface->RequestHold(on);
+    Tp::Client::ChannelInterfaceHoldInterface *holdIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceHoldInterface>();
+    if (holdIface) {
+        holdIface->RequestHold(on);
+    } else {
+        WARNING_T("Cannot hold, no interface");
+    }
 }
 
 void StreamChannelHandler::getHoldState()
 {
     TRACE
     Q_D(StreamChannelHandler);
-    Tp::Client::ChannelInterfaceHoldInterface *holdIface = new Tp::Client::ChannelInterfaceHoldInterface(d->channel.data(), this);
+    Tp::Client::ChannelInterfaceHoldInterface *holdIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceHoldInterface>();
+    if (!holdIface) {
+        WARNING_T("Cannot get hold state, no interface");
+        return;
+    }
     QDBusPendingReply<uint, uint> reply = holdIface->GetHoldState();
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
     QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
@@ -327,7 +311,6 @@ void StreamChannelHandler::sendDtmf(const QString &tones)
 {
     TRACE
     Q_D(StreamChannelHandler);
-    Tp::Client::ChannelInterfaceDTMFInterface *dtmfIface = new Tp::Client::ChannelInterfaceDTMFInterface(d->channel.data(), this);
 
     bool ok = true;
     unsigned int toneId = tones.toInt(&ok);
@@ -342,8 +325,14 @@ void StreamChannelHandler::sendDtmf(const QString &tones)
         else return;
     }
 
-    dtmfIface->StartTone(1, toneId, 0);
-    //dtmfIface->MultipleTones(tones);
+    Tp::Client::ChannelInterfaceDTMFInterface *dtmfIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceDTMFInterface>();
+    if (dtmfIface) {
+        dtmfIface->StartTone(1, toneId, 0);
+        //dtmfIface->MultipleTones(tones);
+    } else {
+        WARNING_T("Cannot send DTMF, no interface");
+    }
 }
 
 void StreamChannelHandler::split()
@@ -419,32 +408,36 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
                      SIGNAL(streamStateChanged(Tp::StreamedMediaStreamPtr,Tp::MediaStreamState)),
                      SLOT(onStreamedMediaChannelStreamStateChanged(Tp::StreamedMediaStreamPtr,Tp::MediaStreamState)));
 
-    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CALL_STATE)) {
-        DEBUG_T("Creating CallState interface");
-        Tp::Client::ChannelInterfaceCallStateInterface *csIface = new Tp::Client::ChannelInterfaceCallStateInterface(d->channel.data(), this);
+    Tp::Client::ChannelInterfaceCallStateInterface *csIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceCallStateInterface>();
+    if (csIface) {
+        DEBUG_T("Connecting to CallState interface");
         QDBusPendingReply<Tp::ChannelCallStateMap> reply = csIface->GetCallStates();
         QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
         QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)),
                          SLOT(onStreamedMediaChannelCallGetCallStatesFinished(QDBusPendingCallWatcher*)));
-        QObject::connect(csIface,
-                         SIGNAL(CallStateChanged(uint,uint)),
-                         SLOT(onStreamedMediaChannelCallStateChanged(uint,uint)));
+        connect(csIface,
+                &Tp::Client::ChannelInterfaceCallStateInterface::CallStateChanged,
+                this, &StreamChannelHandler::onStreamedMediaChannelCallStateChanged);
     }
 
-    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_GROUP)) {
-        DEBUG_T("Creating Group interface");
-        Tp::Client::ChannelInterfaceGroupInterface *groupIface = new Tp::Client::ChannelInterfaceGroupInterface(d->channel.data(), this);
-        QObject::connect(groupIface, SIGNAL(MembersChanged(QString,Tp::UIntList,Tp::UIntList,Tp::UIntList,Tp::UIntList,uint,uint)),
-                         SLOT(onStreamedMediaChannelGroupMembersChanged(QString,Tp::UIntList,Tp::UIntList,Tp::UIntList,Tp::UIntList,uint,uint)));
+    Tp::Client::ChannelInterfaceGroupInterface *groupIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceGroupInterface>();
+    if (groupIface) {
+        DEBUG_T("Connecting to Group interface");
+        connect(groupIface,
+                &Tp::Client::ChannelInterfaceGroupInterface::MembersChanged,
+                this, &StreamChannelHandler::onStreamedMediaChannelGroupMembersChanged);
     }
 
-    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_HOLD)) {
-        DEBUG_T("Creating Hold interface");
-        Tp::Client::ChannelInterfaceHoldInterface *holdIface = new Tp::Client::ChannelInterfaceHoldInterface(d->channel.data(), this);
+    Tp::Client::ChannelInterfaceHoldInterface *holdIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceHoldInterface>();
+    if (holdIface) {
+        DEBUG_T("Connecting to Hold interface");
         getHoldState();
-        QObject::connect(holdIface,
-                         SIGNAL(HoldStateChanged(uint,uint)),
-                         SLOT(onStreamedMediaChannelHoldStateChanged(uint,uint)));
+        connect(holdIface,
+                &Tp::Client::ChannelInterfaceHoldInterface::HoldStateChanged,
+                this, &StreamChannelHandler::onStreamedMediaChannelHoldStateChanged);
     }
 
     if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CONFERENCE)) {
@@ -454,11 +447,29 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
             emit channelMerged(channel);
     }
 
-    d->listenToEmergencyStatus();
+    Tp::Client::ChannelInterfaceServicePointInterface *servicePointInterface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceServicePointInterface>();
+    if (servicePointInterface) {
+        DEBUG_T("Creating Service point interface");
+        // listen to changes in emergency call state, dictated by service point type
+        connect(servicePointInterface,
+                &Tp::Client::ChannelInterfaceServicePointInterface::ServicePointChanged,
+                this, &StreamChannelHandler::updateEmergencyStatus);
+
+        // fetch initial emergency call status
+        QString initialServicePointProperty = TP_QT_IFACE_CHANNEL_INTERFACE_SERVICE_POINT+QLatin1String(".InitialServicePoint");
+        QVariant servicePointProperty = d->channel->immutableProperties().value(initialServicePointProperty);
+        if (servicePointProperty.isValid()) {
+            const Tp::ServicePoint servicePoint = qdbus_cast<Tp::ServicePoint>(servicePointProperty);
+            updateEmergencyStatus(servicePoint);
+        } else {
+            const Tp::ServicePoint servicePoint = servicePointInterface->property("CurrentServicePoint").value<Tp::ServicePoint>();
+            updateEmergencyStatus(servicePoint);
+        }
+    }
 
     emit lineIdChanged(lineId());
     emit multipartyChanged(isMultiparty());
-    emit emergencyChanged(isEmergency());
     emit forwardedChanged(isForwarded());
 
     if (isMultiparty()) {
@@ -470,6 +481,8 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
     }
 
     d->isIncoming = !d->channel->isRequested();
+
+    emit ready();
 }
 
 void StreamChannelHandler::onStreamedMediaChannelInvalidated(Tp::DBusProxy *, const QString &errorName, const QString &errorMessage)
@@ -653,7 +666,12 @@ void StreamChannelHandler::onStreamedMediaChannelGroupMembersChanged(QString mes
     TRACE
     Q_D(StreamChannelHandler);
 
-    Tp::Client::ChannelInterfaceGroupInterface *groupIface = new Tp::Client::ChannelInterfaceGroupInterface(d->channel.data(), this);
+    Tp::Client::ChannelInterfaceGroupInterface *groupIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceGroupInterface>();
+    if (!groupIface) {
+        WARNING_T("Cannot get members, no interface");
+        return;
+    }
 
     QDBusPendingReply<Tp::UIntList> reply = groupIface->GetMembers();
     reply.waitForFinished();

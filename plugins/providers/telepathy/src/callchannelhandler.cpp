@@ -344,6 +344,8 @@ void CallChannelHandler::onCallChannelChannelReady(Tp::PendingOperation *op)
     }
 
     d->isIncoming = !d->channel->isRequested();
+
+    emit ready();
 }
 
 void CallChannelHandler::onCallChannelChannelInvalidated(Tp::DBusProxy *, const QString &errorName, const QString &errorMessage)

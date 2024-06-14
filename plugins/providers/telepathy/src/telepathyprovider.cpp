@@ -48,6 +48,7 @@ public:
     QString                      errorString;
 
     QHash<QString,BaseChannelHandler*> voiceCalls;
+    QHash<QString,BaseChannelHandler*> invalidVoiceCalls;
 
     Tp::PendingChannelRequest *tpChannelRequest;
 
@@ -281,13 +282,20 @@ void TelepathyProvider::createHandler(Tp::ChannelPtr ch, const QDateTime &userAc
     if (!handler)
         return;
 
-    d->voiceCalls.insert(handler->handlerId(), handler);
+    d->invalidVoiceCalls.insert(handler->handlerId(), handler);
 
     QObject::connect(handler, SIGNAL(error(QString)), SIGNAL(error(QString)));
     QObject::connect(handler, SIGNAL(invalidated(QString,QString)), SLOT(onHandlerInvalidated(QString,QString)));
 
-    emit this->voiceCallAdded(handler);
-    emit this->voiceCallsChanged();
+    connect(handler, &BaseChannelHandler::ready,
+            [this, handler] () {
+                Q_D(TelepathyProvider);
+                d->invalidVoiceCalls.remove(handler->handlerId());
+
+                d->voiceCalls.insert(handler->handlerId(), handler);
+                emit this->voiceCallAdded(handler);
+                emit this->voiceCallsChanged();
+            });
 }
 
 BaseChannelHandler *TelepathyProvider::conferenceHandler() const
@@ -346,10 +354,13 @@ void TelepathyProvider::onHandlerInvalidated(const QString &errorName, const QSt
     Q_D(TelepathyProvider);
 
     BaseChannelHandler *handler = qobject_cast<BaseChannelHandler*>(QObject::sender());
-    d->voiceCalls.remove(handler->handlerId());
-
-    emit this->voiceCallRemoved(handler->handlerId());
-    emit this->voiceCallsChanged();
+    if (d->invalidVoiceCalls.contains(handler->handlerId())) {
+        d->invalidVoiceCalls.remove(handler->handlerId());
+    } else {
+        d->voiceCalls.remove(handler->handlerId());
+        emit this->voiceCallRemoved(handler->handlerId());
+        emit this->voiceCallsChanged();
+    }
 
     handler->deleteLater();
 

@@ -89,6 +89,7 @@ protected Q_SLOTS:
     void initialize(bool notifyError = false);
 
     void onPendingCallFinished(QDBusPendingCallWatcher *watcher);
+    void onPendingVoidCallFinished(QDBusPendingCallWatcher *watcher);
     void onDurationChanged(int duration);
     void onStatusChanged(int status, const QString &statusText);
     void onLineIdChanged(const QString &lineId);

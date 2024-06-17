@@ -22,11 +22,19 @@ class VoiceCallHandlerPrivate
 
 public:
     VoiceCallHandlerPrivate(VoiceCallHandler *q, const QString &pHandlerId)
-        : q_ptr(q), handlerId(pHandlerId), interface(NULL)
-        , childCalls(0), parentCall(0), connected(false)
-        , duration(0), status(0), emergency(false), multiparty(false)
-        , forwarded(false), remoteHeld(false)
-    { /* ... */ }
+        : q_ptr(q)
+        , handlerId(pHandlerId)
+        , interface(NULL)
+        , childCalls(0)
+        , parentCall(0)
+        , connected(false)
+        , duration(0)
+        , status(0)
+        , emergency(false)
+        , multiparty(false)
+        , forwarded(false)
+        , remoteHeld(false)
+    {}
 
     VoiceCallHandler *q_ptr;
 
@@ -366,7 +374,8 @@ void VoiceCallHandler::answer()
     QDBusPendingCall call = d->interface->asyncCall("answer");
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallHandler::onPendingCallFinished);
 }
 
 /*!
@@ -379,7 +388,8 @@ void VoiceCallHandler::hangup()
     QDBusPendingCall call = d->interface->asyncCall("hangup");
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallHandler::onPendingCallFinished);
 }
 
 /*!
@@ -392,7 +402,8 @@ void VoiceCallHandler::hold(bool on)
     QDBusPendingCall call = d->interface->asyncCall("hold", on);
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallHandler::onPendingCallFinished);
 }
 
 /*!
@@ -405,7 +416,8 @@ void VoiceCallHandler::deflect(const QString &target)
     QDBusPendingCall call = d->interface->asyncCall("deflect", target);
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallHandler::onPendingCallFinished);
 }
 
 void VoiceCallHandler::sendDtmf(const QString &tones)
@@ -415,7 +427,8 @@ void VoiceCallHandler::sendDtmf(const QString &tones)
     QDBusPendingCall call = d->interface->asyncCall("sendDtmf", tones);
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallHandler::onPendingVoidCallFinished);
 }
 
 void VoiceCallHandler::merge(const QString &callHandle)
@@ -425,7 +438,8 @@ void VoiceCallHandler::merge(const QString &callHandle)
     QDBusPendingCall conf = d->interface->asyncCall("merge", callHandle);
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(conf, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallHandler::onPendingCallFinished);
 }
 
 void VoiceCallHandler::split()
@@ -435,7 +449,8 @@ void VoiceCallHandler::split()
     QDBusPendingCall call = d->interface->asyncCall("split");
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallHandler::onPendingCallFinished);
 }
 
 void VoiceCallHandler::onPendingCallFinished(QDBusPendingCallWatcher *watcher)
@@ -444,7 +459,23 @@ void VoiceCallHandler::onPendingCallFinished(QDBusPendingCallWatcher *watcher)
     QDBusPendingReply<bool> reply = *watcher;
 
     if (reply.isError()) {
-        WARNING_T("Received error reply for member: %s (%s)", qPrintable(reply.reply().member()), qPrintable(reply.error().message()));
+        WARNING_T("Received error reply for member: %s (%s)",
+                  qPrintable(reply.reply().member()), qPrintable(reply.error().message()));
+        emit this->error(reply.error().message());
+        watcher->deleteLater();
+    } else {
+        DEBUG_T("Received successful reply for member: %s", qPrintable(reply.reply().member()));
+    }
+}
+
+void VoiceCallHandler::onPendingVoidCallFinished(QDBusPendingCallWatcher *watcher)
+{
+    TRACE
+    QDBusPendingReply<void> reply = *watcher;
+
+    if (reply.isError()) {
+        WARNING_T("Received error reply for member: %s (%s)",
+                  qPrintable(reply.reply().member()), qPrintable(reply.error().message()));
         emit this->error(reply.error().message());
         watcher->deleteLater();
     } else {

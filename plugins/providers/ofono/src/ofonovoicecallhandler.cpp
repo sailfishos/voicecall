@@ -51,6 +51,7 @@ public:
     int durationTimerId;
     QElapsedTimer elapsedTimer;
     bool isIncoming;
+    AbstractVoiceCallHandler::VoiceCallFilterAction filterAction = AbstractVoiceCallHandler::ACTION_CONTINUE;
 };
 
 OfonoVoiceCallHandler::OfonoVoiceCallHandler(const QString &handlerId, const QString &path, OfonoVoiceCallProvider *provider, QOfonoVoiceCallManager *manager)
@@ -184,7 +185,14 @@ AbstractVoiceCallHandler::VoiceCallStatus OfonoVoiceCallHandler::status() const
     } else if (state == "alerting") {
         return STATUS_ALERTING;
     } else if (state == "incoming") {
-        return STATUS_INCOMING;
+        switch (d->filterAction) {
+        case ACTION_CONTINUE:
+            return STATUS_INCOMING;
+        case ACTION_IGNORE:
+            return STATUS_IGNORED;
+        case ACTION_BLOCK:
+            return STATUS_REJECTED;
+        }
     } else if (state == "waiting") {
         return STATUS_WAITING;
     } else if (state == "disconnected") {
@@ -235,6 +243,24 @@ void OfonoVoiceCallHandler::sendDtmf(const QString &tones)
     TRACE
     Q_D(OfonoVoiceCallHandler);
     d->ofonoVoiceCallManager->sendTones(tones);
+}
+
+void OfonoVoiceCallHandler::filter(VoiceCallFilterAction action)
+{
+    TRACE
+    Q_D(OfonoVoiceCallHandler);
+
+    if (status() != STATUS_INCOMING) {
+        return;
+    }
+
+    d->filterAction = action;
+    if (action == AbstractVoiceCallHandler::ACTION_BLOCK) {
+        hangup();
+    }
+    if (action != AbstractVoiceCallHandler::ACTION_CONTINUE) {
+        emit statusChanged(status());
+    }
 }
 
 void OfonoVoiceCallHandler::timerEvent(QTimerEvent *event)

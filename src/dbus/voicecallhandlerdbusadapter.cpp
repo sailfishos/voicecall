@@ -192,7 +192,7 @@ QString VoiceCallHandlerDBusAdapter::statusText() const
 /*!
   Initiates the answering of this voice call, if its' an incoming call.
 
-  \sa status(), hangup(), deflect()
+  \sa status(), hangup(), deflect(), filter()
 */
 bool VoiceCallHandlerDBusAdapter::answer()
 {
@@ -205,13 +205,26 @@ bool VoiceCallHandlerDBusAdapter::answer()
 /*!
   Initiates hanging up this voice call, if its' currently not disconnected.
 
-  \sa status(), answer(), hold(), deflect()
+  \sa status(), answer(), hold(), deflect(), filter()
 */
 bool VoiceCallHandlerDBusAdapter::hangup()
 {
     TRACE
     Q_D(VoiceCallHandlerDBusAdapter);
     d->handler->hangup();
+    return true;
+}
+
+/*!
+  Initiates filtering this voice call, if its' an incoming call.
+
+  \sa status(), answer(), hold(), deflect(), hangup()
+*/
+bool VoiceCallHandlerDBusAdapter::filter(AbstractVoiceCallHandler::VoiceCallFilterAction action)
+{
+    TRACE
+    Q_D(VoiceCallHandlerDBusAdapter);
+    d->handler->filter(action);
     return true;
 }
 

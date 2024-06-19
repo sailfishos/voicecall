@@ -1,7 +1,7 @@
 /*
  * This file is a part of the Voice Call Manager project
  *
- * Copyright (C) 2016 Jolla Ltd.
+ * Copyright (C) 2024  Damien Caliste <dcaliste@free.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,29 +19,33 @@
  *
  */
 
-#include "basechannelhandler.h"
+#ifndef FILTER_H
+#define FILTER_H
 
-BaseChannelHandler::BaseChannelHandler(QObject *parent)
-    : AbstractVoiceCallHandler(parent)
+#include <QSharedPointer>
+#include <QObject>
+
+#include <abstractvoicecallhandler.h>
+
+class Filter : public QObject
 {
+    Q_OBJECT
+public:
+    Filter(QObject *parent = nullptr);
+    ~Filter();
 
-}
+    QStringList ignoredList() const;
+    QStringList blockedList() const;
 
-void BaseChannelHandler::filter(VoiceCallFilterAction action)
-{
-    if (status() != STATUS_INCOMING) {
-        return;
-    }
+    AbstractVoiceCallHandler::VoiceCallFilterAction evaluate(const AbstractVoiceCallHandler &incomingCall) const;
 
-    switch (action) {
-    case ACTION_BLOCK:
-        hangup();
-        setStatus(STATUS_REJECTED);
-        break;
-    case ACTION_IGNORE:
-        setStatus(STATUS_IGNORED);
-        break;
-    default:
-        break;
-    }
-}
+signals:
+    void ignoredListChanged();
+    void blockedListChanged();
+
+private:
+    class Private;
+    QSharedPointer<Private> d;
+};
+
+#endif

@@ -1,7 +1,7 @@
 /*
  * This file is a part of the Voice Call Manager project
  *
- * Copyright (C) 2016 Jolla Ltd.
+ * Copyright (C) 2024  Damien Caliste <dcaliste@free.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,29 +19,49 @@
  *
  */
 
-#include "basechannelhandler.h"
+#include "filterlist.h"
 
-BaseChannelHandler::BaseChannelHandler(QObject *parent)
-    : AbstractVoiceCallHandler(parent)
+#include <MGConfItem>
+
+class FilterList::Private
 {
+public:
+    Private(const QString &key)
+        : m_conf(key)
+    {
+    }
 
+    MGConfItem m_conf;
+};
+
+FilterList::FilterList(const QString &key, QObject *parent)
+    : QObject(parent)
+    , d(new Private(key))
+{
+    connect(&d->m_conf, &MGConfItem::valueChanged,
+            this, &FilterList::changed);
 }
 
-void BaseChannelHandler::filter(VoiceCallFilterAction action)
+FilterList::~FilterList()
 {
-    if (status() != STATUS_INCOMING) {
-        return;
-    }
+}
 
-    switch (action) {
-    case ACTION_BLOCK:
-        hangup();
-        setStatus(STATUS_REJECTED);
-        break;
-    case ACTION_IGNORE:
-        setStatus(STATUS_IGNORED);
-        break;
-    default:
-        break;
-    }
+QString FilterList::key() const
+{
+    return d->m_conf.key();
+}
+
+QStringList FilterList::list() const
+{
+    return d->m_conf.value().toStringList();
+}
+
+void FilterList::set(const QStringList &list)
+{
+    d->m_conf.set(list);
+}
+
+bool FilterList::match(const QString &number)
+{
+    return list().contains(number);
 }

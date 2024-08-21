@@ -120,6 +120,13 @@ QString OfonoVoiceCallHandler::lineId() const
     return d->ofonoVoiceCall->lineIdentification();
 }
 
+QString OfonoVoiceCallHandler::subscriberId() const
+{
+    TRACE
+    Q_D(const OfonoVoiceCallHandler);
+    return d->ofonoVoiceCall->lineIdentification();
+}
+
 QDateTime OfonoVoiceCallHandler::startedAt() const
 {
     TRACE

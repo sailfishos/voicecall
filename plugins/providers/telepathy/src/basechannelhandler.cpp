@@ -26,3 +26,10 @@ BaseChannelHandler::BaseChannelHandler(QObject *parent)
 {
 
 }
+
+QString BaseChannelHandler::subscriberId() const
+{
+    const QVariantMap properties = channel()->immutableProperties();
+    return properties.value("SubscriberIdentity").toString();
+}
+

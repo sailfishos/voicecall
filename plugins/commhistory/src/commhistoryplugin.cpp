@@ -109,11 +109,11 @@ public:
 
     void storeCall(CommHistory::Event *event)
     {
-        // In CommHistory::Event, events become valid after being added to a model.
-        if (!event->isValid() && !m_eventModel.addEvent(*event)) {
-            qCWarning(voicecall) << "cannot add event to call history";
-        } else if (event->isValid() && !m_eventModel.modifyEvent(*event)) {
+        // In CommHistory::Event, events are valid when existing in a model.
+        if (event->isValid() && !m_eventModel.modifyEvent(*event)) {
             qCWarning(voicecall) << "cannot modify event in call history";
+        } else if (!event->isValid() && !m_eventModel.addEvent(*event)) {
+            qCWarning(voicecall) << "cannot add event to call history";
         }
     }
 

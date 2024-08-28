@@ -30,8 +30,6 @@
 
 #include <QTimer>
 
-static QString activeCallProp = QLatin1String("activeCall");
-
 class CommHistoryPlugin::Private
 {
 public:
@@ -65,12 +63,16 @@ public:
         event.setIsEmergencyCall(handler.isEmergency());
         event.setDirection(handler.isIncoming() ? CommHistory::Event::Inbound
                                                 : CommHistory::Event::Outbound);
+        // Don't store inbound events, since their incoming status
+        // will only be known later (libcommhistory expects missed
+        // calls to be known on event addition for instance).
+        if (event.direction() == CommHistory::Event::Outbound) {
+            storeCall(&event);
+        }
 
         if (m_calls.isEmpty()) {
             m_timer.start();
         }
-        storeCall(&event);
-
         m_calls.insert(handler.handlerId(), event);
     }
 
@@ -82,7 +84,6 @@ public:
         case AbstractVoiceCallHandler::STATUS_ACTIVE:
             event.setStartTime(QDateTime::currentDateTime());
             event.setEndTime(event.startTime());
-            event.setExtraProperty(activeCallProp, true);
             storeCall(&event);
             break;
         case AbstractVoiceCallHandler::STATUS_DISCONNECTED:
@@ -120,10 +121,9 @@ public:
     void voiceCallEnded(const QString &id)
     {
         CommHistory::Event event = m_calls.take(id);
-        event.setIsMissedCall(event.direction() == CommHistory::Event::Inbound
-                              && !event.extraProperty(activeCallProp).isValid());
-        event.removeExtraProperty(activeCallProp);
-        if (event.isMissedCall()) {
+        if (event.direction() == CommHistory::Event::Inbound
+            && !event.isValid()) {
+            event.setIsMissedCall(true);
             event.setStartTime(QDateTime::currentDateTime());
             event.setEndTime(event.startTime());
         }

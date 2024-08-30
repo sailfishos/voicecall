@@ -16,10 +16,11 @@ BuildRequires:  pkgconfig(Qt5Multimedia)
 BuildRequires:  pkgconfig(libresourceqt5)
 BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
-BuildRequires:  pkgconfig(commhistory-qt5)
+BuildRequires:  pkgconfig(commhistory-qt5) >= 1.12.6
 BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
 BuildRequires:  pkgconfig(systemd)
+BuildRequires:  pkgconfig(mlite5)
 BuildRequires:  oneshot
 %{_oneshot_requires_post}
 
@@ -50,6 +51,13 @@ Conflicts:  voicecall-qt5-plugin-telepathy
 BuildRequires:  pkgconfig(qofono-qt5)
 
 %description plugin-ofono
+%{summary}.
+
+%package plugin-voicecall-filter
+Summary:    Voicecall filter plugin
+Requires:   %{name} = %{version}-%{release}
+
+%description plugin-voicecall-filter
 %{summary}.
 
 %prep
@@ -124,4 +132,7 @@ fi
 %files plugin-ofono
 %defattr(-,root,root,-)
 %{_libdir}/voicecall/plugins/libvoicecall-ofono-plugin.so
+
+%files plugin-voicecall-filter
+%{_libdir}/voicecall/plugins/libvoicecall-filter-plugin.so
 

@@ -1,7 +1,7 @@
 /*
  * This file is a part of the Voice Call Manager project
  *
- * Copyright (C) 2016 Jolla Ltd.
+ * Copyright (C) 2024  Damien Caliste <dcaliste@free.fr>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,36 +19,49 @@
  *
  */
 
-#include "basechannelhandler.h"
+#include "filterlist.h"
 
-BaseChannelHandler::BaseChannelHandler(QObject *parent)
-    : AbstractVoiceCallHandler(parent)
+#include <MGConfItem>
+
+class FilterList::Private
 {
-
-}
-
-QString BaseChannelHandler::subscriberId() const
-{
-    const QVariantMap properties = channel()->immutableProperties();
-    return properties.value("SubscriberIdentity").toString();
-}
-
-void BaseChannelHandler::filter(VoiceCallFilterAction action)
-{
-    if (status() != STATUS_NULL) {
-        return;
+public:
+    Private(const QString &key)
+        : m_conf(key)
+    {
     }
 
-    switch (action) {
-    case ACTION_REJECT:
-        hangup();
-        setStatus(STATUS_REJECTED);
-        break;
-    case ACTION_IGNORE:
-        setStatus(STATUS_IGNORED);
-        break;
-    default:
-        setStatus(STATUS_INCOMING);
-        break;
-    }
+    MGConfItem m_conf;
+};
+
+FilterList::FilterList(const QString &key, QObject *parent)
+    : QObject(parent)
+    , d(new Private(key))
+{
+    connect(&d->m_conf, &MGConfItem::valueChanged,
+            this, &FilterList::changed);
+}
+
+FilterList::~FilterList()
+{
+}
+
+QString FilterList::key() const
+{
+    return d->m_conf.key();
+}
+
+QStringList FilterList::list() const
+{
+    return d->m_conf.value().toStringList();
+}
+
+void FilterList::set(const QStringList &list)
+{
+    d->m_conf.set(list);
+}
+
+bool FilterList::match(const QString &number)
+{
+    return list().contains(number);
 }

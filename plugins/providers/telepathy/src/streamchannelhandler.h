@@ -102,13 +102,13 @@ protected Q_SLOTS:
     void onStreamedMediaChannelConferenceMergeChannelFinished(Tp::PendingOperation *op);
 
 protected:
+    void setStatus(VoiceCallStatus newStatus);
+
     void timerEvent(QTimerEvent *event);
     void addChildCall(BaseChannelHandler *handler) override;
     void removeChildCall(BaseChannelHandler *handler) override;
 
 private:
-    void setStatus(VoiceCallStatus newStatus);
-
     class StreamChannelHandlerPrivate *d_ptr;
 
     Q_DISABLE_COPY(StreamChannelHandler)

@@ -91,6 +91,8 @@ protected Q_SLOTS:
     void onFarstreamCreateChannelFinished(Tp::PendingOperation *op);
 
 protected:
+    void setStatus(VoiceCallStatus newStatus);
+
     void timerEvent(QTimerEvent *event);
 
     // TODO: unimplemented
@@ -98,8 +100,6 @@ protected:
     void removeChildCall(BaseChannelHandler */*handler*/) override {}
 
 private:
-    void setStatus(VoiceCallStatus newStatus);
-
     class CallChannelHandlerPrivate *d_ptr;
 
     Q_DISABLE_COPY(CallChannelHandler)

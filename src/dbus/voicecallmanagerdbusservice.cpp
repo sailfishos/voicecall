@@ -28,6 +28,7 @@
 
 #include <QDBusError>
 #include <QDBusConnection>
+#include <QDBusMetaType>
 
 class VoiceCallManagerDBusServicePrivate
 {
@@ -48,6 +49,7 @@ VoiceCallManagerDBusService::VoiceCallManagerDBusService(QObject *parent)
     : AbstractVoiceCallManagerPlugin(parent), d_ptr(new VoiceCallManagerDBusServicePrivate(this))
 {
     TRACE
+    qDBusRegisterMetaType<AbstractVoiceCallHandler::VoiceCallFilterAction>();
 }
 
 VoiceCallManagerDBusService::~VoiceCallManagerDBusService()

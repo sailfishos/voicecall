@@ -59,6 +59,7 @@ public:
     bool isAudioRouted;
     bool isMicrophoneMuted;
     bool isSpeakerMuted;
+    bool isCallFiltering = false;
 
     QString errorString;
 };
@@ -300,6 +301,13 @@ bool VoiceCallManager::dial(const QString &providerId, const QString &msisdn)
     return provider->dial(msisdn);
 }
 
+void VoiceCallManager::setCallFiltering(bool on)
+{
+    TRACE
+    Q_D(VoiceCallManager);
+    d->isCallFiltering = on;
+}
+
 void VoiceCallManager::playRingtone(const QString &ringtonePath)
 {
     TRACE
@@ -348,6 +356,14 @@ void VoiceCallManager::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
         return;
     }
 #endif
+
+    // Incoming calls are kept in the NULL state,
+    // waiting to be filtered, by a plugin or via D-Bus.
+    // If no call filter was set, the manager is releasing
+    // any call.
+    if (handler->isIncoming() && !d->isCallFiltering) {
+        handler->filter(AbstractVoiceCallHandler::ACTION_CONTINUE);
+    }
 
     //AudioCallPolicyProxy *pHandler = new AudioCallPolicyProxy(handler, this);
     d->voiceCalls.insert(handler->handlerId(), handler);

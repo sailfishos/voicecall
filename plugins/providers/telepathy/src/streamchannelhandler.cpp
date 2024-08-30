@@ -476,8 +476,6 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
         setStatus(STATUS_ACTIVE);
     } else if (d->channel->isRequested()) {
         setStatus(STATUS_DIALING);
-    } else {
-        setStatus(STATUS_INCOMING);
     }
 
     d->isIncoming = !d->channel->isRequested();
@@ -773,6 +771,12 @@ void StreamChannelHandler::setStatus(VoiceCallStatus newStatus)
     Q_D(StreamChannelHandler);
     if (newStatus == d->status)
         return;
+
+    if (newStatus == STATUS_DISCONNECTED
+        && (d->status == STATUS_REJECTED
+            || d->status == STATUS_IGNORED)) {
+        return;
+    }
 
     d->status = newStatus;
     emit statusChanged(d->status);

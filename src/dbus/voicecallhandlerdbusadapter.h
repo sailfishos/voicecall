@@ -24,6 +24,7 @@
 #include "abstractvoicecallhandler.h"
 
 #include <QDBusAbstractAdaptor>
+#include <QDBusArgument>
 #include <QDateTime>
 
 class VoiceCallHandlerDBusAdapter : public QDBusAbstractAdaptor
@@ -81,6 +82,7 @@ Q_SIGNALS:
 public Q_SLOTS:
     bool answer();
     bool hangup();
+    bool filter(AbstractVoiceCallHandler::VoiceCallFilterAction action);
     bool hold(bool on);
     bool deflect(const QString &target);
     void sendDtmf(const QString &tones);
@@ -101,5 +103,10 @@ private:
 
     Q_DECLARE_PRIVATE(VoiceCallHandlerDBusAdapter)
 };
+
+QDBusArgument &operator<<(QDBusArgument &argument, AbstractVoiceCallHandler::VoiceCallFilterAction action);
+const QDBusArgument &operator>>(const QDBusArgument &argument, AbstractVoiceCallHandler::VoiceCallFilterAction &action);
+
+Q_DECLARE_METATYPE(AbstractVoiceCallHandler::VoiceCallFilterAction)
 
 #endif // VOICECALLHANDLERDBUSADAPTER_H

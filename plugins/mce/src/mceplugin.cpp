@@ -144,6 +144,8 @@ void McePlugin::onVoiceCallsChanged()
             {
             case AbstractVoiceCallHandler::STATUS_NULL:
             case AbstractVoiceCallHandler::STATUS_DISCONNECTED:
+            case AbstractVoiceCallHandler::STATUS_REJECTED:
+            case AbstractVoiceCallHandler::STATUS_IGNORED:
                 continue;
 
             case AbstractVoiceCallHandler::STATUS_INCOMING:

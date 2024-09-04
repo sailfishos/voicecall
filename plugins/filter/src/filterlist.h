@@ -32,7 +32,8 @@ public:
     FilterList(const QString &key, QObject *parent = nullptr);
     ~FilterList();
 
-    bool match(const QString &number);
+    bool match(const QString &number) const;
+    bool exactMatch(const QString &number) const;
     QString key() const;
     QStringList list() const;
     void set(const QStringList &list);

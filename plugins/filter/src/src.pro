@@ -1,7 +1,7 @@
 include(../../plugin.pri)
 TARGET = voicecall-filter-plugin
 
-PKGCONFIG += mlite5
+PKGCONFIG += mlite5 commhistory-qt5
 
 DEFINES += PLUGIN_NAME=\\\"filter-plugin\\\"
 

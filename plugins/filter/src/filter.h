@@ -36,12 +36,14 @@ public:
 
     QStringList ignoredList() const;
     QStringList rejectedList() const;
+    QStringList whiteList() const;
 
     AbstractVoiceCallHandler::VoiceCallFilterAction evaluate(const AbstractVoiceCallHandler &incomingCall) const;
 
 signals:
     void ignoredListChanged();
     void rejectedListChanged();
+    void whiteListChanged();
 
 private:
     class Private;

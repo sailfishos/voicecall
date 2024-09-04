@@ -28,11 +28,39 @@ public:
     Private()
         : m_rejected(QString::fromLatin1("/sailfish/voicecall/filter/rejected-numbers"))
         , m_ignored(QString::fromLatin1("/sailfish/voicecall/filter/ignored-numbers"))
+        , m_whitelist(QString::fromLatin1("/sailfish/voicecall/filter/whitelist"))
     {
+    }
+
+    enum Action {
+          NO_FILTER,
+          FILTER_IGNORE,
+          FILTER_REJECT
+    };
+
+    Action apply(const QString &number) const
+    {
+        // Give priority to exact matching.
+        if (m_whitelist.exactMatch(number)) {
+            return NO_FILTER;
+        } else if (m_rejected.exactMatch(number)) {
+            return FILTER_REJECT;
+        } else if (m_ignored.exactMatch(number)) {
+            return FILTER_IGNORE;
+        } else if (m_whitelist.match(number)) {
+            return NO_FILTER;
+        } else if (m_rejected.match(number)) {
+            return FILTER_REJECT;
+        } else if (m_ignored.match(number)) {
+            return FILTER_IGNORE;
+        } else {
+            return NO_FILTER;
+        }
     }
 
     FilterList m_rejected;
     FilterList m_ignored;
+    FilterList m_whitelist;
 };
 
 Filter::Filter(QObject *parent)
@@ -43,6 +71,8 @@ Filter::Filter(QObject *parent)
             this, &Filter::rejectedListChanged);
     connect(&d->m_ignored, &FilterList::changed,
             this, &Filter::ignoredListChanged);
+    connect(&d->m_whitelist, &FilterList::changed,
+            this, &Filter::whiteListChanged);
 }
 
 Filter::~Filter()
@@ -59,14 +89,19 @@ QStringList Filter::ignoredList() const
     return d->m_ignored.list();
 }
 
+QStringList Filter::whiteList() const
+{
+    return d->m_whitelist.list();
+}
+
 AbstractVoiceCallHandler::VoiceCallFilterAction Filter::evaluate(const AbstractVoiceCallHandler &incomingCall) const
 {
-    const QString incomingNumber = incomingCall.lineId();
-    if (d->m_rejected.match(incomingNumber)) {
-        return AbstractVoiceCallHandler::ACTION_REJECT;
-    } else if (d->m_ignored.match(incomingNumber)) {
+    switch (d->apply(incomingCall.lineId())) {
+    case Private::FILTER_IGNORE:
         return AbstractVoiceCallHandler::ACTION_IGNORE;
-    } else {
+    case Private::FILTER_REJECT:
+        return AbstractVoiceCallHandler::ACTION_REJECT;
+    default:
         return AbstractVoiceCallHandler::ACTION_CONTINUE;
     }
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testdefinition version="1.0">
+  <suite name="voicecall-filter" domain="mw">
+    <set name="unit-tests" feature="voicecall-filter">
+       <case manual="false" name="tst_filter">
+         <step>/opt/tests/voicecall/filter/tst_filter</step>
+       </case>
+     </set>
+  </suite>
+</testdefinition>

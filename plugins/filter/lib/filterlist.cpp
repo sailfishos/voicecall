@@ -64,6 +64,28 @@ void FilterList::set(const QStringList &list)
     d->m_conf.set(list);
 }
 
+void FilterList::removeEntry(const QString &entry)
+{
+    QStringList filters = list();
+    if (filters.removeAll(entry) > 0) {
+        set(filters);
+    }
+}
+
+void FilterList::addEntry(const QString &entry)
+{
+    QStringList filters = list();
+    if (!filters.contains(entry)) {
+        filters.prepend(entry);
+        set(filters);
+    }
+}
+
+void FilterList::clear()
+{
+    set(QStringList());
+}
+
 bool FilterList::match(const QString &number) const
 {
     for (const QString &filter : list()) {

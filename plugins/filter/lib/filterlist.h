@@ -37,6 +37,9 @@ public:
     QString key() const;
     QStringList list() const;
     void set(const QStringList &list);
+    void addEntry(const QString &entry);
+    void removeEntry(const QString &entry);
+    void clear();
 
 signals:
     void changed();

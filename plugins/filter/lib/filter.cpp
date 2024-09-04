@@ -22,6 +22,8 @@
 #include "filter.h"
 #include "filterlist.h"
 
+using namespace VoiceCall;
+
 class Filter::Private
 {
 public:
@@ -33,28 +35,29 @@ public:
     }
 
     enum Action {
-          NO_FILTER,
-          FILTER_IGNORE,
-          FILTER_REJECT
+        FILTER_NO_MATCH,
+        FILTER_APPROVE,
+        FILTER_IGNORE,
+        FILTER_REJECT
     };
 
     Action apply(const QString &number) const
     {
         // Give priority to exact matching.
         if (m_whitelist.exactMatch(number)) {
-            return NO_FILTER;
+            return FILTER_APPROVE;
         } else if (m_rejected.exactMatch(number)) {
             return FILTER_REJECT;
         } else if (m_ignored.exactMatch(number)) {
             return FILTER_IGNORE;
         } else if (m_whitelist.match(number)) {
-            return NO_FILTER;
+            return FILTER_APPROVE;
         } else if (m_rejected.match(number)) {
             return FILTER_REJECT;
         } else if (m_ignored.match(number)) {
             return FILTER_IGNORE;
         } else {
-            return NO_FILTER;
+            return FILTER_NO_MATCH;
         }
     }
 
@@ -92,6 +95,95 @@ QStringList Filter::ignoredList() const
 QStringList Filter::whiteList() const
 {
     return d->m_whitelist.list();
+}
+
+void Filter::ignoreNumber(const QString &number)
+{
+    d->m_whitelist.removeEntry(number);
+    d->m_rejected.removeEntry(number);
+    d->m_ignored.addEntry(number);
+}
+
+void Filter::ignoreNumbersStartingWith(const QString &prefix)
+{
+    QString pattern = prefix;
+    ignoreNumber(pattern.prepend('^'));
+}
+
+void Filter::ignoreByDefault()
+{
+    ignoreNumber(QStringLiteral("*"));
+}
+
+void Filter::rejectNumber(const QString &number)
+{
+    d->m_whitelist.removeEntry(number);
+    d->m_ignored.removeEntry(number);
+    d->m_rejected.addEntry(number);
+}
+
+void Filter::rejectNumbersStartingWith(const QString &prefix)
+{
+    QString pattern = prefix;
+    rejectNumber(pattern.prepend('^'));
+}
+
+void Filter::rejectByDefault()
+{
+    rejectNumber(QStringLiteral("*"));
+}
+
+void Filter::acceptNumber(const QString &number)
+{
+    d->m_rejected.removeEntry(number);
+    d->m_ignored.removeEntry(number);
+    if (d->m_rejected.match(number)
+        || d->m_ignored.match(number)) {
+        // Whitelist a number only if it is blocked by a pattern.
+        d->m_whitelist.addEntry(number);
+    }
+}
+
+void Filter::acceptNumbersStartingWith(const QString &prefix)
+{
+    QString pattern = prefix;
+    pattern.prepend('^');
+    d->m_ignored.removeEntry(pattern);
+    d->m_rejected.removeEntry(pattern);
+    if (d->m_rejected.match(prefix)
+        || d->m_ignored.match(prefix)) {
+        // Whitelist a prefix only if it is blocked by a larger pattern.
+        d->m_whitelist.addEntry(pattern);
+    }
+}
+
+void Filter::acceptByDefault()
+{
+    d->m_ignored.removeEntry(QStringLiteral("*"));
+    d->m_rejected.removeEntry(QStringLiteral("*"));
+}
+
+void Filter::acceptAll()
+{
+    d->m_ignored.clear();
+    d->m_rejected.clear();
+    d->m_whitelist.clear();
+}
+
+bool Filter::isIgnored(const QString &number) const
+{
+    return (d->apply(number) == Private::FILTER_IGNORE);
+}
+
+bool Filter::isRejected(const QString &number) const
+{
+    return (d->apply(number) == Private::FILTER_REJECT);
+}
+
+bool Filter::isAccepted(const QString &number) const
+{
+    Private::Action action = d->apply(number);
+    return (action == Private::FILTER_APPROVE || action == Private::FILTER_NO_MATCH);
 }
 
 AbstractVoiceCallHandler::VoiceCallFilterAction Filter::evaluate(const AbstractVoiceCallHandler &incomingCall) const

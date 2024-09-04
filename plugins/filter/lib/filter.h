@@ -27,7 +27,17 @@
 
 #include <abstractvoicecallhandler.h>
 
-class Filter : public QObject
+#include <QtCore/QtGlobal>
+
+#if defined(FILTER_SHARED)
+#  define FILTER_EXPORT Q_DECL_EXPORT
+#else
+#  define FILTER_EXPORT Q_DECL_IMPORT
+#endif
+
+namespace VoiceCall {
+
+class FILTER_EXPORT Filter : public QObject
 {
     Q_OBJECT
 public:
@@ -37,6 +47,24 @@ public:
     QStringList ignoredList() const;
     QStringList rejectedList() const;
     QStringList whiteList() const;
+
+    void ignoreNumber(const QString &number);
+    void ignoreNumbersStartingWith(const QString &prefix);
+    void ignoreByDefault();
+
+    void rejectNumber(const QString &number);
+    void rejectNumbersStartingWith(const QString &prefix);
+    void rejectByDefault();
+
+    void acceptNumber(const QString &number);
+    void acceptNumbersStartingWith(const QString &prefix);
+    void acceptByDefault();
+
+    void acceptAll();
+
+    bool isIgnored(const QString &number) const;
+    bool isRejected(const QString &number) const;
+    bool isAccepted(const QString &number) const;
 
     AbstractVoiceCallHandler::VoiceCallFilterAction evaluate(const AbstractVoiceCallHandler &incomingCall) const;
 
@@ -49,5 +77,7 @@ private:
     class Private;
     QSharedPointer<Private> d;
 };
+
+}
 
 #endif

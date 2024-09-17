@@ -25,6 +25,8 @@
 #include <QSharedPointer>
 #include <QObject>
 
+#include <CommHistory/Recipient>
+
 class FilterList : public QObject
 {
     Q_OBJECT
@@ -32,7 +34,7 @@ public:
     FilterList(const QString &key, QObject *parent = nullptr);
     ~FilterList();
 
-    bool match(const QString &number) const;
+    bool match(const CommHistory::Recipient &recipient) const;
     bool exactMatch(const QString &number) const;
     QString key() const;
     QStringList list() const;

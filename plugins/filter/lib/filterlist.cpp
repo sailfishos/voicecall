@@ -22,7 +22,6 @@
 #include "filterlist.h"
 
 #include <common.h>
-#include <CommHistory/commonutils.h>
 
 #include <MGConfItem>
 
@@ -86,18 +85,17 @@ void FilterList::clear()
     set(QStringList());
 }
 
-bool FilterList::match(const QString &number) const
+bool FilterList::match(const CommHistory::Recipient &recipient) const
 {
     for (const QString &filter : list()) {
         if (filter.startsWith('+') || filter[0].isDigit()) {
             // Exact number matching
-            if (number == filter
-                || CommHistory::remoteAddressMatch(CommHistory::RING_ACCOUNT, number, filter, true)) {
+            if (recipient.matchesRemoteUid(filter)) {
                 return true;
             }
         } else if (filter.startsWith('^')) {
             // Prefix matching
-            if (number.startsWith(filter.mid(1))) {
+            if (recipient.remoteUid().startsWith(filter.mid(1))) {
                 return true;
             }
         } else if (filter == QStringLiteral("*")) {

@@ -27,16 +27,50 @@
 
 #include <filter.h>
 
+#include <abstractvoicecallprovider.h>
+
+class Provider: public AbstractVoiceCallProvider
+{
+    Q_OBJECT
+public:
+    Provider(QObject *parent = nullptr)
+        : AbstractVoiceCallProvider(parent)
+    {
+    }
+    QString providerId() const override
+    {
+        return QStringLiteral("/org/freedesktop/Telepathy/Account/ring/tel");
+    }
+    QString providerType() const override
+    {
+        return QString();
+    }
+    QList<AbstractVoiceCallHandler*> voiceCalls() const override
+    {
+        return QList<AbstractVoiceCallHandler*>();
+    }
+    QString errorString() const override
+    {
+        return QString();
+    }
+    bool dial(const QString &msisdn) override
+    {
+        Q_UNUSED(msisdn);
+        return false;
+    }
+};
+
 class Call: public AbstractVoiceCallHandler
 {
 public:
-    Call(const QString &number)
+    Call(AbstractVoiceCallProvider *provider, const QString &number)
         : m_lineId(number)
+        , m_provider(provider)
     {
     }
     AbstractVoiceCallProvider* provider() const override
     {
-        return nullptr;
+        return m_provider;
     }
     QString handlerId() const override
     {
@@ -122,6 +156,7 @@ public:
 
 private:
     QString m_lineId;
+    AbstractVoiceCallProvider *m_provider;
 };
 
 class tst_filter: public QObject
@@ -146,6 +181,7 @@ private slots:
 
 private:
     QTemporaryDir mTmpHome;
+    Provider mProvider;
 };
 
 tst_filter::tst_filter(QObject *parent)
@@ -164,12 +200,12 @@ void tst_filter::initTestCase()
 void tst_filter::tst_ignoreNumbers()
 {
     VoiceCall::Filter filter;
-    const QString number1 = QStringLiteral("+155578910");
-    const QString number2 = QStringLiteral("123456789");
-    const QString number3 = QStringLiteral("055578910");
-    const Call call1(number1);
-    const Call call2(number2);
-    const Call call3(number3);
+    const QString number1 = QStringLiteral("+33555789100");
+    const QString number2 = QStringLiteral("0123456789");
+    const QString number3 = QStringLiteral("0555789100");
+    const Call call1(&mProvider, number1);
+    const Call call2(&mProvider, number2);
+    const Call call3(&mProvider, number3);
 
     QVERIFY(filter.ignoredList().isEmpty());
 
@@ -218,9 +254,9 @@ void tst_filter::tst_ignorePrefix()
 {
     VoiceCall::Filter filter;
     const QString prefix1 = QStringLiteral("+1555");
-    const Call call1(QStringLiteral("+155578910"));
-    const Call call2(QStringLiteral("+155523456"));
-    const Call call3(QStringLiteral("+155400000"));
+    const Call call1(&mProvider, QStringLiteral("+155578910"));
+    const Call call2(&mProvider, QStringLiteral("+155523456"));
+    const Call call3(&mProvider, QStringLiteral("+155400000"));
 
     QVERIFY(filter.ignoredList().isEmpty());
 
@@ -243,9 +279,9 @@ void tst_filter::tst_overrideIgnorePrefix()
     VoiceCall::Filter filter;
     const QString prefix1 = QStringLiteral("+1555");
     const QString number1 = QStringLiteral("+155578910");
-    const Call call1(number1);
-    const Call call2(QStringLiteral("+155523456"));
-    const Call call3(QStringLiteral("+155400000"));
+    const Call call1(&mProvider, number1);
+    const Call call2(&mProvider, QStringLiteral("+155523456"));
+    const Call call3(&mProvider, QStringLiteral("+155400000"));
 
     QVERIFY(filter.ignoredList().isEmpty());
     QVERIFY(filter.rejectedList().isEmpty());
@@ -292,12 +328,12 @@ void tst_filter::tst_overrideIgnorePrefix()
 void tst_filter::tst_rejectNumbers()
 {
     VoiceCall::Filter filter;
-    const QString number1 = QStringLiteral("+155578910");
-    const QString number2 = QStringLiteral("123456789");
-    const QString number3 = QStringLiteral("055578910");
-    const Call call1(number1);
-    const Call call2(number2);
-    const Call call3(number3);
+    const QString number1 = QStringLiteral("+33555789100");
+    const QString number2 = QStringLiteral("0123456789");
+    const QString number3 = QStringLiteral("0555789100");
+    const Call call1(&mProvider, number1);
+    const Call call2(&mProvider, number2);
+    const Call call3(&mProvider, number3);
 
     QVERIFY(filter.rejectedList().isEmpty());
 
@@ -346,9 +382,9 @@ void tst_filter::tst_rejectPrefix()
 {
     VoiceCall::Filter filter;
     const QString prefix1 = QStringLiteral("+1555");
-    const Call call1(QStringLiteral("+155578910"));
-    const Call call2(QStringLiteral("+155523456"));
-    const Call call3(QStringLiteral("+155400000"));
+    const Call call1(&mProvider, QStringLiteral("+155578910"));
+    const Call call2(&mProvider, QStringLiteral("+155523456"));
+    const Call call3(&mProvider, QStringLiteral("+155400000"));
 
     QVERIFY(filter.rejectedList().isEmpty());
 
@@ -371,9 +407,9 @@ void tst_filter::tst_overrideRejectPrefix()
     VoiceCall::Filter filter;
     const QString prefix1 = QStringLiteral("+1555");
     const QString number1 = QStringLiteral("+155578910");
-    const Call call1(number1);
-    const Call call2(QStringLiteral("+155523456"));
-    const Call call3(QStringLiteral("+155400000"));
+    const Call call1(&mProvider, number1);
+    const Call call2(&mProvider, QStringLiteral("+155523456"));
+    const Call call3(&mProvider, QStringLiteral("+155400000"));
 
     QVERIFY(filter.ignoredList().isEmpty());
     QVERIFY(filter.rejectedList().isEmpty());
@@ -422,9 +458,9 @@ void tst_filter::tst_overrideAcceptPrefix()
     VoiceCall::Filter filter;
     const QString prefix1 = QStringLiteral("+1555");
     const QString prefix2 = QStringLiteral("+1");
-    const Call call1(QStringLiteral("+155578910"));
-    const Call call2(QStringLiteral("+155523456"));
-    const Call call3(QStringLiteral("+155400000"));
+    const Call call1(&mProvider, QStringLiteral("+155578910"));
+    const Call call2(&mProvider, QStringLiteral("+155523456"));
+    const Call call3(&mProvider, QStringLiteral("+155400000"));
 
     QVERIFY(filter.ignoredList().isEmpty());
     QVERIFY(filter.rejectedList().isEmpty());

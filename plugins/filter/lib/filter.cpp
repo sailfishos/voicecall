@@ -22,6 +22,10 @@
 #include "filter.h"
 #include "filterlist.h"
 
+#include <CommHistory/Recipient>
+
+#include <abstractvoicecallprovider.h>
+
 using namespace VoiceCall;
 
 class Filter::Private
@@ -41,20 +45,20 @@ public:
         FILTER_REJECT
     };
 
-    Action apply(const QString &number) const
+    Action apply(const CommHistory::Recipient &recipient) const
     {
         // Give priority to exact matching.
-        if (m_whitelist.exactMatch(number)) {
+        if (m_whitelist.exactMatch(recipient.remoteUid())) {
             return FILTER_APPROVE;
-        } else if (m_rejected.exactMatch(number)) {
+        } else if (m_rejected.exactMatch(recipient.remoteUid())) {
             return FILTER_REJECT;
-        } else if (m_ignored.exactMatch(number)) {
+        } else if (m_ignored.exactMatch(recipient.remoteUid())) {
             return FILTER_IGNORE;
-        } else if (m_whitelist.match(number)) {
+        } else if (m_whitelist.match(recipient)) {
             return FILTER_APPROVE;
-        } else if (m_rejected.match(number)) {
+        } else if (m_rejected.match(recipient)) {
             return FILTER_REJECT;
-        } else if (m_ignored.match(number)) {
+        } else if (m_ignored.match(recipient)) {
             return FILTER_IGNORE;
         } else {
             return FILTER_NO_MATCH;
@@ -137,8 +141,10 @@ void Filter::acceptNumber(const QString &number)
 {
     d->m_rejected.removeEntry(number);
     d->m_ignored.removeEntry(number);
-    if (d->m_rejected.match(number)
-        || d->m_ignored.match(number)) {
+    const CommHistory::Recipient recipient
+        = CommHistory::Recipient::fromPhoneNumber(number);
+    if (d->m_rejected.match(recipient)
+        || d->m_ignored.match(recipient)) {
         // Whitelist a number only if it is blocked by a pattern.
         d->m_whitelist.addEntry(number);
     }
@@ -150,8 +156,10 @@ void Filter::acceptNumbersStartingWith(const QString &prefix)
     pattern.prepend('^');
     d->m_ignored.removeEntry(pattern);
     d->m_rejected.removeEntry(pattern);
-    if (d->m_rejected.match(prefix)
-        || d->m_ignored.match(prefix)) {
+    const CommHistory::Recipient recipient
+        = CommHistory::Recipient::fromPhoneNumber(prefix);
+    if (d->m_rejected.match(recipient)
+        || d->m_ignored.match(recipient)) {
         // Whitelist a prefix only if it is blocked by a larger pattern.
         d->m_whitelist.addEntry(pattern);
     }
@@ -172,23 +180,24 @@ void Filter::acceptAll()
 
 bool Filter::isIgnored(const QString &number) const
 {
-    return (d->apply(number) == Private::FILTER_IGNORE);
+    return (d->apply(CommHistory::Recipient::fromPhoneNumber(number)) == Private::FILTER_IGNORE);
 }
 
 bool Filter::isRejected(const QString &number) const
 {
-    return (d->apply(number) == Private::FILTER_REJECT);
+    return (d->apply(CommHistory::Recipient::fromPhoneNumber(number)) == Private::FILTER_REJECT);
 }
 
 bool Filter::isAccepted(const QString &number) const
 {
-    Private::Action action = d->apply(number);
+    Private::Action action = d->apply(CommHistory::Recipient::fromPhoneNumber(number));
     return (action == Private::FILTER_APPROVE || action == Private::FILTER_NO_MATCH);
 }
 
 AbstractVoiceCallHandler::VoiceCallFilterAction Filter::evaluate(const AbstractVoiceCallHandler &incomingCall) const
 {
-    switch (d->apply(incomingCall.lineId())) {
+    switch (d->apply(CommHistory::Recipient(incomingCall.provider()->providerId(),
+                                            incomingCall.lineId()))) {
     case Private::FILTER_IGNORE:
         return AbstractVoiceCallHandler::ACTION_IGNORE;
     case Private::FILTER_REJECT:

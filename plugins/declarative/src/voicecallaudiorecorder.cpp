@@ -176,7 +176,7 @@ void VoiceCallAudioRecorder::startRecording(const QString &name, const QString &
     }
 
     const QString timestamp(QLocale::c().toString(QDateTime::currentDateTime(), QStringLiteral("yyyyMMdd-HHmmsszzz")));
-    const QString fileName(QString("%1.%2.%3.%4").arg(name).arg(uid).arg(timestamp).arg(incoming ? 1 : 0));
+    const QString fileName(QString("%1.%2.%3.%4").arg(name, uid, timestamp, QString::number(incoming ? 1 : 0)));
 
     if (initiateRecording(fileName)) {
         label = name;
@@ -269,7 +269,15 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
         return false;
     }
 
-    const QString filePath(outputDir.filePath(QString("%1.wav").arg(QString::fromLocal8Bit(QFile::encodeName(fileName)))));
+    QString filePath(outputDir.filePath(QString("%1.wav").arg(QString::fromLocal8Bit(QFile::encodeName(fileName)))));
+
+    if (outputDir.exists(filePath)) {
+        qWarning() << "File already exists:" << filePath;
+        emit recordingError(FileCreation);
+        return false;
+    }
+
+    filePath.append(QStringLiteral(".tmp"));
 
     QScopedPointer<QFile> file(new QFile(filePath));
     if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -352,8 +360,14 @@ void VoiceCallAudioRecorder::terminateRecording()
             }
         }
 
-        const QString fileName(output->fileName());
-        output->close();
+        QString fileName(output->fileName());
+        if (fileName.endsWith(QStringLiteral(".tmp"))) {
+            fileName.chop(4);
+        } else {
+            qWarning() << "Unexpected file name after recording";
+        }
+
+        output->rename(fileName);
         output.reset();
 
         if (success) {

@@ -12,6 +12,7 @@ Requires:   voicecall-qt5-plugin-telepathy = %{version}
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(Qt5Qml)
+BuildRequires:  pkgconfig(Qt5Test)
 BuildRequires:  pkgconfig(Qt5Multimedia)
 BuildRequires:  pkgconfig(libresourceqt5)
 BuildRequires:  pkgconfig(libpulse-mainloop-glib)
@@ -83,10 +84,9 @@ Tests for %{name}.
 %qmake5 
 
 qmake -qt=5 CONFIG+=enable-ngf CONFIG+=enable-audiopolicy CONFIG+=enable-telepathy CONFIG+=enable-nemo-devicelock CONFIG+=install-servicefiles "PROJECT_VERSION=%{version}" "PKGCONFIG_LIB=%{_lib}"
-make %{?_smp_mflags}
+%make_build
 
 %install
-rm -rf %{buildroot}
 %qmake5_install
 
 mkdir -p %{buildroot}%{_userunitdir}/user-session.target.wants
@@ -119,7 +119,6 @@ fi
 %postun plugin-voicecall-filter -p /sbin/ldconfig
 
 %files
-%defattr(-,root,root,-)
 %license LICENSE.LGPL21 LICENSE.GPL2 LICENSE.ASL2 LICENSE.BSD
 %{_libdir}/libvoicecall.so.1
 %{_libdir}/libvoicecall.so.1.0
@@ -140,16 +139,13 @@ fi
 %{_oneshotdir}/phone-move-recordings-dir
 
 %files devel
-%defattr(-,root,root,-)
 %{_libdir}/libvoicecall.so
 %{_includedir}/voicecall
 
 %files plugin-telepathy
-%defattr(-,root,root,-)
 %{_libdir}/voicecall/plugins/libvoicecall-telepathy-plugin.so
 
 %files plugin-ofono
-%defattr(-,root,root,-)
 %{_libdir}/voicecall/plugins/libvoicecall-ofono-plugin.so
 
 %files plugin-voicecall-filter

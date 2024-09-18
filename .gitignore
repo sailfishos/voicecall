@@ -4,3 +4,6 @@ moc_*
 *.moc
 *.so
 *.so.*
+*.pc
+*.prl
+tst_*

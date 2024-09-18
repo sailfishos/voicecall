@@ -16,7 +16,7 @@ BuildRequires:  pkgconfig(Qt5Multimedia)
 BuildRequires:  pkgconfig(libresourceqt5)
 BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
-BuildRequires:  pkgconfig(commhistory-qt5) >= 1.12.6
+BuildRequires:  pkgconfig(commhistory-qt5) >= 1.12.10
 BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
 BuildRequires:  pkgconfig(systemd)
@@ -58,7 +58,22 @@ Summary:    Voicecall filter plugin
 Requires:   %{name} = %{version}-%{release}
 
 %description plugin-voicecall-filter
-%{summary}.
+A voicecall filter plugin using DConf.
+
+%package plugin-voicecall-filter-devel
+Summary:    Voicecall filter plugin development package
+Requires:   %{name} = %{version}-%{release}
+
+%description plugin-voicecall-filter-devel
+Development files for %{name}.
+
+%package tests
+Summary:    Voicecall test package
+Requires:   %{name} = %{version}-%{release}
+
+%description tests
+Tests for %{name}.
+
 
 %prep
 %setup -q -n %{name}-%{version}
@@ -67,7 +82,7 @@ Requires:   %{name} = %{version}-%{release}
 
 %qmake5 
 
-qmake -qt=5 CONFIG+=enable-ngf CONFIG+=enable-audiopolicy CONFIG+=enable-telepathy CONFIG+=enable-nemo-devicelock CONFIG+=install-servicefiles
+qmake -qt=5 CONFIG+=enable-ngf CONFIG+=enable-audiopolicy CONFIG+=enable-telepathy CONFIG+=enable-nemo-devicelock CONFIG+=install-servicefiles "PROJECT_VERSION=%{version}" "PKGCONFIG_LIB=%{_lib}"
 make %{?_smp_mflags}
 
 %install
@@ -98,6 +113,10 @@ if [ "$1" -eq 0 ]; then
 systemctl-user stop voicecall-manager.service || :
 systemctl-user daemon-reload || :
 fi
+
+%post plugin-voicecall-filter -p /sbin/ldconfig
+
+%postun plugin-voicecall-filter -p /sbin/ldconfig
 
 %files
 %defattr(-,root,root,-)
@@ -134,5 +153,14 @@ fi
 %{_libdir}/voicecall/plugins/libvoicecall-ofono-plugin.so
 
 %files plugin-voicecall-filter
+%{_libdir}/libvoicecall-filter.so.*
 %{_libdir}/voicecall/plugins/libvoicecall-filter-plugin.so
+
+%files plugin-voicecall-filter-devel
+%{_libdir}/libvoicecall-filter.so
+%{_includedir}/voicecall/Filter
+%{_libdir}/pkgconfig/voicecall-filter.pc
+
+%files tests
+/opt/tests/voicecall/filter
 

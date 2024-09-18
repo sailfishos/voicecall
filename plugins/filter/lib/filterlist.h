@@ -19,29 +19,32 @@
  *
  */
 
-#ifndef FILTER_H
-#define FILTER_H
+#ifndef MATCHER_H
+#define MATCHER_H
 
 #include <QSharedPointer>
 #include <QObject>
 
-#include <abstractvoicecallhandler.h>
+#include <CommHistory/Recipient>
 
-class Filter : public QObject
+class FilterList : public QObject
 {
     Q_OBJECT
 public:
-    Filter(QObject *parent = nullptr);
-    ~Filter();
+    FilterList(const QString &key, QObject *parent = nullptr);
+    ~FilterList();
 
-    QStringList ignoredList() const;
-    QStringList rejectedList() const;
-
-    AbstractVoiceCallHandler::VoiceCallFilterAction evaluate(const AbstractVoiceCallHandler &incomingCall) const;
+    bool match(const CommHistory::Recipient &recipient) const;
+    bool exactMatch(const QString &number) const;
+    QString key() const;
+    QStringList list() const;
+    void set(const QStringList &list);
+    void addEntry(const QString &entry);
+    void removeEntry(const QString &entry);
+    void clear();
 
 signals:
-    void ignoredListChanged();
-    void rejectedListChanged();
+    void changed();
 
 private:
     class Private;

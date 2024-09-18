@@ -21,6 +21,8 @@
 
 #include "filterlist.h"
 
+#include <common.h>
+
 #include <MGConfItem>
 
 class FilterList::Private
@@ -61,7 +63,52 @@ void FilterList::set(const QStringList &list)
     d->m_conf.set(list);
 }
 
-bool FilterList::match(const QString &number)
+void FilterList::removeEntry(const QString &entry)
+{
+    QStringList filters = list();
+    if (filters.removeAll(entry) > 0) {
+        set(filters);
+    }
+}
+
+void FilterList::addEntry(const QString &entry)
+{
+    QStringList filters = list();
+    if (!filters.contains(entry)) {
+        filters.prepend(entry);
+        set(filters);
+    }
+}
+
+void FilterList::clear()
+{
+    set(QStringList());
+}
+
+bool FilterList::match(const CommHistory::Recipient &recipient) const
+{
+    for (const QString &filter : list()) {
+        if (filter.startsWith('+') || filter[0].isDigit()) {
+            // Exact number matching
+            if (recipient.matchesRemoteUid(filter)) {
+                return true;
+            }
+        } else if (filter.startsWith('^')) {
+            // Prefix matching
+            if (recipient.remoteUid().startsWith(filter.mid(1))) {
+                return true;
+            }
+        } else if (filter == QStringLiteral("*")) {
+            // All
+            return true;
+        } else {
+            qCWarning(voicecall) << "unknown filter" << filter;
+        }
+    }
+    return false;
+}
+
+bool FilterList::exactMatch(const QString &number) const
 {
     return list().contains(number);
 }

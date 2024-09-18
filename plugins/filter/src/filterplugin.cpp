@@ -33,7 +33,7 @@ public:
     }
 
     VoiceCallManagerInterface *m_manager = nullptr;
-    Filter m_filter;
+    VoiceCall::Filter m_filter;
 };
 
 FilterPlugin::FilterPlugin(QObject *parent)

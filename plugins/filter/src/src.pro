@@ -1,16 +1,12 @@
 include(../../plugin.pri)
 TARGET = voicecall-filter-plugin
 
-PKGCONFIG += mlite5
-
 DEFINES += PLUGIN_NAME=\\\"filter-plugin\\\"
 
-HEADERS += \
-    filterplugin.h \
-    filter.h \
-    filterlist.h
+INCLUDEPATH += $$PWD/../lib
 
-SOURCES += \
-    filterplugin.cpp \
-    filter.cpp \
-    filterlist.cpp
+LIBS += -L$$PWD/../lib -lvoicecall-filter
+
+HEADERS += filterplugin.h
+
+SOURCES += filterplugin.cpp

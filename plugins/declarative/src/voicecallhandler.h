@@ -85,8 +85,8 @@ public Q_SLOTS:
     void merge(const QString &callHandle);
     void split();
 
-protected Q_SLOTS:
-    void initialize(bool notifyError = false);
+private Q_SLOTS:
+    void initialize();
 
     void onPendingCallFinished(QDBusPendingCallWatcher *watcher);
     void onPendingVoidCallFinished(QDBusPendingCallWatcher *watcher);
@@ -100,6 +100,7 @@ protected Q_SLOTS:
     void onRemoteHeldChanged(bool remoteHeld);
     void onMultipartyHandlerIdChanged(QString handlerId);
     void onChildCallsChanged(const QStringList &);
+    void onGetPropertiesFinished(QDBusPendingCallWatcher *watcher);
 
 private:
     class VoiceCallHandlerPrivate *d_ptr;

@@ -79,16 +79,16 @@ public Q_SLOTS:
     void playRingtone(const QString &ringtonePath = QString());
     void silenceRingtone();
 
-    bool setAudioMode(const QString &mode);
-    bool setAudioRouted(bool on);
-    bool setMuteMicrophone(bool on = true);
-    bool setMuteSpeaker(bool on = true);
+    void setAudioMode(const QString &mode);
+    void setAudioRouted(bool on);
+    void setMuteMicrophone(bool on = true);
+    void setMuteSpeaker(bool on = true);
 
     bool startDtmfTone(const QString &tone);
     bool stopDtmfTone();
 
 protected Q_SLOTS:
-    void initialize(bool notifyError = false);
+    void initialize();
 
     void onProvidersChanged();
     void onVoiceCallsChanged();

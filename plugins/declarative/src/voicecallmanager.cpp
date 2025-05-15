@@ -71,7 +71,7 @@ VoiceCallManager::~VoiceCallManager()
     delete d;
 }
 
-void VoiceCallManager::initialize(bool notifyError)
+void VoiceCallManager::initialize()
 {
     TRACE
     Q_D(VoiceCallManager);
@@ -99,8 +99,6 @@ void VoiceCallManager::initialize(bool notifyError)
 
     if (!(d->connected = success)) {
         QTimer::singleShot(2000, this, SLOT(initialize()));
-        if (notifyError)
-            emit this->error("Failed to connect to VCM D-Bus service.");
     }
 }
 
@@ -242,39 +240,45 @@ void VoiceCallManager::silenceRingtone()
                      this, &VoiceCallManager::onPendingVoidCallFinished);
 }
 
-/*
-  - Use of method calls instead of property setters to allow status checking.
- */
-bool VoiceCallManager::setAudioMode(const QString &mode)
+void VoiceCallManager::setAudioMode(const QString &mode)
 {
     TRACE
     Q_D(const VoiceCallManager);
-    QDBusPendingReply<bool> reply = d->interface->call("setAudioMode", mode);
-    return reply.isError() ? false : reply.value();
+
+    QDBusPendingCall call = d->interface->asyncCall("setAudioMode", mode);
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallManager::onPendingBoolCallFinished);
 }
 
-bool VoiceCallManager::setAudioRouted(bool on)
+void VoiceCallManager::setAudioRouted(bool on)
 {
     TRACE
     Q_D(const VoiceCallManager);
-    QDBusPendingReply<bool> reply = d->interface->call("setAudioRouted", on);
-    return reply.isError() ? false : reply.value();
+    QDBusPendingCall call = d->interface->asyncCall("setAudioRouted", on);
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallManager::onPendingBoolCallFinished);
 }
 
-bool VoiceCallManager::setMuteMicrophone(bool on)
+void VoiceCallManager::setMuteMicrophone(bool on)
 {
     TRACE
     Q_D(VoiceCallManager);
-    QDBusPendingReply<bool> reply = d->interface->call("setMuteMicrophone", on);
-    return reply.isError() ? false : reply.value();
+    QDBusPendingCall call = d->interface->asyncCall("setMuteMicrophone", on);
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallManager::onPendingBoolCallFinished);
 }
 
-bool VoiceCallManager::setMuteSpeaker(bool on)
+void VoiceCallManager::setMuteSpeaker(bool on)
 {
     TRACE
     Q_D(VoiceCallManager);
-    QDBusPendingReply<bool> reply = d->interface->call("setMuteSpeaker", on);
-    return reply.isError() ? false : reply.value();
+    QDBusPendingCall call = d->interface->asyncCall("setMuteSpeaker", on);
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallManager::onPendingBoolCallFinished);
 }
 
 bool VoiceCallManager::startDtmfTone(const QString &tone)

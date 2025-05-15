@@ -91,7 +91,7 @@ QDBusInterface* VoiceCallHandler::interface() const
     return d->interface;
 }
 
-void VoiceCallHandler::initialize(bool notifyError)
+void VoiceCallHandler::initialize()
 {
     TRACE
     Q_D(VoiceCallHandler);
@@ -114,47 +114,56 @@ void VoiceCallHandler::initialize(bool notifyError)
 
     if (!(d->connected = success)) {
         QTimer::singleShot(2000, this, SLOT(initialize()));
-        if (notifyError)
-            emit this->error("Failed to connect to VCM D-Bus service.");
     } else {
-        QDBusReply<QVariantMap> reply = d->interface->call("getProperties");
-        if (reply.isValid()) {
-            QVariantMap props = reply.value();
-            d->providerId = props["providerId"].toString();
-            d->duration = props["duration"].toInt();
-            d->status = props["status"].toInt();
-            d->statusText = props["statusText"].toString();
-            d->lineId = props["lineId"].toString();
-            d->startedAt = QDateTime::fromMSecsSinceEpoch(props["startedAt"].toULongLong());
-            d->multiparty = props["isMultiparty"].toBool();
-            d->emergency = props["isEmergency"].toBool();
-            d->forwarded = props["isForwarded"].toBool();
-            d->remoteHeld = props["isRemoteHeld"].toBool();
-            d->parentHandlerId = props["parentHandlerId"].toString();
-            emit durationChanged();
-            emit statusChanged();
-            emit lineIdChanged();
-            emit startedAtChanged();
-            if (d->multiparty)
-                emit multipartyChanged();
-            if (d->emergency)
-                emit emergencyChanged();
-            if (d->forwarded)
-                emit forwardedChanged();
-            if (d->remoteHeld)
-                emit isRemoteHeld();
-            if (!d->parentHandlerId.isEmpty()) {
-                d->parentCall = VoiceCallManager::getCallHandler(d->parentHandlerId);
-                emit parentCallChanged();
-            }
-            if (d->multiparty) {
-                d->childCalls = new VoiceCallModel(this);
-                emit childCallsListChanged();
-                emit childCallsChanged();
-            }
+        QDBusPendingCall call = d->interface->asyncCall("getProperties");
+        QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
+        connect(watcher, &QDBusPendingCallWatcher::finished,
+                this, &VoiceCallHandler::onGetPropertiesFinished);
+    }
+}
 
-        } else if (notifyError) {
-            emit this->error("Failed to getProperties() from VCM D-Bus service.");
+void VoiceCallHandler::onGetPropertiesFinished(QDBusPendingCallWatcher *watcher)
+{
+    Q_D(VoiceCallHandler);
+    QDBusPendingReply<QVariantMap> reply = *watcher;
+    watcher->deleteLater();
+
+    if (reply.isError()) {
+        qWarning() << "VoicecallHandler GetProperties D-Bus call failed" << reply.error().message();
+    } else {
+        QVariantMap props = reply.value();
+        d->providerId = props["providerId"].toString();
+        d->duration = props["duration"].toInt();
+        d->status = props["status"].toInt();
+        d->statusText = props["statusText"].toString();
+        d->lineId = props["lineId"].toString();
+        d->startedAt = QDateTime::fromMSecsSinceEpoch(props["startedAt"].toULongLong());
+        d->multiparty = props["isMultiparty"].toBool();
+        d->emergency = props["isEmergency"].toBool();
+        d->forwarded = props["isForwarded"].toBool();
+        d->remoteHeld = props["isRemoteHeld"].toBool();
+        d->parentHandlerId = props["parentHandlerId"].toString();
+
+        emit durationChanged();
+        emit statusChanged();
+        emit lineIdChanged();
+        emit startedAtChanged();
+        if (d->multiparty)
+            emit multipartyChanged();
+        if (d->emergency)
+            emit emergencyChanged();
+        if (d->forwarded)
+            emit forwardedChanged();
+        if (d->remoteHeld)
+            emit isRemoteHeld();
+        if (!d->parentHandlerId.isEmpty()) {
+            d->parentCall = VoiceCallManager::getCallHandler(d->parentHandlerId);
+            emit parentCallChanged();
+        }
+        if (d->multiparty) {
+            d->childCalls = new VoiceCallModel(this);
+            emit childCallsListChanged();
+            emit childCallsChanged();
         }
     }
 }

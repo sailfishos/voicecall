@@ -47,7 +47,8 @@ public:
 };
 
 NgfRingtonePlugin::NgfRingtonePlugin(QObject *parent)
-    : AbstractVoiceCallManagerPlugin(parent), d_ptr(new NgfRingtonePluginPrivate(this))
+    : AbstractVoiceCallManagerPlugin(parent)
+    , d_ptr(new NgfRingtonePluginPrivate(this))
 {
     TRACE
 }

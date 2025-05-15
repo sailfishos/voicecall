@@ -44,9 +44,14 @@
 class VoiceCallProviderData
 {
 public:
-    VoiceCallProviderData() {/*..*/}
+    VoiceCallProviderData()
+    {
+    }
+
     VoiceCallProviderData(const QString &pId, const QString &pType, const QString &pLabel)
-        : id(pId), type(pType), label(pLabel) {/*...*/}
+        : id(pId), type(pType), label(pLabel)
+    {
+    }
 
     QString id;
     QString type;
@@ -59,20 +64,20 @@ class VoiceCallProviderModelPrivate
 
 public:
     VoiceCallProviderModelPrivate(VoiceCallProviderModel *q, VoiceCallManager *pManager)
-        : q_ptr(q), manager(pManager)
-    {/*...*/}
+        : q_ptr(q)
+        , manager(pManager)
+    {
+    }
 
     VoiceCallProviderModel *q_ptr;
-
     VoiceCallManager *manager;
-
-    QHash<QString,VoiceCallProviderData> providers;
-
+    QHash<QString, VoiceCallProviderData> providers;
     QHash<int, QByteArray> headerData;
 };
 
 VoiceCallProviderModel::VoiceCallProviderModel(VoiceCallManager *manager)
-    : QAbstractListModel(manager), d_ptr(new VoiceCallProviderModelPrivate(this, manager))
+    : QAbstractListModel(manager)
+    , d_ptr(new VoiceCallProviderModelPrivate(this, manager))
 {
     TRACE
     Q_D(VoiceCallProviderModel);

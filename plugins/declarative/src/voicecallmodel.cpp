@@ -49,12 +49,14 @@ class VoiceCallModelPrivate
 
 public:
     VoiceCallModelPrivate(VoiceCallModel *q, VoiceCallManager *pManager)
-        : q_ptr(q), manager(pManager), confHandler(0)
-    {/*...*/}
+        : q_ptr(q), manager(pManager), confHandler(nullptr)
+    {
+    }
 
     VoiceCallModelPrivate(VoiceCallModel *q, VoiceCallHandler *pConf)
-        : q_ptr(q), manager(0), confHandler(pConf)
-    {/*...*/}
+        : q_ptr(q), manager(nullptr), confHandler(pConf)
+    {
+    }
 
     VoiceCallModel *q_ptr;
 
@@ -77,7 +79,8 @@ VoiceCallModel::VoiceCallModel(VoiceCallManager *manager)
 }
 
 VoiceCallModel::VoiceCallModel(VoiceCallHandler *conf)
-    : QAbstractListModel(conf), d_ptr(new VoiceCallModelPrivate(this, conf))
+    : QAbstractListModel(conf)
+    , d_ptr(new VoiceCallModelPrivate(this, conf))
 {
     TRACE
     Q_D(VoiceCallModel);

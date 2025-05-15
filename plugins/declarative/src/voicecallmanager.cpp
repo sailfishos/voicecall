@@ -20,24 +20,22 @@ class VoiceCallManagerPrivate
 public:
     VoiceCallManagerPrivate(VoiceCallManager *q)
         : q_ptr(q),
-          interface(NULL),
-          voicecalls(NULL),
-          providers(NULL),
-          activeVoiceCall(NULL),
+          interface(nullptr),
+          voicecalls(nullptr),
+          providers(nullptr),
+          activeVoiceCall(nullptr),
 #ifdef WITH_NGF
-          ngf(0),
+          ngf(nullptr),
 #endif
           eventId(0),
           connected(false)
-    { /*...*/ }
+    {
+    }
 
     VoiceCallManager *q_ptr;
-
     QDBusInterface *interface;
-
     VoiceCallModel *voicecalls;
     VoiceCallProviderModel *providers;
-
     VoiceCallHandler* activeVoiceCall;
 
 #ifdef WITH_NGF
@@ -45,9 +43,7 @@ public:
 #endif
 
     quint32 eventId;
-
     bool connected;
-
     QString modemPath;
 };
 

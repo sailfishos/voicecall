@@ -218,7 +218,8 @@ void VoiceCallManager::dial(const QString &provider, const QString &msisdn)
     QDBusPendingCall call = d->interface->asyncCall("dial", provider, msisdn);
 
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingBoolCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallManager::onPendingBoolCallFinished);
 }
 
 void VoiceCallManager::playRingtone(const QString &ringtonePath)
@@ -227,7 +228,8 @@ void VoiceCallManager::playRingtone(const QString &ringtonePath)
     Q_D(const VoiceCallManager);
     QDBusPendingCall call = d->interface->asyncCall("playRingtone", ringtonePath);
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingVoidCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallManager::onPendingVoidCallFinished);
 }
 
 void VoiceCallManager::silenceRingtone()
@@ -236,7 +238,8 @@ void VoiceCallManager::silenceRingtone()
     Q_D(const VoiceCallManager);
     QDBusPendingCall call = d->interface->asyncCall("silenceRingtone");
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(call, this);
-    QObject::connect(watcher, SIGNAL(finished(QDBusPendingCallWatcher*)), SLOT(onPendingVoidCallFinished(QDBusPendingCallWatcher*)));
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
+                     this, &VoiceCallManager::onPendingVoidCallFinished);
 }
 
 /*

@@ -20,6 +20,8 @@ QObject *voice_call_audio_recorder_api_factory(QQmlEngine *qmlEngine, QJSEngine 
 
 void VoiceCallPlugin::registerTypes(const char *uri)
 {
+    Q_ASSERT(QLatin1String(uri) == QLatin1String("org.nemomobile.voicecall"));
+
     qmlRegisterUncreatableType<VoiceCallHandler>(uri, 1, 0, "VoiceCall", "uncreatable type");
     qmlRegisterUncreatableType<VoiceCallModel>(uri, 1, 0, "VoiceCallModel", "uncreatable type");
     qmlRegisterUncreatableType<VoiceCallProviderModel>(uri, 1, 0, "VoiceCallProviderModel", "uncreatable type");

@@ -14,9 +14,6 @@
 class VoiceCallManager : public QObject
 {
     Q_OBJECT
-
-    Q_PROPERTY(QDBusInterface* interface READ interface)
-
     Q_PROPERTY(VoiceCallModel* voiceCalls READ voiceCalls NOTIFY voiceCallsChanged)
     Q_PROPERTY(VoiceCallProviderModel* providers READ providers NOTIFY providersChanged)
     Q_PROPERTY(VoiceCallHandler* activeVoiceCall READ activeVoiceCall NOTIFY activeVoiceCallChanged)

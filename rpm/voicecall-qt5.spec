@@ -81,9 +81,7 @@ Tests for %{name}.
 
 %build
 
-%qmake5 
-
-qmake -qt=5 CONFIG+=enable-ngf CONFIG+=enable-audiopolicy CONFIG+=enable-telepathy CONFIG+=enable-nemo-devicelock CONFIG+=install-servicefiles "PROJECT_VERSION=%{version}" "PKGCONFIG_LIB=%{_lib}"
+%qmake5 CONFIG+=enable-ngf CONFIG+=enable-audiopolicy CONFIG+=enable-telepathy CONFIG+=enable-nemo-devicelock CONFIG+=install-servicefiles "PROJECT_VERSION=%{version}" "PKGCONFIG_LIB=%{_lib}"
 %make_build
 
 %install

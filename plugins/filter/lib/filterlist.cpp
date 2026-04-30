@@ -23,7 +23,7 @@
 
 #include <common.h>
 
-#include <MGConfItem>
+#include <MDConfItem>
 
 class FilterList::Private
 {
@@ -33,14 +33,14 @@ public:
     {
     }
 
-    MGConfItem m_conf;
+    MDConfItem m_conf;
 };
 
 FilterList::FilterList(const QString &key, QObject *parent)
     : QObject(parent)
     , d(new Private(key))
 {
-    connect(&d->m_conf, &MGConfItem::valueChanged,
+    connect(&d->m_conf, &MDConfItem::valueChanged,
             this, &FilterList::changed);
 }
 

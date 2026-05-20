@@ -22,6 +22,7 @@
 
 #include "voicecallmanager.h"
 #include "basicvoicecallconfigurator.h"
+#include "cellbroadcastdaemon.h"
 
 Q_DECL_EXPORT int main(int argc, char **argv)
 {
@@ -36,6 +37,11 @@ Q_DECL_EXPORT int main(int argc, char **argv)
     if (!configurator.configure(&manager)) {
         qFatal("VoiceCall: configurator failed; exiting");
         return -1;
+    }
+
+    CellBroadcastDaemon cellBroadcastDaemon;
+    if (!cellBroadcastDaemon.registerObject()) {
+        qWarning("VoiceCall: failed to register cell broadcast D-Bus object");
     }
 
     return app.exec();

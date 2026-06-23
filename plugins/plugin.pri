@@ -1,8 +1,6 @@
 TEMPLATE = lib
 QT = core
-CONFIG += plugin link_pkgconfig c++11
-
-QMAKE_CXXFLAGS += -std=c++0x
+CONFIG += plugin link_pkgconfig
 
 # includes are ok all the time, yes, really.
 # it's only used for some macros.

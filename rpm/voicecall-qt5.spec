@@ -9,6 +9,7 @@ Source1:    %{name}.privileges
 Requires:   systemd
 Requires:   systemd-user-session-targets
 Requires:   voicecall-qt5-plugin-telepathy = %{version}
+Requires:   cell-broadcast-provider-info
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(Qt5Qml)
@@ -133,6 +134,7 @@ fi
 %{_libdir}/voicecall/plugins/libvoicecall-commhistory-plugin.so
 %{_userunitdir}/voicecall-manager.service
 %{_userunitdir}/user-session.target.wants/voicecall-manager.service
+%{_datadir}/ngfd/events.d/cellbroadcast_attention.ini
 %{_datadir}/mapplauncherd/privileges.d/*
 %{_oneshotdir}/phone-move-recordings-dir
 
@@ -157,4 +159,3 @@ fi
 
 %files tests
 /opt/tests/voicecall/filter
-

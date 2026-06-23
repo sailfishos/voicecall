@@ -7,8 +7,10 @@ INCLUDEPATH += ../lib/src
 
 DEFINES += VOICECALL_PLUGIN_DIRECTORY=\"\\\"$$[QT_INSTALL_LIBS]/voicecall/plugins\\\"\"
 
+PKGCONFIG += mlite5 qofono-qt5
+
 enable-nemo-devicelock {
-    PKGCONFIG += libresourceqt5 nemodevicelock
+    PKGCONFIG += nemodevicelock
     DEFINES += WITH_NEMO_DEVICELOCK
 }
 
@@ -22,6 +24,10 @@ packagesExist(qt5-boostable) {
 LIBS += -L../lib/src -lvoicecall
 
 HEADERS += \
+    cellbroadcastcatalog.h \
+    cellbroadcastcontroller.h \
+    cellbroadcastdaemon.h \
+    cellbroadcasttopics.h \
     dbus/voicecallmanagerdbusservice.h \
     basicvoicecallconfigurator.h \
     voicecallmanager.h \
@@ -29,6 +35,10 @@ HEADERS += \
     dbus/voicecallhandlerdbusadapter.h
 
 SOURCES += \
+    cellbroadcastcatalog.cpp \
+    cellbroadcastcontroller.cpp \
+    cellbroadcastdaemon.cpp \
+    cellbroadcasttopics.cpp \
     dbus/voicecallmanagerdbusservice.cpp \
     dbus/voicecallmanagerdbusadapter.cpp \
     dbus/voicecallhandlerdbusadapter.cpp \
@@ -37,6 +47,7 @@ SOURCES += \
     main.cpp \
 
 enable-audiopolicy {
+    PKGCONFIG += libresourceqt5
     HEADERS += audiocallpolicyproxy.h
     SOURCES += audiocallpolicyproxy.cpp
     DEFINES += WITH_AUDIOPOLICY

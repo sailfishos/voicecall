@@ -10,7 +10,7 @@ CONFIG += shared \
           create_prl \
           no_install_prl \
 
-PKGCONFIG += mlite5 commhistory-qt5
+PKGCONFIG += mlite$${QT_MAJOR_VERSION} commhistory-qt$${QT_MAJOR_VERSION}
 
 PUBLIC_HEADERS += \
     filter.h    

@@ -1,5 +1,6 @@
 TEMPLATE = lib
 TARGET = voicecall
+VERSION = 2.0.0
 
 QT = core
 

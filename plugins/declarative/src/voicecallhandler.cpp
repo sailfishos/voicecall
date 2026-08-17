@@ -10,6 +10,23 @@
 #include <QVariantMap>
 #include <QSharedPointer>
 
+class VoiceCallBearerInterface : public QDBusAbstractInterface
+{
+    Q_OBJECT
+
+public:
+    VoiceCallBearerInterface(const QString &path, QObject *parent)
+        : QDBusAbstractInterface(QStringLiteral("org.nemomobile.voicecall"),
+                                 path,
+                                 "org.nemomobile.voicecall.VoiceCall",
+                                 QDBusConnection::sessionBus(),
+                                 parent)
+    {}
+
+Q_SIGNALS:
+    void bearerChanged(const QString &bearer);
+};
+
 /*!
   \class VoiceCallHandler
   \brief This is the D-Bus proxy for communicating with the voice call manager
@@ -25,6 +42,7 @@ public:
         : q_ptr(q)
         , handlerId(pHandlerId)
         , interface(NULL)
+        , bearerInterface(NULL)
         , childCalls(0)
         , parentCall(0)
         , connected(false)
@@ -41,6 +59,7 @@ public:
     QString handlerId;
 
     QDBusInterface *interface;
+    VoiceCallBearerInterface *bearerInterface;
 
     VoiceCallModel *childCalls;
     QSharedPointer<VoiceCallHandler> parentCall;
@@ -57,6 +76,7 @@ public:
     bool multiparty;
     bool forwarded;
     bool remoteHeld;
+    QString bearer;
 };
 
 /*!
@@ -73,6 +93,8 @@ VoiceCallHandler::VoiceCallHandler(const QString &handlerId, QObject *parent)
                                       "org.nemomobile.voicecall.VoiceCall",
                                       QDBusConnection::sessionBus(),
                                       this);
+    d->bearerInterface = new VoiceCallBearerInterface("/calls/" + handlerId,
+                                                       this);
 
     QTimer::singleShot(0, this, SLOT(initialize()));
 }
@@ -108,6 +130,10 @@ void VoiceCallHandler::initialize()
         success &= (bool)QObject::connect(d->interface, SIGNAL(multipartyChanged(bool)), SLOT(onMultipartyChanged(bool)));
         success &= (bool)QObject::connect(d->interface, SIGNAL(forwardedChanged(bool)), SLOT(onForwardedChanged(bool)));
         success &= (bool)QObject::connect(d->interface, SIGNAL(remoteHeldChanged(bool)), SLOT(onRemoteHeldChanged(bool)));
+        success &= (bool)QObject::connect(d->bearerInterface,
+                                          &VoiceCallBearerInterface::bearerChanged,
+                                          this,
+                                          &VoiceCallHandler::onBearerChanged);
         success &= (bool)QObject::connect(d->interface, SIGNAL(parentHandlerIdChanged(QString)), SLOT(onMultipartyHandlerIdChanged(QString)));
         success &= (bool)QObject::connect(d->interface, SIGNAL(childCallsChanged(QStringList)), SLOT(onChildCallsChanged(QStringList)));
     }
@@ -142,12 +168,14 @@ void VoiceCallHandler::onGetPropertiesFinished(QDBusPendingCallWatcher *watcher)
         d->emergency = props["isEmergency"].toBool();
         d->forwarded = props["isForwarded"].toBool();
         d->remoteHeld = props["isRemoteHeld"].toBool();
+        d->bearer = props["bearer"].toString();
         d->parentHandlerId = props["parentHandlerId"].toString();
 
         emit durationChanged();
         emit statusChanged();
         emit lineIdChanged();
         emit startedAtChanged();
+        emit bearerChanged();
         if (d->multiparty)
             emit multipartyChanged();
         if (d->emergency)
@@ -230,6 +258,13 @@ void VoiceCallHandler::onRemoteHeldChanged(bool remoteHeld)
     Q_D(VoiceCallHandler);
     d->remoteHeld = remoteHeld;
     emit remoteHeldChanged();
+}
+
+void VoiceCallHandler::onBearerChanged(const QString &bearer)
+{
+    Q_D(VoiceCallHandler);
+    d->bearer = bearer;
+    emit bearerChanged();
 }
 
 void VoiceCallHandler::onMultipartyHandlerIdChanged(QString handlerId)
@@ -349,6 +384,12 @@ bool VoiceCallHandler::isRemoteHeld() const
 {
     Q_D(const VoiceCallHandler);
     return d->remoteHeld;
+}
+
+QString VoiceCallHandler::bearer() const
+{
+    Q_D(const VoiceCallHandler);
+    return d->bearer.isEmpty() ? QStringLiteral("unknown") : d->bearer;
 }
 
 VoiceCallModel* VoiceCallHandler::childCalls() const
@@ -491,3 +532,5 @@ void VoiceCallHandler::onPendingVoidCallFinished(QDBusPendingCallWatcher *watche
         DEBUG_T("Received successful reply for member: %s", qPrintable(reply.reply().member()));
     }
 }
+
+#include "voicecallhandler.moc"

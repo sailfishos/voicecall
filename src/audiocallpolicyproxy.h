@@ -41,6 +41,7 @@ public:
     bool isIncoming() const;
     bool isMultiparty() const;
     bool isEmergency() const;
+    QString bearer() const override;
 
     VoiceCallStatus status() const;
     QString statusText() const;

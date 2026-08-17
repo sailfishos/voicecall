@@ -28,6 +28,15 @@
 #include <QElapsedTimer>
 #include <QTimerEvent>
 
+namespace {
+
+QString normalizedBearer(const QString &bearer)
+{
+    return bearer.isEmpty() ? QStringLiteral("unknown") : bearer;
+}
+
+}
+
 class OfonoVoiceCallHandlerPrivate
 {
     Q_DECLARE_PUBLIC(OfonoVoiceCallHandler)
@@ -66,6 +75,10 @@ OfonoVoiceCallHandler::OfonoVoiceCallHandler(const QString &handlerId, const QSt
     QObject::connect(d->ofonoVoiceCall, SIGNAL(lineIdentificationChanged(QString)), SIGNAL(lineIdChanged(QString)));
     QObject::connect(d->ofonoVoiceCall, SIGNAL(emergencyChanged(bool)), SIGNAL(emergencyChanged(bool)));
     QObject::connect(d->ofonoVoiceCall, SIGNAL(multipartyChanged(bool)), SIGNAL(multipartyChanged(bool)));
+    QObject::connect(d->ofonoVoiceCall, &QOfonoVoiceCall::bearerChanged,
+        this, [this](const QString &bearer) {
+            Q_EMIT bearerChanged(normalizedBearer(bearer));
+        });
 
     QObject::connect(d->ofonoVoiceCall, SIGNAL(stateChanged(QString)), SLOT(onStatusChanged()));
 
@@ -176,6 +189,12 @@ bool OfonoVoiceCallHandler::isRemoteHeld() const
 {
     TRACE
     return false;
+}
+
+QString OfonoVoiceCallHandler::bearer() const
+{
+    Q_D(const OfonoVoiceCallHandler);
+    return normalizedBearer(d->ofonoVoiceCall->bearer());
 }
 
 AbstractVoiceCallHandler::VoiceCallStatus OfonoVoiceCallHandler::status() const

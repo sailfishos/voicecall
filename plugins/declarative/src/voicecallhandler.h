@@ -27,6 +27,7 @@ class VoiceCallHandler : public QObject
     Q_PROPERTY(bool isMultiparty READ isMultiparty NOTIFY multipartyChanged)
     Q_PROPERTY(bool isForwarded READ isForwarded NOTIFY forwardedChanged)
     Q_PROPERTY(bool isRemoteHeld READ isRemoteHeld NOTIFY remoteHeldChanged)
+    Q_PROPERTY(QString bearer READ bearer NOTIFY bearerChanged)
     Q_PROPERTY(VoiceCallModel* childCalls READ childCalls NOTIFY childCallsChanged)
     Q_PROPERTY(VoiceCallHandler* parentCall READ parentCall NOTIFY parentCallChanged)
 
@@ -59,6 +60,7 @@ public:
     bool isEmergency() const;
     bool isForwarded() const;
     bool isRemoteHeld() const;
+    QString bearer() const;
     VoiceCallModel* childCalls() const;
     VoiceCallHandler* parentCall() const;
 
@@ -72,6 +74,7 @@ Q_SIGNALS:
     void multipartyChanged();
     void forwardedChanged();
     void remoteHeldChanged();
+    void bearerChanged();
     void childCallsChanged();
     void childCallsListChanged();
     void parentCallChanged();
@@ -98,6 +101,7 @@ private Q_SLOTS:
     void onMultipartyChanged(bool multiparty);
     void onForwardedChanged(bool forwarded);
     void onRemoteHeldChanged(bool remoteHeld);
+    void onBearerChanged(const QString &bearer);
     void onMultipartyHandlerIdChanged(QString handlerId);
     void onChildCallsChanged(const QStringList &);
     void onGetPropertiesFinished(QDBusPendingCallWatcher *watcher);

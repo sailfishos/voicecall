@@ -59,6 +59,8 @@ VoiceCallHandlerDBusAdapter::VoiceCallHandlerDBusAdapter(AbstractVoiceCallHandle
     QObject::connect(d->handler, SIGNAL(multipartyChanged(bool)), SIGNAL(multipartyChanged(bool)));
     QObject::connect(d->handler, SIGNAL(forwardedChanged(bool)), SIGNAL(forwardedChanged(bool)));
     QObject::connect(d->handler, SIGNAL(remoteHeldChanged(bool)), SIGNAL(remoteHeldChanged(bool)));
+    QObject::connect(d->handler, &AbstractVoiceCallHandler::bearerChanged,
+        this, &VoiceCallHandlerDBusAdapter::bearerChanged);
     QObject::connect(d->handler, SIGNAL(parentHandlerIdChanged(QString)), SIGNAL(parentHandlerIdChanged(QString)));
     QObject::connect(d->handler, &AbstractVoiceCallHandler::childCallsChanged, this, [this]() { emit childCallsChanged(childCalls()); });
 }
@@ -150,6 +152,12 @@ bool VoiceCallHandlerDBusAdapter::isRemoteHeld() const
 {
     Q_D(const VoiceCallHandlerDBusAdapter);
     return d->handler->isRemoteHeld();
+}
+
+QString VoiceCallHandlerDBusAdapter::bearer() const
+{
+    Q_D(const VoiceCallHandlerDBusAdapter);
+    return d->handler->bearer();
 }
 
 /*!
@@ -318,6 +326,7 @@ QVariantMap VoiceCallHandlerDBusAdapter::getProperties()
     props.insert("isMultiparty", QVariant(isMultiparty()));
     props.insert("isForwarded", QVariant(isForwarded()));
     props.insert("isRemoteHeld", QVariant(isRemoteHeld()));
+    props.insert("bearer", QVariant(bearer()));
     props.insert("parentHandlerId", QVariant(parentHandlerId()));
     props.insert("childCalls", QVariant(childCalls()));
 

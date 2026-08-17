@@ -45,6 +45,7 @@ class AbstractVoiceCallHandler : public QObject
     Q_PROPERTY(bool isMultiparty READ isMultiparty NOTIFY multipartyChanged)
     Q_PROPERTY(bool isForwarded READ isForwarded NOTIFY forwardedChanged)
     Q_PROPERTY(bool isRemoteHeld READ isRemoteHeld NOTIFY remoteHeldChanged)
+    Q_PROPERTY(QString bearer READ bearer NOTIFY bearerChanged)
     Q_PROPERTY(QString parentHandlerId READ parentHandlerId NOTIFY parentHandlerIdChanged)
     Q_PROPERTY(QList<AbstractVoiceCallHandler*> childCalls READ childCalls NOTIFY childCallsChanged)
 
@@ -102,6 +103,7 @@ Q_SIGNALS:
     void remoteHeldChanged(bool);
     void parentHandlerIdChanged(QString);
     void childCallsChanged();
+    void bearerChanged(const QString &bearer);
 
 public Q_SLOTS:
     virtual void answer() = 0;
@@ -112,6 +114,9 @@ public Q_SLOTS:
     virtual void merge(const QString &callHandle) = 0;
     virtual void split() = 0;
     virtual void filter(VoiceCallFilterAction action) = 0;
+
+public:
+    virtual QString bearer() const { return QStringLiteral("unknown"); }
 };
 
 #endif // ABSTRACTVOICECALLHANDLER_H

@@ -51,6 +51,8 @@ AudioCallPolicyProxy::AudioCallPolicyProxy(AbstractVoiceCallHandler *subject, QO
     QObject::connect(subject, SIGNAL(durationChanged(int)), SIGNAL(durationChanged(int)));
     QObject::connect(subject, SIGNAL(emergencyChanged()), SIGNAL(emergencyChanged()));
     QObject::connect(subject, SIGNAL(multipartyChanged()), SIGNAL(multipartyChanged()));
+    QObject::connect(subject, &AbstractVoiceCallHandler::bearerChanged,
+        this, &AbstractVoiceCallHandler::bearerChanged);
 }
 
 AudioCallPolicyProxy::~AudioCallPolicyProxy()
@@ -115,6 +117,12 @@ bool AudioCallPolicyProxy::isEmergency() const
     TRACE
     Q_D(const AudioCallPolicyProxy);
     return d->subject->isEmergency();
+}
+
+QString AudioCallPolicyProxy::bearer() const
+{
+    Q_D(const AudioCallPolicyProxy);
+    return d->subject->bearer();
 }
 
 AbstractVoiceCallHandler::VoiceCallStatus AudioCallPolicyProxy::status() const

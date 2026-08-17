@@ -51,6 +51,7 @@ public:
     bool isEmergency() const;
     bool isForwarded() const;
     bool isRemoteHeld() const;
+    QString bearer() const override;
 
     // TODO: unimplemented - JB#35997
     QString parentHandlerId() const { return QString(); }

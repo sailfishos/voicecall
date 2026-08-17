@@ -1,6 +1,6 @@
 Name:       voicecall-qt5
 Summary:    Dialer engine for Nemo Mobile
-Version:    0.7.14
+Version:    0.9.1
 Release:    1
 License:    ASL 2.0 and GPLv2+ and LGPLv2+ and BSD
 URL:        https://github.com/sailfishos/voicecall
@@ -10,6 +10,7 @@ Requires:   systemd
 Requires:   systemd-user-session-targets
 Requires:   voicecall-qt5-plugin-telepathy = %{version}
 Requires:   cell-broadcast-provider-info
+Provides:   voicecall-vowifi-bearer-api = 1
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(Qt5Qml)
@@ -23,6 +24,7 @@ BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
 BuildRequires:  pkgconfig(systemd)
 BuildRequires:  pkgconfig(mlite5)
+BuildRequires:  libqofono-vowifi-api >= 1
 BuildRequires:  oneshot
 %{_oneshot_requires_post}
 
@@ -49,8 +51,10 @@ BuildRequires:  pkgconfig(TelepathyQt5Farstream)
 %package plugin-ofono
 Summary:    Voicecall plugin for calls using ofono
 Requires:   %{name} = %{version}-%{release}
+Requires:   libqofono-qt5 >= 0.131
+Requires:   libqofono-vowifi-api >= 1
 Conflicts:  voicecall-qt5-plugin-telepathy
-BuildRequires:  pkgconfig(qofono-qt5)
+BuildRequires:  pkgconfig(qofono-qt5) >= 0.131
 
 %description plugin-ofono
 %{summary}.
@@ -119,9 +123,9 @@ fi
 
 %files
 %license LICENSE.LGPL21 LICENSE.GPL2 LICENSE.ASL2 LICENSE.BSD
-%{_libdir}/libvoicecall.so.1
-%{_libdir}/libvoicecall.so.1.0
-%{_libdir}/libvoicecall.so.1.0.0
+%{_libdir}/libvoicecall.so.2
+%{_libdir}/libvoicecall.so.2.0
+%{_libdir}/libvoicecall.so.2.0.0
 %dir %{_libdir}/qt5/qml/org/nemomobile/voicecall
 %{_libdir}/qt5/qml/org/nemomobile/voicecall/libvoicecall.so
 %{_libdir}/qt5/qml/org/nemomobile/voicecall/qmldir

@@ -44,6 +44,7 @@ class VoiceCallHandlerDBusAdapter : public QDBusAbstractAdaptor
     Q_PROPERTY(bool isMultiparty READ isMultiparty NOTIFY multipartyChanged)
     Q_PROPERTY(bool isForwarded READ isForwarded NOTIFY forwardedChanged)
     Q_PROPERTY(bool isRemoteHeld READ isRemoteHeld NOTIFY remoteHeldChanged)
+    Q_PROPERTY(QString bearer READ bearer NOTIFY bearerChanged)
     Q_PROPERTY(QString parentHandlerId READ parentHandlerId NOTIFY parentHandlerIdChanged)
     Q_PROPERTY(QStringList childCalls READ childCalls NOTIFY childCallsChanged)
 
@@ -63,6 +64,7 @@ public:
     bool isEmergency() const;
     bool isForwarded() const;
     bool isRemoteHeld() const;
+    QString bearer() const;
     QString parentHandlerId() const;
     QStringList childCalls() const;
 
@@ -76,6 +78,7 @@ Q_SIGNALS:
     void multipartyChanged(bool);
     void forwardedChanged(bool);
     void remoteHeldChanged(bool);
+    void bearerChanged(QString);
     void parentHandlerIdChanged(QString);
     void childCallsChanged(QStringList);
 

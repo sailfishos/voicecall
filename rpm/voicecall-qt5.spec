@@ -138,6 +138,7 @@ fi
 %{_userunitdir}/voicecall-manager.service
 %{_userunitdir}/user-session.target.wants/voicecall-manager.service
 %{_datadir}/ngfd/events.d/cellbroadcast_attention.ini
+%{_sysconfdir}/pulse/xpolicy.conf.d/50-cellbroadcast-critical.conf
 %{_datadir}/mapplauncherd/privileges.d/*
 %{_oneshotdir}/phone-move-recordings-dir
 

@@ -10,12 +10,14 @@ Requires:   systemd
 Requires:   systemd-user-session-targets
 Requires:   voicecall-qt5-plugin-telepathy = %{version}
 Requires:   cell-broadcast-provider-info
+Requires:   qt5-plugin-sqldriver-sqlite
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Test)
 BuildRequires:  pkgconfig(Qt5Multimedia)
 BuildRequires:  pkgconfig(Qt5Positioning)
+BuildRequires:  pkgconfig(Qt5Sql)
 BuildRequires:  pkgconfig(libresourceqt5)
 BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
@@ -160,3 +162,4 @@ fi
 
 %files tests
 /opt/tests/voicecall/filter
+/opt/tests/voicecall/cellbroadcast

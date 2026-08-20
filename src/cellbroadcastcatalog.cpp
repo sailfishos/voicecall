@@ -79,6 +79,7 @@ bool CellBroadcastCatalog::load(const QString &path)
         const QJsonObject profileObject = profileIt.value().toObject();
         CellBroadcastAttentionProfile profile;
         profile.id = profileIt.key();
+        profile.event = profileObject.value(QStringLiteral("event")).toString();
         profile.soundFile = profileObject.value(QStringLiteral("soundFile")).toString();
         profile.reservedUse = profileObject.value(QStringLiteral("reservedUse")).toString();
         if (profile.isValid()) {
@@ -100,9 +101,17 @@ bool CellBroadcastCatalog::load(const QString &path)
             CellBroadcastCatalogCategory category;
             category.id = categoryObject.value(QStringLiteral("id")).toString();
             category.name = categoryObject.value(QStringLiteral("name")).toString();
+            category.title = categoryObject.value(QStringLiteral("title")).toString(category.name);
+            category.alertLevel = categoryObject.value(QStringLiteral("alertLevel")).toString();
             category.attentionProfile = categoryObject.value(QStringLiteral("attentionProfile")).toString();
+            category.attentionPolicy = categoryObject.value(QStringLiteral("attentionPolicy")).toString();
+            category.display = categoryObject.value(QStringLiteral("display")).toString(
+                        QStringLiteral("alert"));
+            category.sourceRef = categoryObject.value(QStringLiteral("sourceRef")).toString();
             category.customName = categoryObject.value(QStringLiteral("customName")).toBool(false);
             category.defaultEnabled = categoryObject.value(QStringLiteral("defaultEnabled")).toBool(true);
+            category.userConfigurable = categoryObject.value(QStringLiteral("userConfigurable")).toBool(true);
+            category.settingsVisible = categoryObject.value(QStringLiteral("settingsVisible")).toBool(true);
 
             const QJsonArray ranges = categoryObject.value(QStringLiteral("ranges")).toArray();
             for (const QJsonValue &rangeValue : ranges) {
@@ -112,6 +121,7 @@ bool CellBroadcastCatalog::load(const QString &path)
                 range.to = rangeObject.value(QStringLiteral("to")).toInt();
                 range.mandatory = rangeObject.value(QStringLiteral("mandatory")).toBool();
                 range.apply = rangeObject.value(QStringLiteral("apply")).toBool(true);
+                range.languageRole = rangeObject.value(QStringLiteral("languageRole")).toString();
                 if (range.from <= range.to) {
                     category.ranges.append(range);
                 }

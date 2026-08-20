@@ -33,21 +33,30 @@ struct CellBroadcastCatalogRange
     int to;
     bool mandatory;
     bool apply;
+    QString languageRole;
 };
 
 struct CellBroadcastCatalogCategory
 {
     QString id;
     QString name;
+    QString title;
+    QString alertLevel;
     QString attentionProfile;
+    QString attentionPolicy;
+    QString display;
+    QString sourceRef;
     bool customName;
     bool defaultEnabled;
+    bool userConfigurable;
+    bool settingsVisible;
     QList<CellBroadcastCatalogRange> ranges;
 };
 
 struct CellBroadcastAttentionProfile
 {
     QString id;
+    QString event;
     QString soundFile;
     QString reservedUse;
 

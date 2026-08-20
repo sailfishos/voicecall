@@ -1,4 +1,6 @@
 TEMPLATE = subdirs
 
 store.file = store.pro
-SUBDIRS += store
+controller.file = controller.pro
+
+SUBDIRS += store controller

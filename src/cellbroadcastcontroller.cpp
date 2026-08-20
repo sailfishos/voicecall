@@ -30,7 +30,9 @@
 namespace {
 
 const char AlertsEnabledSettingKey[] = "/apps/sailfish/cellbroadcast/enabled";
+const char PoweredProperty[] = "Powered";
 const char TopicsProperty[] = "Topics";
+const int PropertyRetryInterval = 5000;
 
 QString sanitizeKey(const QString &value)
 {
@@ -39,6 +41,28 @@ QString sanitizeKey(const QString &value)
         sanitized.append(ch.isLetterOrNumber() ? ch : QLatin1Char('_'));
     }
     return sanitized.isEmpty() ? QStringLiteral("unknown") : sanitized;
+}
+
+QString normalizedPlmn(const QString &mcc, const QString &mnc)
+{
+    return mcc + (mnc.length() == 1
+                  ? mnc.rightJustified(2, QLatin1Char('0')) : mnc);
+}
+
+bool propertyQueryWillRetry(const QDBusError *error)
+{
+    if (!error) {
+        return false;
+    }
+
+    switch (error->type()) {
+    case QDBusError::NoReply:
+    case QDBusError::Timeout:
+    case QDBusError::TimedOut:
+        return true;
+    default:
+        return false;
+    }
 }
 
 QString settingBaseKey(const QString &identity)
@@ -126,11 +150,20 @@ public:
     }
 
 protected:
+    void dbusInterfaceDropped() override
+    {
+        QOfonoCellBroadcast::dbusInterfaceDropped();
+        m_controller->cellBroadcastInterfaceDropped();
+    }
+
     void getPropertiesFinished(const QVariantMap &properties, const QDBusError *error) override
     {
+        const bool retrying = propertyQueryWillRetry(error);
         const QString errorString = error ? error->message() : QString();
         QOfonoCellBroadcast::getPropertiesFinished(properties, error);
-        m_controller->cellBroadcastPropertiesFinished(errorString);
+        if (!retrying) {
+            m_controller->cellBroadcastPropertiesFinished(errorString);
+        }
     }
 
     void setPropertyFinished(const QString &property, const QDBusError *error) override
@@ -156,7 +189,6 @@ struct CellBroadcastController::ResolvedState
 {
     QVariantList mandatoryChannels;
     QVariantList optionalChannels;
-    QVariantList roamingOptionalChannels;
     CellBroadcastTopicRangeList managedTopics;
 };
 
@@ -167,27 +199,38 @@ CellBroadcastController::CellBroadcastController(QObject *parent)
     , m_available(false)
     , m_catalogLoaded(false)
     , m_haveTopics(false)
-    , m_applyAfterRefresh(false)
-    , m_pendingTopicsOperation(NoTopicsOperation)
+    , m_refreshPending(false)
+    , m_resetRequested(false)
+    , m_pendingPropertyOperation(NoPropertyOperation)
     , m_alertsEnabledItem(new MDConfItem(QString::fromLatin1(AlertsEnabledSettingKey), this))
     , m_cellBroadcast(new CellBroadcastOfonoClient(this))
+    , m_retryTimer(new QTimer(this))
 {
     m_alertsEnabled = m_alertsEnabledItem->value(true).toBool();
     connect(m_alertsEnabledItem, &MDConfItem::valueChanged,
             this, &CellBroadcastController::onAlertsEnabledSettingChanged);
     connect(m_cellBroadcast, &QOfonoCellBroadcast::topicsChanged,
             this, &CellBroadcastController::onCellBroadcastTopicsChanged);
+    connect(m_cellBroadcast, &QOfonoCellBroadcast::enabledChanged,
+            this, &CellBroadcastController::onCellBroadcastEnabledChanged);
     connect(m_cellBroadcast, &QOfonoCellBroadcast::validChanged,
             this, &CellBroadcastController::onCellBroadcastValidChanged);
     connect(m_cellBroadcast, &QOfonoCellBroadcast::incomingBroadcast,
             this, [this](const QString &text, quint16 channel) {
                 Q_EMIT incomingBroadcast(text, channel);
             });
+    connect(m_cellBroadcast, &QOfonoCellBroadcast::incomingBroadcastWithProperties,
+            this, [this](const QString &text, const QVariantMap &properties) {
+                Q_EMIT incomingBroadcastWithProperties(text, properties);
+            });
     connect(m_cellBroadcast, &QOfonoCellBroadcast::emergencyBroadcast,
             this, [this](const QString &text, const QVariantMap &properties) {
                 Q_EMIT emergencyBroadcast(text, properties);
             });
-    QTimer::singleShot(0, this, &CellBroadcastController::refresh);
+    m_retryTimer->setSingleShot(true);
+    m_retryTimer->setInterval(PropertyRetryInterval);
+    connect(m_retryTimer, &QTimer::timeout,
+            this, &CellBroadcastController::refresh);
 }
 
 bool CellBroadcastController::alertsGloballyEnabled()
@@ -230,10 +273,12 @@ void CellBroadcastController::setModemPath(const QString &path)
     }
     m_modemPath = path;
     m_haveTopics = false;
+    // QOfono starts GetProperties when a modem interface is attached. Track
+    // that implicit request instead of issuing a second query here.
+    m_refreshPending = !path.isEmpty();
     m_cellBroadcast->setModemPath(path);
     recalculate();
     Q_EMIT modemPathChanged();
-    refresh();
 }
 
 QString CellBroadcastController::imsi() const
@@ -350,12 +395,7 @@ void CellBroadcastController::setAlertsEnabled(bool enabled)
 {
     m_alertsEnabledItem->set(enabled);
     setAlertsEnabledValue(enabled);
-
-    if (enabled) {
-        refreshAndApply();
-    } else {
-        disableCellBroadcast();
-    }
+    processTopicUpdate();
 }
 
 bool CellBroadcastController::available() const
@@ -376,11 +416,6 @@ QVariantList CellBroadcastController::mandatoryChannels() const
 QVariantList CellBroadcastController::optionalChannels() const
 {
     return m_optionalChannels;
-}
-
-QVariantList CellBroadcastController::roamingOptionalChannels() const
-{
-    return m_roamingOptionalChannels;
 }
 
 QVariantList CellBroadcastController::unknownTopics() const
@@ -408,14 +443,15 @@ QVariantMap CellBroadcastController::stateMap() const
     return state;
 }
 
-CellBroadcastAttentionProfile CellBroadcastController::attentionProfileForChannel(int channel)
+CellBroadcastAttentionProfile CellBroadcastController::attentionProfileForChannel(
+        int channel, const QString &mcc, const QString &mnc)
 {
     ensureCatalog();
-    if (!m_catalog.isValid() || !m_alertsEnabled) {
+    if (!m_catalog.isValid()) {
         return CellBroadcastAttentionProfile();
     }
 
-    const ActiveCatalogEntry active = activeEntry();
+    const ActiveCatalogEntry active = activeEntryForPlmn(mcc, mnc);
     for (const CellBroadcastCatalogCategory &category : active.entry.categories) {
         if (category.attentionProfile.isEmpty()
                 || !channelInRanges(channel, category.ranges)) {
@@ -423,7 +459,7 @@ CellBroadcastAttentionProfile CellBroadcastController::attentionProfileForChanne
         }
 
         if (!mandatoryChannel(channel, category.ranges)
-                && !channelEnabled(active.scope, category)) {
+                && (!m_alertsEnabled || !channelEnabled(active.scope, category))) {
             return CellBroadcastAttentionProfile();
         }
 
@@ -433,62 +469,75 @@ CellBroadcastAttentionProfile CellBroadcastController::attentionProfileForChanne
     return CellBroadcastAttentionProfile();
 }
 
-CellBroadcastAttentionProfile CellBroadcastController::configuredAttentionProfile()
+QVariantMap CellBroadcastController::messagePropertiesForChannel(
+        int channel, const QString &mcc, const QString &mnc)
+{
+    ensureCatalog();
+    QVariantMap properties;
+    if (!m_catalog.isValid()) {
+        return properties;
+    }
+
+    const ActiveCatalogEntry active = activeEntryForPlmn(mcc, mnc);
+    for (const CellBroadcastCatalogCategory &category : active.entry.categories) {
+        for (const CellBroadcastCatalogRange &range : category.ranges) {
+            if (!channelInRange(channel, range)) {
+                continue;
+            }
+
+            properties.insert(QStringLiteral("CellBroadcastCategory"), category.id);
+            properties.insert(QStringLiteral("CellBroadcastTitle"), category.title);
+            properties.insert(QStringLiteral("CellBroadcastAlertLevel"), category.alertLevel);
+            properties.insert(QStringLiteral("CellBroadcastAttentionPolicy"),
+                              category.attentionPolicy);
+            properties.insert(QStringLiteral("CellBroadcastDisplay"), category.display);
+            properties.insert(QStringLiteral("CellBroadcastSourceRef"), category.sourceRef);
+            properties.insert(QStringLiteral("CellBroadcastLanguageRole"), range.languageRole);
+            properties.insert(QStringLiteral("CellBroadcastUserConfigurable"),
+                              category.userConfigurable);
+            properties.insert(QStringLiteral("CellBroadcastSettingsVisible"),
+                              category.settingsVisible);
+            properties.insert(QStringLiteral("CellBroadcastMandatory"), range.mandatory);
+            properties.insert(QStringLiteral("CellBroadcastEnabled"),
+                              range.mandatory || (m_alertsEnabled
+                                  && channelEnabled(active.scope, category)));
+            properties.insert(QStringLiteral("CellBroadcastPlmn"), active.plmn);
+            return properties;
+        }
+    }
+
+    return properties;
+}
+
+CellBroadcastAttentionProfile CellBroadcastController::emergencyAttentionProfile()
 {
     ensureCatalog();
     if (!m_catalog.isValid()) {
         return CellBroadcastAttentionProfile();
     }
 
+    const CellBroadcastAttentionProfile critical = m_catalog.attentionProfile(
+                QStringLiteral("critical"));
+    if (critical.isValid()) {
+        return critical;
+    }
+
+    // Preserve compatibility with catalogs predating the generic critical
+    // profile. This fallback remains profile-controlled rather than dropping
+    // the emergency attention indication entirely.
     const ActiveCatalogEntry active = activeEntry();
     return m_catalog.attentionProfile(active.entry.defaultAttentionProfile);
 }
 
 void CellBroadcastController::refresh()
 {
-    if (m_modemPath.isEmpty()) {
+    if (m_modemPath.isEmpty() || m_refreshPending
+            || m_pendingPropertyOperation != NoPropertyOperation) {
         return;
     }
 
+    m_refreshPending = true;
     m_cellBroadcast->refresh();
-}
-
-void CellBroadcastController::refreshAndApply()
-{
-    if (!m_alertsEnabled) {
-        disableCellBroadcast();
-        return;
-    }
-    m_applyAfterRefresh = true;
-    refresh();
-}
-
-void CellBroadcastController::apply()
-{
-    ensureCatalog();
-    if (!m_alertsEnabled) {
-        disableCellBroadcast();
-        return;
-    }
-    if (!m_catalog.isValid() || m_modemPath.isEmpty()) {
-        return;
-    }
-    if (!m_haveTopics) {
-        refreshAndApply();
-        return;
-    }
-
-    const ResolvedState state = resolve();
-    const CellBroadcastTopicRangeList previousManaged = lastManagedTopics();
-    const CellBroadcastTopicRangeList unmanaged = CellBroadcastTopics::subtract(m_currentTopics,
-                                                                                previousManaged);
-    const CellBroadcastTopicRangeList topics = CellBroadcastTopics::unite(unmanaged,
-                                                                          state.managedTopics);
-    if (CellBroadcastTopics::equals(topics, m_currentTopics)
-            && CellBroadcastTopics::equals(state.managedTopics, previousManaged)) {
-        return;
-    }
-    setTopics(topics, state.managedTopics);
 }
 
 void CellBroadcastController::setChannelEnabled(const QString &categoryId,
@@ -499,14 +548,20 @@ void CellBroadcastController::setChannelEnabled(const QString &categoryId,
         return;
     }
 
+    ensureCatalog();
+    const ActiveCatalogEntry active = activeEntry();
+    for (const CellBroadcastCatalogCategory &category : active.entry.categories) {
+        if (category.id == categoryId && !category.userConfigurable) {
+            return;
+        }
+    }
+
     settingItem(channelSettingKey(identity(),
                                   scope.isEmpty() ? QStringLiteral("home") : scope,
                                   categoryId))->set(enabled);
     settingItem(channelPatternSettingKey(identity(), categoryId))->set(enabled);
     recalculate();
-    if (m_alertsEnabled) {
-        apply();
-    }
+    processTopicUpdate();
 }
 
 void CellBroadcastController::removeUnknownTopic(const QString &topics)
@@ -515,37 +570,48 @@ void CellBroadcastController::removeUnknownTopic(const QString &topics)
     if (remove.isEmpty() || !m_haveTopics) {
         return;
     }
-    setTopics(CellBroadcastTopics::subtract(m_currentTopics, remove),
-              lastManagedTopics());
+
+    const ResolvedState state = resolve();
+    const CellBroadcastTopicRangeList protectedTopics = CellBroadcastTopics::unite(
+                lastManagedTopics(), state.managedTopics);
+    const CellBroadcastTopicRangeList unknownTopics = CellBroadcastTopics::subtract(
+                m_currentTopics, protectedTopics);
+    const CellBroadcastTopicRangeList allowedRemove = CellBroadcastTopics::subtract(
+                remove, CellBroadcastTopics::subtract(remove, unknownTopics));
+    if (allowedRemove.isEmpty()) {
+        return;
+    }
+    m_requestedTopicRemovals = CellBroadcastTopics::unite(
+                m_requestedTopicRemovals, allowedRemove);
+    processTopicUpdate();
 }
 
 void CellBroadcastController::resetToRecommended()
 {
     ensureCatalog();
-    if (!m_alertsEnabled || !m_catalog.isValid()) {
+    if (!m_catalog.isValid()) {
         return;
     }
-    const ResolvedState state = resolve();
-    setTopics(state.managedTopics, state.managedTopics);
+    m_resetRequested = true;
+    processTopicUpdate();
 }
 
 void CellBroadcastController::onAlertsEnabledSettingChanged()
 {
     const bool enabled = m_alertsEnabledItem->value(true).toBool();
     setAlertsEnabledValue(enabled);
-    if (enabled) {
-        refreshAndApply();
-    } else {
-        disableCellBroadcast();
-    }
+    processTopicUpdate();
+}
+
+void CellBroadcastController::onCellBroadcastEnabledChanged(bool)
+{
+    processTopicUpdate();
 }
 
 void CellBroadcastController::onCellBroadcastTopicsChanged(const QString &topics)
 {
     updateCurrentTopics(topics);
-    if (m_alertsEnabled && m_pendingTopicsOperation == NoTopicsOperation) {
-        apply();
-    }
+    processTopicUpdate();
 }
 
 void CellBroadcastController::onCellBroadcastValidChanged(bool valid)
@@ -557,7 +623,25 @@ void CellBroadcastController::onCellBroadcastValidChanged(bool valid)
         return;
     }
 
+    // This may be either a completed implicit reattach query or restored modem
+    // validity with cached properties. In both cases the current state is now
+    // authoritative enough to resume convergence.
+    m_refreshPending = false;
     updateCurrentTopics(m_cellBroadcast->topics());
+    processTopicUpdate();
+}
+
+void CellBroadcastController::cellBroadcastInterfaceDropped()
+{
+    // QOfono owns pending calls through its D-Bus interface. Dropping the
+    // interface destroys an in-flight SetProperty watcher without a completion
+    // callback. Preserve explicit reset/removal intents for the implicit
+    // reattach query to apply.
+    m_refreshPending = !m_modemPath.isEmpty();
+    m_pendingPropertyOperation = NoPropertyOperation;
+    m_inFlightManagedTopics.clear();
+    m_haveTopics = false;
+    recalculate();
 }
 
 void CellBroadcastController::updateCurrentTopics(const QString &topics)
@@ -569,54 +653,52 @@ void CellBroadcastController::updateCurrentTopics(const QString &topics)
 
 void CellBroadcastController::cellBroadcastPropertiesFinished(const QString &errorString)
 {
+    m_refreshPending = false;
     if (!errorString.isEmpty()) {
         setAvailable(false);
         setErrorString(errorString);
         m_haveTopics = false;
         recalculate();
+        m_retryTimer->start();
         return;
     }
 
+    m_retryTimer->stop();
     updateCurrentTopics(m_cellBroadcast->topics());
     setAvailable(true);
     if (m_catalog.isValid()) {
         setErrorString(QString());
     }
 
-    if (m_applyAfterRefresh) {
-        m_applyAfterRefresh = false;
-        apply();
-    }
+    processTopicUpdate();
 }
 
 void CellBroadcastController::cellBroadcastPropertySetFinished(const QString &property,
                                                                const QString &errorString)
 {
-    if (property != QLatin1String(TopicsProperty)) {
+    const PendingPropertyOperation operation = m_pendingPropertyOperation;
+    const bool expectedProperty = (operation == SetPoweredOperation
+                                   && property == QLatin1String(PoweredProperty))
+            || (operation == SetTopicsOperation
+                && property == QLatin1String(TopicsProperty));
+    if (!expectedProperty) {
         return;
     }
 
+    m_pendingPropertyOperation = NoPropertyOperation;
     if (!errorString.isEmpty()) {
         setErrorString(errorString);
-        m_pendingTopicsOperation = NoTopicsOperation;
+        m_haveTopics = false;
+        m_inFlightManagedTopics.clear();
+        m_retryTimer->start();
         return;
     }
 
-    const PendingTopicsOperation operation = m_pendingTopicsOperation;
-    m_pendingTopicsOperation = NoTopicsOperation;
-    if (operation == DisableTopicsOperation) {
-        m_currentTopics.clear();
-        setErrorString(QString());
-        recalculate();
-        if (m_alertsEnabled) {
-            refreshAndApply();
-        }
-    } else if (operation == SetTopicsOperation) {
-        m_currentTopics = CellBroadcastTopics::unite(CellBroadcastTopicRangeList(), m_currentTopics);
-        setLastManagedTopics(m_pendingManagedTopics);
-        m_pendingManagedTopics.clear();
-        refresh();
+    if (operation == SetTopicsOperation) {
+        setLastManagedTopics(m_inFlightManagedTopics);
     }
+    m_inFlightManagedTopics.clear();
+    refresh();
 }
 
 void CellBroadcastController::ensureCatalog()
@@ -648,14 +730,12 @@ void CellBroadcastController::recalculate()
 
     if (m_mandatoryChannels == state.mandatoryChannels
             && m_optionalChannels == state.optionalChannels
-            && m_roamingOptionalChannels == state.roamingOptionalChannels
             && m_unknownTopics == unknownTopics) {
         return;
     }
 
     m_mandatoryChannels = state.mandatoryChannels;
     m_optionalChannels = state.optionalChannels;
-    m_roamingOptionalChannels = state.roamingOptionalChannels;
     m_unknownTopics = unknownTopics;
     Q_EMIT channelsChanged();
 }
@@ -663,53 +743,51 @@ void CellBroadcastController::recalculate()
 CellBroadcastController::ResolvedState CellBroadcastController::resolve() const
 {
     ResolvedState state;
-    if (!m_catalog.isValid() || !m_alertsEnabled) {
+    if (!m_catalog.isValid()) {
         return state;
     }
 
     const ActiveCatalogEntry active = activeEntry();
 
-    auto addEntry = [&](const CellBroadcastCatalogEntry &entry,
-                        const QString &scope,
-                        const QString &plmn,
-                        bool roaming) {
-        for (const CellBroadcastCatalogCategory &category : entry.categories) {
-            const CellBroadcastTopicRangeList mandatory =
-                    catalogRangesToTopics(category.ranges, true, true);
-            const CellBroadcastTopicRangeList mandatoryDisplay =
-                    CellBroadcastTopics::unite(mandatory,
-                                               catalogRangesToTopics(category.ranges, true, false));
-            if (!mandatoryDisplay.isEmpty()) {
-                state.mandatoryChannels.append(channelMap(category.id, category.name,
-                                                          category.customName,
-                                                          entry.alertSystem, scope, plmn,
-                                                          roaming, mandatoryDisplay, true));
-            }
-            if (!mandatory.isEmpty()) {
-                state.managedTopics = CellBroadcastTopics::unite(state.managedTopics, mandatory);
-            }
-
-            const CellBroadcastTopicRangeList optional =
-                    catalogRangesToTopics(category.ranges, false, true);
-            const CellBroadcastTopicRangeList optionalDisplay =
-                    CellBroadcastTopics::unite(optional,
-                                               catalogRangesToTopics(category.ranges, false, false));
-            if (optionalDisplay.isEmpty()) {
-                continue;
-            }
-
-            const bool enabled = channelEnabled(scope, category);
-            QVariantMap map = channelMap(category.id, category.name, category.customName,
-                                         entry.alertSystem, scope, plmn,
-                                         roaming, optionalDisplay, enabled);
-            state.optionalChannels.append(map);
-            if (enabled) {
-                state.managedTopics = CellBroadcastTopics::unite(state.managedTopics, optional);
-            }
+    for (const CellBroadcastCatalogCategory &category : active.entry.categories) {
+        const CellBroadcastTopicRangeList mandatory =
+                catalogRangesToTopics(category.ranges, true, true);
+        const CellBroadcastTopicRangeList mandatoryDisplay =
+                CellBroadcastTopics::unite(mandatory,
+                                           catalogRangesToTopics(category.ranges, true, false));
+        if (category.settingsVisible && !mandatoryDisplay.isEmpty()) {
+            state.mandatoryChannels.append(channelMap(category,
+                                                      active.entry.alertSystem,
+                                                      active.scope, active.plmn,
+                                                      active.roaming,
+                                                      mandatoryDisplay, true));
         }
-    };
+        if (!mandatory.isEmpty()) {
+            state.managedTopics = CellBroadcastTopics::unite(state.managedTopics, mandatory);
+        }
 
-    addEntry(active.entry, active.scope, active.plmn, active.roaming);
+        const CellBroadcastTopicRangeList optional =
+                catalogRangesToTopics(category.ranges, false, true);
+        const CellBroadcastTopicRangeList optionalDisplay =
+                CellBroadcastTopics::unite(optional,
+                                           catalogRangesToTopics(category.ranges, false, false));
+        if (optionalDisplay.isEmpty()) {
+            continue;
+        }
+
+        const bool enabled = m_alertsEnabled && channelEnabled(active.scope, category);
+        const QVariantMap map = channelMap(category,
+                                           active.entry.alertSystem,
+                                           active.scope, active.plmn,
+                                           active.roaming,
+                                           optionalDisplay, enabled);
+        if (category.settingsVisible) {
+            state.optionalChannels.append(map);
+        }
+        if (enabled) {
+            state.managedTopics = CellBroadcastTopics::unite(state.managedTopics, optional);
+        }
+    }
 
     return state;
 }
@@ -727,7 +805,7 @@ CellBroadcastController::ActiveCatalogEntry CellBroadcastController::activeEntry
         active.scope = active.entry.plmn.isEmpty()
                 ? QStringLiteral("default")
                 : active.entry.plmn;
-        active.plmn = m_networkMcc + m_networkMnc;
+        active.plmn = normalizedPlmn(m_networkMcc, m_networkMnc);
         active.roaming = isRoamingNetworkRelevant();
         return active;
     }
@@ -736,7 +814,7 @@ CellBroadcastController::ActiveCatalogEntry CellBroadcastController::activeEntry
     if (homeEntry.isValid()) {
         active.entry = homeEntry;
         active.scope = QStringLiteral("home");
-        active.plmn = m_simMcc + m_simMnc;
+        active.plmn = normalizedPlmn(m_simMcc, m_simMnc);
         active.roaming = false;
     } else {
         active.entry = m_catalog.entryForKey(QString());
@@ -745,6 +823,25 @@ CellBroadcastController::ActiveCatalogEntry CellBroadcastController::activeEntry
         active.roaming = false;
     }
 
+    return active;
+}
+
+CellBroadcastController::ActiveCatalogEntry CellBroadcastController::activeEntryForPlmn(
+        const QString &mcc, const QString &mnc) const
+{
+    if (mcc.isEmpty()) {
+        return activeEntry();
+    }
+
+    ActiveCatalogEntry active;
+    active.entry = m_catalog.configuredEntryForPlmn(mcc, mnc);
+    if (!active.entry.isValid()) {
+        active.entry = m_catalog.entryForKey(QString());
+    }
+    active.scope = active.entry.plmn.isEmpty()
+            ? QStringLiteral("default") : active.entry.plmn;
+    active.plmn = normalizedPlmn(mcc, mnc);
+    active.roaming = false;
     return active;
 }
 
@@ -761,8 +858,8 @@ bool CellBroadcastController::isRoamingNetworkRelevant() const
     if (m_networkMcc.isEmpty()) {
         return false;
     }
-    const QString networkPlmn = m_networkMcc + m_networkMnc;
-    const QString simPlmn = m_simMcc + m_simMnc;
+    const QString networkPlmn = normalizedPlmn(m_networkMcc, m_networkMnc);
+    const QString simPlmn = normalizedPlmn(m_simMcc, m_simMnc);
     if (!simPlmn.isEmpty() && networkPlmn == simPlmn) {
         return false;
     }
@@ -823,50 +920,64 @@ void CellBroadcastController::setAlertsEnabledValue(bool enabled)
     Q_EMIT alertsEnabledChanged();
 }
 
-void CellBroadcastController::disableCellBroadcast()
+void CellBroadcastController::processTopicUpdate()
 {
-    m_applyAfterRefresh = false;
-    m_pendingManagedTopics.clear();
-
-    if (m_modemPath.isEmpty()) {
+    ensureCatalog();
+    if (!m_catalog.isValid()
+            || m_modemPath.isEmpty()
+            || m_refreshPending
+            || m_pendingPropertyOperation != NoPropertyOperation
+            || m_retryTimer->isActive()) {
         return;
     }
 
-    m_currentTopics.clear();
-    recalculate();
-    m_pendingTopicsOperation = DisableTopicsOperation;
-    m_cellBroadcast->setTopics(QString());
-}
-
-void CellBroadcastController::setCellBroadcastPowered(bool powered)
-{
-    if (m_modemPath.isEmpty()) {
+    if (!m_haveTopics) {
+        refresh();
         return;
     }
 
-    m_cellBroadcast->setEnabled(powered);
-}
-
-void CellBroadcastController::setTopics(const CellBroadcastTopicRangeList &topics,
-                                        const CellBroadcastTopicRangeList &managedTopics)
-{
-    if (m_modemPath.isEmpty()) {
+    if (!m_cellBroadcast->enabled()) {
+        m_pendingPropertyOperation = SetPoweredOperation;
+        m_cellBroadcast->setEnabled(true);
         return;
     }
 
-    const QString topicsString = CellBroadcastTopics::format(topics);
-    m_currentTopics = topics;
-    m_pendingManagedTopics = managedTopics;
-    m_pendingTopicsOperation = SetTopicsOperation;
+    const ResolvedState state = resolve();
+    const CellBroadcastTopicRangeList previousManaged = lastManagedTopics();
+    CellBroadcastTopicRangeList topics;
+    if (m_resetRequested) {
+        topics = state.managedTopics;
+    } else {
+        CellBroadcastTopicRangeList unmanaged = CellBroadcastTopics::subtract(
+                    m_currentTopics, previousManaged);
+        unmanaged = CellBroadcastTopics::subtract(unmanaged,
+                                                  m_requestedTopicRemovals);
+        topics = CellBroadcastTopics::unite(unmanaged, state.managedTopics);
+    }
 
-    setCellBroadcastPowered(true);
-    m_cellBroadcast->setTopics(topicsString);
-    recalculate();
+    if (CellBroadcastTopics::equals(topics, m_currentTopics)
+            && CellBroadcastTopics::equals(state.managedTopics, previousManaged)) {
+        m_resetRequested = false;
+        m_requestedTopicRemovals.clear();
+        if (m_catalog.isValid()) {
+            setErrorString(QString());
+        }
+        return;
+    }
+
+    // The modem may apply a Topics write before its asynchronous reply. Keep
+    // both the previous and requested ownership until the reply confirms the
+    // exact new set, so an interface or process loss cannot make our newly
+    // added topics look unmanaged on the next convergence.
+    setLastManagedTopics(CellBroadcastTopics::unite(previousManaged,
+                                                    state.managedTopics));
+    m_inFlightManagedTopics = state.managedTopics;
+    m_pendingPropertyOperation = SetTopicsOperation;
+    m_cellBroadcast->setTopics(CellBroadcastTopics::format(topics));
 }
 
-QVariantMap CellBroadcastController::channelMap(const QString &id,
-                                                const QString &name,
-                                                bool customName,
+QVariantMap CellBroadcastController::channelMap(
+                                                const CellBroadcastCatalogCategory &category,
                                                 const QString &alertSystem,
                                                 const QString &scope,
                                                 const QString &plmn,
@@ -875,14 +986,18 @@ QVariantMap CellBroadcastController::channelMap(const QString &id,
                                                 bool enabled) const
 {
     QVariantMap map;
-    map.insert(QStringLiteral("id"), id);
-    map.insert(QStringLiteral("name"), name);
-    map.insert(QStringLiteral("customName"), customName);
+    map.insert(QStringLiteral("id"), category.id);
+    map.insert(QStringLiteral("name"), category.name);
+    map.insert(QStringLiteral("title"), category.title);
+    map.insert(QStringLiteral("alertLevel"), category.alertLevel);
+    map.insert(QStringLiteral("customName"), category.customName);
     map.insert(QStringLiteral("alertSystem"), alertSystem);
     map.insert(QStringLiteral("scope"), scope);
     map.insert(QStringLiteral("plmn"), plmn);
     map.insert(QStringLiteral("roaming"), roaming);
     map.insert(QStringLiteral("enabled"), enabled);
+    map.insert(QStringLiteral("userConfigurable"), category.userConfigurable);
+    map.insert(QStringLiteral("settingsVisible"), category.settingsVisible);
     map.insert(QStringLiteral("topics"), CellBroadcastTopics::format(ranges));
     return map;
 }

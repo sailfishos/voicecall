@@ -10,12 +10,21 @@ INCLUDEPATH += ../src
 
 HEADERS += \
     ../src/cellbroadcastcatalog.h \
+    ../src/cellbroadcastgeometry.h \
     ../src/cellbroadcaststore.h
 
 SOURCES += \
     tst_cellbroadcaststore.cpp \
     ../src/cellbroadcastcatalog.cpp \
+    ../src/cellbroadcastgeometry.cpp \
     ../src/cellbroadcaststore.cpp
+
+qtHaveModule(positioning) {
+    QT += positioning
+    DEFINES += HAVE_CELLBROADCAST_GEOFENCE_TESTS
+    HEADERS += ../src/cellbroadcastgeofence.h
+    SOURCES += ../src/cellbroadcastgeofence.cpp
+}
 
 DISTFILES += \
     data/test-catalog.json

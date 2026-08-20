@@ -8,6 +8,10 @@
  */
 #include "cellbroadcaststore.h"
 #include "cellbroadcastcatalog.h"
+#include "cellbroadcastgeometry.h"
+#ifdef HAVE_CELLBROADCAST_GEOFENCE_TESTS
+#include "cellbroadcastgeofence.h"
+#endif
 
 #include <QDateTime>
 #include <QDir>
@@ -18,6 +22,12 @@
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#ifdef HAVE_CELLBROADCAST_GEOFENCE_TESTS
+#include <QGeoCoordinate>
+#include <QGeoPositionInfo>
+#include <QGeoPositionInfoSource>
+#endif
 
 namespace {
 
@@ -162,6 +172,54 @@ int databaseUserVersion(const QString &databasePath)
     return version;
 }
 
+#ifdef HAVE_CELLBROADCAST_GEOFENCE_TESTS
+class TestPositionSource : public QGeoPositionInfoSource
+{
+public:
+    explicit TestPositionSource(QObject *parent = 0)
+        : QGeoPositionInfoSource(parent)
+    {
+    }
+
+    QGeoPositionInfo lastKnownPosition(bool = false) const override
+    {
+        return QGeoPositionInfo();
+    }
+
+    PositioningMethods supportedPositioningMethods() const override
+    {
+        return AllPositioningMethods;
+    }
+
+    int minimumUpdateInterval() const override
+    {
+        return 0;
+    }
+
+    Error error() const override
+    {
+        return NoError;
+    }
+
+    void startUpdates() override
+    {
+    }
+
+    void stopUpdates() override
+    {
+    }
+
+    void requestUpdate(int = 0) override
+    {
+    }
+
+    void sendPosition(const QGeoPositionInfo &position)
+    {
+        Q_EMIT positionUpdated(position);
+    }
+};
+#endif
+
 } // namespace
 
 class TestCellBroadcastStore : public QObject
@@ -211,6 +269,13 @@ private Q_SLOTS:
     void retainsUntilUserDeletion();
     void pagesHistoryAndProtectsLiveAlerts();
     void hidesGeofencingTriggers();
+    void evaluatesCircleGeometry();
+    void evaluatesPolygonGeometry();
+#ifdef HAVE_CELLBROADCAST_GEOFENCE_TESTS
+    void waitsForAccurateLocation();
+    void ignoresStaleLocation();
+    void preservesFreshnessForRepeatedGeoFenceRequest();
+#endif
 };
 
 void TestCellBroadcastStore::loadsCategoryPolicy()
@@ -1161,6 +1226,7 @@ void TestCellBroadcastStore::preparesSharedGeoFenceTrigger()
         const QVariantList prepared = store.prepareGeoFenceTrigger(
                     QStringLiteral("4370,4656;4371,4672"), 2, triggerTime);
         QCOMPARE(prepared.count(), 2);
+        QString sharedGeometries;
         for (const QVariant &value : prepared) {
             const QVariantMap alert = value.toMap();
             const QString geometries = alert.value(
@@ -1170,7 +1236,14 @@ void TestCellBroadcastStore::preparesSharedGeoFenceTrigger()
             QCOMPARE(alert.value(QStringLiteral("CellBroadcastGeoFenceDeadline")).toLongLong(),
                      triggerTime + 20000);
             QCOMPARE(alert.value(QStringLiteral("State")).toInt(), 4);
+            sharedGeometries = geometries;
         }
+        QCOMPARE(CellBroadcastGeometry::evaluate(sharedGeometries, -35.3, 149.1, 10),
+                 CellBroadcastGeometry::Inside);
+        QCOMPARE(CellBroadcastGeometry::evaluate(sharedGeometries, -37.8, 144.9, 10),
+                 CellBroadcastGeometry::Inside);
+        QCOMPARE(CellBroadcastGeometry::evaluate(sharedGeometries, -30.0, 140.0, 10),
+                 CellBroadcastGeometry::Outside);
     }
     {
         CellBroadcastStore store(path);
@@ -1497,6 +1570,105 @@ void TestCellBroadcastStore::hidesGeofencingTriggers()
     QVERIFY(store.activeAlert().isEmpty());
     QCOMPARE(store.alertHistory(0, 20).count(), 0);
 }
+
+void TestCellBroadcastStore::evaluatesCircleGeometry()
+{
+    const QString geometry = QStringLiteral("circle|-35.2809,149.1300|1000");
+    QCOMPARE(CellBroadcastGeometry::evaluate(geometry, -35.2809, 149.1300, 10),
+             CellBroadcastGeometry::Inside);
+    QCOMPARE(CellBroadcastGeometry::evaluate(geometry, -35.2809, 149.1425, 300),
+             CellBroadcastGeometry::Ambiguous);
+    QCOMPARE(CellBroadcastGeometry::evaluate(geometry, -35.2809, 149.1600, 10),
+             CellBroadcastGeometry::Outside);
+}
+
+void TestCellBroadcastStore::evaluatesPolygonGeometry()
+{
+    const QString geometry = QStringLiteral(
+                "polygon|-35.30,149.10|-35.30,149.20|-35.20,149.20|-35.20,149.10");
+    QCOMPARE(CellBroadcastGeometry::evaluate(geometry, -35.25, 149.15, 10),
+             CellBroadcastGeometry::Inside);
+    QCOMPARE(CellBroadcastGeometry::evaluate(geometry, -35.301, 149.15, 200),
+             CellBroadcastGeometry::Ambiguous);
+    QCOMPARE(CellBroadcastGeometry::evaluate(geometry, -35.40, 149.15, 10),
+             CellBroadcastGeometry::Outside);
+    QCOMPARE(CellBroadcastGeometry::evaluate(QStringLiteral("polygon|bad"),
+                                              -35.25, 149.15, 10),
+             CellBroadcastGeometry::Invalid);
+}
+
+#ifdef HAVE_CELLBROADCAST_GEOFENCE_TESTS
+void TestCellBroadcastStore::waitsForAccurateLocation()
+{
+    TestPositionSource source;
+    CellBroadcastGeoFence geoFence(0, &source);
+    QSignalSpy resolved(&geoFence, &CellBroadcastGeoFence::resolved);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    geoFence.check(1, QStringLiteral("circle|-35.3,149.1|1000"),
+                   now + 10000, now);
+
+    QGeoPositionInfo missingAccuracy(QGeoCoordinate(-30.0, 140.0),
+                                     QDateTime::currentDateTimeUtc());
+    source.sendPosition(missingAccuracy);
+    QCOMPARE(resolved.count(), 0);
+
+    QGeoPositionInfo accurateOutside(QGeoCoordinate(-30.0, 140.0),
+                                     QDateTime::currentDateTimeUtc());
+    accurateOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
+    source.sendPosition(accurateOutside);
+    QCOMPARE(resolved.count(), 1);
+    QCOMPARE(resolved.takeFirst().at(1).toBool(), false);
+}
+
+void TestCellBroadcastStore::ignoresStaleLocation()
+{
+    TestPositionSource source;
+    CellBroadcastGeoFence geoFence(0, &source);
+    QSignalSpy resolved(&geoFence, &CellBroadcastGeoFence::resolved);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    geoFence.check(1, QStringLiteral("circle|-35.3,149.1|1000"),
+                   now + 10000, now);
+
+    QGeoPositionInfo staleOutside(
+                QGeoCoordinate(-30.0, 140.0),
+                QDateTime::fromMSecsSinceEpoch(now - 1000, Qt::UTC));
+    staleOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
+    source.sendPosition(staleOutside);
+    QCOMPARE(resolved.count(), 0);
+
+    QGeoPositionInfo freshOutside(
+                QGeoCoordinate(-30.0, 140.0),
+                QDateTime::fromMSecsSinceEpoch(
+                    QDateTime::currentMSecsSinceEpoch() + 1, Qt::UTC));
+    freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
+    source.sendPosition(freshOutside);
+    QCOMPARE(resolved.count(), 1);
+    QCOMPARE(resolved.takeFirst().at(1).toBool(), false);
+}
+
+void TestCellBroadcastStore::preservesFreshnessForRepeatedGeoFenceRequest()
+{
+    TestPositionSource source;
+    CellBroadcastGeoFence geoFence(0, &source);
+    QSignalSpy resolved(&geoFence, &CellBroadcastGeoFence::resolved);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const QString geometry = QStringLiteral("circle|-35.3,149.1|1000");
+    const qint64 deadline = now + 10000;
+    geoFence.check(1, geometry, deadline, now);
+    const qint64 positionTime = QDateTime::currentMSecsSinceEpoch();
+
+    QTest::qWait(20);
+    geoFence.check(1, geometry, deadline, now);
+
+    QGeoPositionInfo freshOutside(
+                QGeoCoordinate(-30.0, 140.0),
+                QDateTime::fromMSecsSinceEpoch(positionTime, Qt::UTC));
+    freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
+    source.sendPosition(freshOutside);
+    QCOMPARE(resolved.count(), 1);
+    QCOMPARE(resolved.takeFirst().at(1).toBool(), false);
+}
+#endif
 
 QTEST_APPLESS_MAIN(TestCellBroadcastStore)
 #include "tst_cellbroadcaststore.moc"

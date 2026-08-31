@@ -25,6 +25,7 @@ public:
         bool stored = false;
         bool duplicate = false;
         bool activeChanged = false;
+        bool presentationChanged = false;
         bool requestAttention = false;
         bool needsGeoCheck = false;
         QVariantMap activeAlert;

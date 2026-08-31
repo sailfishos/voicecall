@@ -102,6 +102,7 @@ private:
     void receiveBroadcast(const QString &path,
                           const QString &text,
                           const QVariantMap &properties);
+    void emitLegacyAlert(const QVariantMap &alert);
     void emitActiveAlert(const QVariantMap &alert);
 
 private:

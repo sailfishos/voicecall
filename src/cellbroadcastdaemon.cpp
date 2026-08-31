@@ -496,6 +496,8 @@ void CellBroadcastDaemon::receiveBroadcast(const QString &path,
     }
     if (result.activeChanged) {
         emitActiveAlert(result.activeAlert);
+    } else if (result.presentationChanged) {
+        emitLegacyAlert(m_store->alert(result.alertId));
     }
 }
 
@@ -514,16 +516,23 @@ void CellBroadcastDaemon::geoFenceResolved(qulonglong id, bool display,
     }
     if (result.activeChanged) {
         emitActiveAlert(result.activeAlert);
+    } else if (result.presentationChanged) {
+        emitLegacyAlert(m_store->alert(result.alertId));
+    }
+}
+
+void CellBroadcastDaemon::emitLegacyAlert(const QVariantMap &alert)
+{
+    if (!alert.isEmpty()) {
+        Q_EMIT broadcastReceived(alert.value(QStringLiteral("ModemPath")).toString(),
+                                 alert.value(QStringLiteral("Text")).toString(), alert);
     }
 }
 
 void CellBroadcastDaemon::emitActiveAlert(const QVariantMap &alert)
 {
     Q_EMIT activeAlertChanged(alert);
-    if (!alert.isEmpty()) {
-        Q_EMIT broadcastReceived(alert.value(QStringLiteral("ModemPath")).toString(),
-                                 alert.value(QStringLiteral("Text")).toString(), alert);
-    }
+    emitLegacyAlert(alert);
 }
 
 void CellBroadcastDaemon::applyModem()

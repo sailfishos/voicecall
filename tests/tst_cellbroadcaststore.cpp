@@ -290,6 +290,7 @@ void TestCellBroadcastStore::loadsCategoryPolicy()
     QVERIFY(entry.isValid());
     QCOMPARE(entry.alertSystem, QStringLiteral("Test Alerts"));
     QCOMPARE(entry.defaultAttentionProfile, QStringLiteral("standard"));
+    QCOMPARE(entry.defaultVibrationProfile, QStringLiteral("wea"));
     QCOMPARE(entry.categories.count(), 7);
 
     const CellBroadcastCatalogEntry keyed = catalog.entryForKey(QStringLiteral("00101"));
@@ -385,8 +386,17 @@ void TestCellBroadcastStore::loadsAttentionProfiles()
                 QStringLiteral("standard"));
     const CellBroadcastAttentionProfile critical = catalog.attentionProfile(
                 QStringLiteral("critical"));
+    const CellBroadcastAttentionProfile legacy = catalog.attentionProfile(
+                QStringLiteral("legacy"));
+    const CellBroadcastVibrationProfile wea = catalog.vibrationProfile(
+                QStringLiteral("wea"));
+    const CellBroadcastVibrationProfile sos = catalog.vibrationProfile(
+                QStringLiteral("sos"));
     QVERIFY(standard.isValid());
     QVERIFY(critical.isValid());
+    QVERIFY(legacy.isValid());
+    QVERIFY(wea.isValid());
+    QVERIFY(sos.isValid());
     QCOMPARE(standard.event, QStringLiteral("cellbroadcast_attention"));
     QCOMPARE(critical.event, QStringLiteral("cellbroadcast_critical_attention"));
     QVERIFY(standard.event != critical.event);
@@ -398,6 +408,20 @@ void TestCellBroadcastStore::loadsAttentionProfiles()
              QStringLiteral("official-cell-broadcast-public-warning"));
     QCOMPARE(critical.reservedUse,
              QStringLiteral("official-cell-broadcast-public-warning"));
+    QVERIFY(standard.vibrationProfile.isEmpty());
+    QCOMPARE(critical.vibrationProfile, QStringLiteral("sos"));
+    QVERIFY(standard.vibrationPattern.isEmpty());
+    QCOMPARE(critical.vibrationPattern, sos.vibrationPattern);
+    QVERIFY(legacy.vibrationProfile.isEmpty());
+    QCOMPARE(legacy.vibrationPattern, QList<int>({0, 100, 50, 100}));
+    QVERIFY(!legacy.vibrationRepeat);
+    QVERIFY(!standard.vibrationRepeat);
+    QCOMPARE(critical.vibrationPattern,
+             QList<int>({0, 500, 500, 500, 500, 500, 500,
+                         1000, 500, 1000, 500, 1000, 500,
+                         500, 500, 500, 500, 500, 500}));
+    QVERIFY(critical.vibrationRepeat);
+    QVERIFY(critical.hapticSequence().endsWith(QStringLiteral(",repeat=forever")));
 }
 
 void TestCellBroadcastStore::refusesNonDurableFallback()

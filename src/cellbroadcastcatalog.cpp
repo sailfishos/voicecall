@@ -24,10 +24,36 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStringList>
 
 namespace {
 
 const char DefaultCatalogPath[] = "/usr/share/cell-broadcast-provider-info/channels.json";
+const int MaximumVibrationPatternLength = 64;
+const int MaximumVibrationStepDuration = 10000;
+
+QList<int> vibrationPattern(const QJsonValue &value)
+{
+    const QJsonArray array = value.toArray();
+    if (array.size() < 2 || array.size() > MaximumVibrationPatternLength) {
+        return QList<int>();
+    }
+
+    QList<int> pattern;
+    pattern.reserve(array.size());
+    for (int index = 0; index < array.size(); ++index) {
+        if (!array.at(index).isDouble()) {
+            return QList<int>();
+        }
+        const int duration = array.at(index).toInt(-1);
+        const int minimum = index == 0 ? 0 : 1;
+        if (duration < minimum || duration > MaximumVibrationStepDuration) {
+            return QList<int>();
+        }
+        pattern.append(duration);
+    }
+    return pattern;
+}
 
 }
 
@@ -36,9 +62,31 @@ bool CellBroadcastCatalogEntry::isValid() const
     return !categories.isEmpty();
 }
 
+bool CellBroadcastVibrationProfile::isValid() const
+{
+    return !id.isEmpty() && !vibrationPattern.isEmpty();
+}
+
 bool CellBroadcastAttentionProfile::isValid() const
 {
     return !id.isEmpty() && !soundFile.isEmpty();
+}
+
+QString CellBroadcastAttentionProfile::hapticSequence() const
+{
+    QStringList steps;
+    for (int index = 0; index < vibrationPattern.size(); ++index) {
+        const int duration = vibrationPattern.at(index);
+        if (index == 0 && duration == 0) {
+            continue;
+        }
+        steps.append((index % 2 ? QStringLiteral("on=") : QStringLiteral("pause="))
+                     + QString::number(duration));
+    }
+    if (vibrationRepeat && !steps.isEmpty()) {
+        steps.append(QStringLiteral("repeat=forever"));
+    }
+    return steps.join(QLatin1Char(','));
 }
 
 CellBroadcastCatalog::CellBroadcastCatalog()
@@ -50,6 +98,7 @@ bool CellBroadcastCatalog::load(const QString &path)
 {
     m_entries.clear();
     m_attentionProfiles.clear();
+    m_vibrationProfiles.clear();
     m_sourceCommit.clear();
 
     const QString catalogPath = path.isEmpty()
@@ -74,6 +123,22 @@ bool CellBroadcastCatalog::load(const QString &path)
     m_sourceCommit = root.value(QStringLiteral("source")).toObject()
             .value(QStringLiteral("commit")).toString();
 
+    const QJsonObject vibrationProfiles = root.value(
+                QStringLiteral("vibrationProfiles")).toObject();
+    for (auto profileIt = vibrationProfiles.begin();
+         profileIt != vibrationProfiles.end(); ++profileIt) {
+        const QJsonObject profileObject = profileIt.value().toObject();
+        CellBroadcastVibrationProfile profile;
+        profile.id = profileIt.key();
+        profile.vibrationPattern = vibrationPattern(
+                    profileObject.value(QStringLiteral("vibrationPattern")));
+        profile.vibrationRepeat = profileObject.value(
+                    QStringLiteral("vibrationRepeat")).toBool(false);
+        if (profile.isValid()) {
+            m_vibrationProfiles.insert(profile.id, profile);
+        }
+    }
+
     const QJsonObject attentionProfiles = root.value(QStringLiteral("attentionProfiles")).toObject();
     for (auto profileIt = attentionProfiles.begin(); profileIt != attentionProfiles.end(); ++profileIt) {
         const QJsonObject profileObject = profileIt.value().toObject();
@@ -82,6 +147,18 @@ bool CellBroadcastCatalog::load(const QString &path)
         profile.event = profileObject.value(QStringLiteral("event")).toString();
         profile.soundFile = profileObject.value(QStringLiteral("soundFile")).toString();
         profile.reservedUse = profileObject.value(QStringLiteral("reservedUse")).toString();
+        profile.vibrationProfile = profileObject.value(
+                    QStringLiteral("vibrationProfile")).toString();
+        profile.vibrationPattern = vibrationPattern(
+                    profileObject.value(QStringLiteral("vibrationPattern")));
+        profile.vibrationRepeat = profileObject.value(
+                    QStringLiteral("vibrationRepeat")).toBool(false);
+        const CellBroadcastVibrationProfile namedVibrationProfile =
+                m_vibrationProfiles.value(profile.vibrationProfile);
+        if (namedVibrationProfile.isValid()) {
+            profile.vibrationPattern = namedVibrationProfile.vibrationPattern;
+            profile.vibrationRepeat = namedVibrationProfile.vibrationRepeat;
+        }
         if (profile.isValid()) {
             m_attentionProfiles.insert(profile.id, profile);
         }
@@ -94,6 +171,10 @@ bool CellBroadcastCatalog::load(const QString &path)
         entry.plmn = entryObject.value(QStringLiteral("plmn")).toString();
         entry.alertSystem = entryObject.value(QStringLiteral("alertSystem")).toString();
         entry.defaultAttentionProfile = entryObject.value(QStringLiteral("defaultAttentionProfile")).toString();
+        entry.defaultVibrationProfile = entryObject.value(
+                    QStringLiteral("defaultVibrationProfile")).toString();
+        entry.defaultVibrationPattern = vibrationPattern(
+                    entryObject.value(QStringLiteral("defaultVibrationPattern")));
 
         const QJsonArray categories = entryObject.value(QStringLiteral("categories")).toArray();
         for (const QJsonValue &categoryValue : categories) {
@@ -112,6 +193,12 @@ bool CellBroadcastCatalog::load(const QString &path)
             category.defaultEnabled = categoryObject.value(QStringLiteral("defaultEnabled")).toBool(true);
             category.userConfigurable = categoryObject.value(QStringLiteral("userConfigurable")).toBool(true);
             category.settingsVisible = categoryObject.value(QStringLiteral("settingsVisible")).toBool(true);
+            category.vibrationPattern = vibrationPattern(
+                        categoryObject.value(QStringLiteral("vibrationPattern")));
+            category.hasVibrationRepeat = categoryObject.contains(
+                        QStringLiteral("vibrationRepeat"));
+            category.vibrationRepeat = categoryObject.value(
+                        QStringLiteral("vibrationRepeat")).toBool(false);
 
             const QJsonArray ranges = categoryObject.value(QStringLiteral("ranges")).toArray();
             for (const QJsonValue &rangeValue : ranges) {
@@ -122,6 +209,8 @@ bool CellBroadcastCatalog::load(const QString &path)
                 range.mandatory = rangeObject.value(QStringLiteral("mandatory")).toBool();
                 range.apply = rangeObject.value(QStringLiteral("apply")).toBool(true);
                 range.languageRole = rangeObject.value(QStringLiteral("languageRole")).toString();
+                range.vibrationPattern = vibrationPattern(
+                            rangeObject.value(QStringLiteral("vibrationPattern")));
                 if (range.from <= range.to) {
                     category.ranges.append(range);
                 }
@@ -166,6 +255,12 @@ QString CellBroadcastCatalog::sourceCommit() const
 CellBroadcastAttentionProfile CellBroadcastCatalog::attentionProfile(const QString &id) const
 {
     return m_attentionProfiles.value(id);
+}
+
+CellBroadcastVibrationProfile CellBroadcastCatalog::vibrationProfile(
+        const QString &id) const
+{
+    return m_vibrationProfiles.value(id);
 }
 
 CellBroadcastCatalogEntry CellBroadcastCatalog::configuredEntryForPlmn(const QString &mcc,

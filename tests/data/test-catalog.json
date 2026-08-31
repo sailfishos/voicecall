@@ -2,6 +2,23 @@
   "source": {
     "commit": "17f1a4acf0db7133581f006498a511266e58ee57"
   },
+  "vibrationProfiles": {
+    "wea": {
+      "vibrationPattern": [
+        0, 2000, 500, 1000, 500, 1000, 500,
+        2000, 500, 1000, 500, 1000
+      ],
+      "vibrationRepeat": false
+    },
+    "sos": {
+      "vibrationPattern": [
+        0, 500, 500, 500, 500, 500, 500,
+        1000, 500, 1000, 500, 1000, 500,
+        500, 500, 500, 500, 500, 500
+      ],
+      "vibrationRepeat": true
+    }
+  },
   "attentionProfiles": {
     "standard": {
       "event": "cellbroadcast_attention",
@@ -11,7 +28,15 @@
     "critical": {
       "event": "cellbroadcast_critical_attention",
       "reservedUse": "official-cell-broadcast-public-warning",
-      "soundFile": "/usr/share/cell-broadcast-provider-info/attention-tones/cellbroadcast-attention-853-960.ogg"
+      "soundFile": "/usr/share/cell-broadcast-provider-info/attention-tones/cellbroadcast-attention-853-960.ogg",
+      "vibrationProfile": "sos"
+    },
+    "legacy": {
+      "event": "legacy_cellbroadcast_attention",
+      "reservedUse": "official-cell-broadcast-public-warning",
+      "soundFile": "/usr/share/cell-broadcast-provider-info/attention-tones/cellbroadcast-attention-853-960.ogg",
+      "vibrationPattern": [0, 100, 50, 100],
+      "vibrationRepeat": false
     }
   },
   "entries": {
@@ -35,6 +60,7 @@
     "001": {
       "alertSystem": "Test Alerts",
       "defaultAttentionProfile": "standard",
+      "defaultVibrationProfile": "wea",
       "categories": [
         {
           "id": "critical",
@@ -76,6 +102,11 @@
           "attentionPolicy": "standard",
           "display": "alert",
           "sourceRef": "unit-test-policy",
+          "vibrationPattern": [
+            0, 500, 500, 500, 500, 500, 500,
+            1000, 500, 1000, 500, 1000, 500,
+            500, 500, 500, 500, 500, 500
+          ],
           "defaultEnabled": true,
           "userConfigurable": true,
           "settingsVisible": true,
@@ -92,7 +123,8 @@
               "from": 4384,
               "to": 4384,
               "mandatory": false,
-              "languageRole": "additional"
+              "languageRole": "additional",
+              "vibrationPattern": [0, 350, 250, 350]
             }
           ]
         },
@@ -235,6 +267,73 @@
               "to": 4400,
               "mandatory": true,
               "languageRole": "not-applicable"
+            }
+          ]
+        }
+      ]
+    },
+    "002": {
+      "alertSystem": "Pattern Override Test",
+      "defaultAttentionProfile": "standard",
+      "defaultVibrationPattern": [0, 600, 400, 600],
+      "categories": [
+        {
+          "id": "entry_default",
+          "name": "Entry default",
+          "attentionProfile": "standard",
+          "defaultEnabled": true,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 5000,
+              "to": 5000,
+              "mandatory": true
+            }
+          ]
+        }
+      ]
+    },
+    "003": {
+      "alertSystem": "Critical Profile Test",
+      "defaultAttentionProfile": "standard",
+      "categories": [
+        {
+          "id": "critical",
+          "name": "Critical Alert",
+          "attentionProfile": "critical",
+          "defaultEnabled": true,
+          "userConfigurable": false,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 6000,
+              "to": 6000,
+              "mandatory": true
+            }
+          ]
+        }
+      ]
+    },
+    "004": {
+      "alertSystem": "Standard Profile Test",
+      "defaultAttentionProfile": "standard",
+      "categories": [
+        {
+          "id": "standard",
+          "name": "Standard Alert",
+          "attentionProfile": "standard",
+          "defaultEnabled": true,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 7000,
+              "to": 7000,
+              "mandatory": true
             }
           ]
         }

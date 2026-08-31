@@ -93,6 +93,7 @@ private Q_SLOTS:
     void resetIntentUsesLatestPolicy();
     void classifiesUsingMessagePlmn();
     void normalizesOneDigitMnc();
+    void resolvesVibrationPatterns();
     void emergencyAttentionFallback_data();
     void emergencyAttentionFallback();
 };
@@ -449,6 +450,79 @@ void TestCellBroadcastController::normalizesOneDigitMnc()
              QStringLiteral("critical"));
     QCOMPARE(properties.value(QStringLiteral("CellBroadcastPlmn")).toString(),
              QStringLiteral("00101"));
+}
+
+void TestCellBroadcastController::resolvesVibrationPatterns()
+{
+    QScopedPointer<CellBroadcastController> controller(new CellBroadcastController);
+    controller->setCatalogPath(catalogPath());
+
+    const QList<int> sos = {
+        0, 500, 500, 500, 500, 500, 500,
+        1000, 500, 1000, 500, 1000, 500,
+        500, 500, 500, 500, 500, 500
+    };
+    const QList<int> wea = {
+        0, 2000, 500, 1000, 500, 1000, 500,
+        2000, 500, 1000, 500, 1000
+    };
+
+    const CellBroadcastAttentionProfile critical =
+            controller->attentionProfileForChannel(
+                4370, QStringLiteral("001"), QStringLiteral("01"));
+    QCOMPARE(critical.id, QStringLiteral("critical"));
+    QCOMPARE(critical.event, QStringLiteral("cellbroadcast_critical_attention"));
+    QCOMPARE(critical.vibrationPattern, wea);
+    QVERIFY(!critical.vibrationRepeat);
+    QVERIFY(!critical.hapticSequence().contains(QStringLiteral("repeat=")));
+
+    const CellBroadcastAttentionProfile categoryOverride =
+            controller->attentionProfileForChannel(
+                4371, QStringLiteral("001"), QStringLiteral("01"));
+    QCOMPARE(categoryOverride.vibrationPattern, sos);
+    QVERIFY(!categoryOverride.vibrationRepeat);
+    QVERIFY(!categoryOverride.hapticSequence().contains(QStringLiteral("repeat=")));
+
+    const CellBroadcastAttentionProfile rangeOverride =
+            controller->attentionProfileForChannel(
+                4384, QStringLiteral("001"), QStringLiteral("01"));
+    QCOMPARE(rangeOverride.vibrationPattern, QList<int>({0, 350, 250, 350}));
+    QCOMPARE(rangeOverride.hapticSequence(),
+             QStringLiteral("on=350,pause=250,on=350"));
+
+    const CellBroadcastAttentionProfile profileDefault =
+            controller->attentionProfileForChannel(
+                4381, QStringLiteral("001"), QStringLiteral("01"));
+    QCOMPARE(profileDefault.vibrationPattern, wea);
+
+    const CellBroadcastAttentionProfile entryDefault =
+            controller->attentionProfileForChannel(
+                5000, QStringLiteral("002"), QStringLiteral("01"));
+    QCOMPARE(entryDefault.vibrationPattern, QList<int>({0, 600, 400, 600}));
+
+    const CellBroadcastAttentionProfile genericCritical =
+            controller->attentionProfileForChannel(
+                6000, QStringLiteral("003"), QStringLiteral("01"));
+    QCOMPARE(genericCritical.vibrationPattern, sos);
+    QVERIFY(genericCritical.vibrationRepeat);
+    QVERIFY(genericCritical.hapticSequence().endsWith(
+                QStringLiteral(",repeat=forever")));
+
+    const CellBroadcastAttentionProfile genericStandard =
+            controller->attentionProfileForChannel(
+                7000, QStringLiteral("004"), QStringLiteral("01"));
+    QVERIFY(genericStandard.vibrationPattern.isEmpty());
+    QVERIFY(genericStandard.hapticSequence().isEmpty());
+    QVERIFY(!genericStandard.vibrationRepeat);
+
+    controller->setSimMcc(QStringLiteral("001"));
+    controller->setSimMnc(QStringLiteral("01"));
+    const CellBroadcastAttentionProfile fallback =
+            controller->emergencyAttentionProfile();
+    QCOMPARE(fallback.id, QStringLiteral("critical"));
+    QCOMPARE(fallback.event, QStringLiteral("cellbroadcast_critical_attention"));
+    QCOMPARE(fallback.vibrationPattern, wea);
+    QVERIFY(!fallback.vibrationRepeat);
 }
 
 void TestCellBroadcastController::emergencyAttentionFallback_data()

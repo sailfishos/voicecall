@@ -41,6 +41,7 @@ const char SimManagerInterface[] = "org.ofono.SimManager";
 const char NetworkRegistrationInterface[] = "org.ofono.NetworkRegistration";
 const char AttentionEvent[] = "cellbroadcast_attention";
 const char AttentionEventProperty[] = "CellBroadcastAttentionEvent";
+const char AttentionHapticSequenceProperty[] = "CellBroadcastAttentionHapticSequence";
 const char AttentionReservedUse[] = "official-cell-broadcast-public-warning";
 const char AttentionSoundFileProperty[] = "CellBroadcastAttentionSoundFile";
 const char AttentionTonePrefix[] = "/usr/share/cell-broadcast-provider-info/attention-tones/";
@@ -76,6 +77,11 @@ bool addAttentionProperties(QVariantMap *properties,
                        profile.event.isEmpty()
                            ? QString::fromLatin1(AttentionEvent) : profile.event);
     properties->insert(QString::fromLatin1(AttentionSoundFileProperty), profile.soundFile);
+    const QString hapticSequence = profile.hapticSequence();
+    if (!hapticSequence.isEmpty()) {
+        properties->insert(QString::fromLatin1(AttentionHapticSequenceProperty),
+                           hapticSequence);
+    }
     return true;
 }
 

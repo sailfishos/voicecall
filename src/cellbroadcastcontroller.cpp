@@ -113,24 +113,20 @@ bool channelInRange(int channel, const CellBroadcastCatalogRange &range)
     return channel >= range.from && channel <= range.to;
 }
 
-bool channelInRanges(int channel, const QList<CellBroadcastCatalogRange> &ranges)
+void applyEntryVibrationDefaults(CellBroadcastAttentionProfile *profile,
+                                 const CellBroadcastCatalogEntry &entry,
+                                 const CellBroadcastCatalog &catalog)
 {
-    for (const CellBroadcastCatalogRange &range : ranges) {
-        if (channelInRange(channel, range)) {
-            return true;
-        }
+    if (!entry.defaultVibrationPattern.isEmpty()) {
+        profile->vibrationPattern = entry.defaultVibrationPattern;
     }
-    return false;
-}
 
-bool mandatoryChannel(int channel, const QList<CellBroadcastCatalogRange> &ranges)
-{
-    for (const CellBroadcastCatalogRange &range : ranges) {
-        if (range.mandatory && channelInRange(channel, range)) {
-            return true;
-        }
+    const CellBroadcastVibrationProfile vibrationProfile = catalog.vibrationProfile(
+                entry.defaultVibrationProfile);
+    if (vibrationProfile.isValid()) {
+        profile->vibrationPattern = vibrationProfile.vibrationPattern;
+        profile->vibrationRepeat = vibrationProfile.vibrationRepeat;
     }
-    return false;
 }
 
 } // namespace
@@ -453,17 +449,34 @@ CellBroadcastAttentionProfile CellBroadcastController::attentionProfileForChanne
 
     const ActiveCatalogEntry active = activeEntryForPlmn(mcc, mnc);
     for (const CellBroadcastCatalogCategory &category : active.entry.categories) {
-        if (category.attentionProfile.isEmpty()
-                || !channelInRanges(channel, category.ranges)) {
+        if (category.attentionProfile.isEmpty()) {
             continue;
         }
 
-        if (!mandatoryChannel(channel, category.ranges)
-                && (!m_alertsEnabled || !channelEnabled(active.scope, category))) {
-            return CellBroadcastAttentionProfile();
-        }
+        for (const CellBroadcastCatalogRange &range : category.ranges) {
+            if (!channelInRange(channel, range)) {
+                continue;
+            }
 
-        return m_catalog.attentionProfile(category.attentionProfile);
+            if (!range.mandatory
+                    && (!m_alertsEnabled || !channelEnabled(active.scope, category))) {
+                return CellBroadcastAttentionProfile();
+            }
+
+            CellBroadcastAttentionProfile profile = m_catalog.attentionProfile(
+                        category.attentionProfile);
+            applyEntryVibrationDefaults(&profile, active.entry, m_catalog);
+            if (!category.vibrationPattern.isEmpty()) {
+                profile.vibrationPattern = category.vibrationPattern;
+            }
+            if (!range.vibrationPattern.isEmpty()) {
+                profile.vibrationPattern = range.vibrationPattern;
+            }
+            if (category.hasVibrationRepeat) {
+                profile.vibrationRepeat = category.vibrationRepeat;
+            }
+            return profile;
+        }
     }
 
     return CellBroadcastAttentionProfile();
@@ -516,17 +529,17 @@ CellBroadcastAttentionProfile CellBroadcastController::emergencyAttentionProfile
         return CellBroadcastAttentionProfile();
     }
 
-    const CellBroadcastAttentionProfile critical = m_catalog.attentionProfile(
-                QStringLiteral("critical"));
-    if (critical.isValid()) {
-        return critical;
-    }
-
-    // Preserve compatibility with catalogs predating the generic critical
-    // profile. This fallback remains profile-controlled rather than dropping
-    // the emergency attention indication entirely.
     const ActiveCatalogEntry active = activeEntry();
-    return m_catalog.attentionProfile(active.entry.defaultAttentionProfile);
+    CellBroadcastAttentionProfile profile = m_catalog.attentionProfile(
+                QStringLiteral("critical"));
+    if (!profile.isValid()) {
+        // Preserve compatibility with catalogs predating the generic critical
+        // profile. This fallback remains profile-controlled rather than
+        // dropping the emergency attention indication entirely.
+        profile = m_catalog.attentionProfile(active.entry.defaultAttentionProfile);
+    }
+    applyEntryVibrationDefaults(&profile, active.entry, m_catalog);
+    return profile;
 }
 
 void CellBroadcastController::refresh()

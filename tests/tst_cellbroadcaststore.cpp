@@ -472,6 +472,7 @@ void TestCellBroadcastStore::storesBeforePresentation()
                 QStringLiteral("Take shelter"), alertProperties(4370, 0x1230, 0));
     QVERIFY(result.stored);
     QVERIFY(result.activeChanged);
+    QVERIFY(result.presentationChanged);
     QVERIFY(result.requestAttention);
     QCOMPARE(result.activeAlert.value(QStringLiteral("Text")).toString(),
              QStringLiteral("Take shelter"));
@@ -487,7 +488,9 @@ void TestCellBroadcastStore::queuesIndependentAlerts()
     const CellBroadcastStore::StoreResult second = store.store(
                 QStringLiteral("Second"), alertProperties(4370, 0x1240, 0));
     QVERIFY(first.activeChanged);
+    QVERIFY(first.presentationChanged);
     QVERIFY(!second.activeChanged);
+    QVERIFY(second.presentationChanged);
     QVERIFY(!second.requestAttention);
     QCOMPARE(store.activeAlert().value(QStringLiteral("Text")).toString(),
              QStringLiteral("First"));
@@ -506,6 +509,7 @@ void TestCellBroadcastStore::suppressesDuplicates()
                 QStringLiteral("Duplicate"), properties);
     QVERIFY(duplicate.stored);
     QVERIFY(duplicate.duplicate);
+    QVERIFY(!duplicate.presentationChanged);
     QVERIFY(!duplicate.requestAttention);
     QCOMPARE(store.alertHistory(0, 20).count(), 1);
     QCOMPARE(store.activeAlert().value(QStringLiteral("ReceiptCount")).toInt(), 2);
@@ -1012,12 +1016,14 @@ void TestCellBroadcastStore::waitsForGeoFenceResolution()
                 QStringLiteral("Local warning"), properties);
     QVERIFY(stored.stored);
     QVERIFY(stored.needsGeoCheck);
+    QVERIFY(!stored.presentationChanged);
     QVERIFY(!stored.requestAttention);
     QVERIFY(store.activeAlert().isEmpty());
     QCOMPARE(store.alertHistory(0, 20).count(), 0);
 
     const CellBroadcastStore::StoreResult resolved = store.resolveGeoFence(
                 stored.alertId, true, QStringLiteral("inside"));
+    QVERIFY(resolved.presentationChanged);
     QVERIFY(resolved.requestAttention);
     QVERIFY(resolved.activeChanged);
     QCOMPARE(store.activeAlert().value(QStringLiteral("GeoState")).toString(),
@@ -1302,7 +1308,11 @@ void TestCellBroadcastStore::preparesPendingGeoFenceTrigger()
     const CellBroadcastStore::StoreResult queued = store.store(
                 QStringLiteral("Queued warning"), queuedProperties);
     QVERIFY(queued.needsGeoCheck);
-    QVERIFY(store.resolveGeoFence(queued.alertId, true, QStringLiteral("inside")).stored);
+    const CellBroadcastStore::StoreResult queuedResolved = store.resolveGeoFence(
+                queued.alertId, true, QStringLiteral("inside"));
+    QVERIFY(queuedResolved.stored);
+    QVERIFY(queuedResolved.presentationChanged);
+    QVERIFY(!queuedResolved.activeChanged);
     QCOMPARE(store.alert(queued.alertId).value(QStringLiteral("State")).toInt(), 0);
 
     QVariantMap suppressedProperties = alertProperties(4372, 0x1250, 0);
@@ -1313,8 +1323,10 @@ void TestCellBroadcastStore::preparesPendingGeoFenceTrigger()
     const CellBroadcastStore::StoreResult suppressed = store.store(
                 QStringLiteral("Suppressed warning"), suppressedProperties);
     QVERIFY(suppressed.needsGeoCheck);
-    QVERIFY(store.resolveGeoFence(suppressed.alertId, false,
-                                  QStringLiteral("outside")).stored);
+    const CellBroadcastStore::StoreResult suppressedResolved = store.resolveGeoFence(
+                suppressed.alertId, false, QStringLiteral("outside"));
+    QVERIFY(suppressedResolved.stored);
+    QVERIFY(!suppressedResolved.presentationChanged);
 
     const qint64 triggerTime = receivedAt + 1000;
     const QVariantList prepared = store.prepareGeoFenceTrigger(

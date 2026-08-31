@@ -832,6 +832,8 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
     result.alertId = alertId;
     result.stored = true;
     result.needsGeoCheck = candidateNeedsGeoCheck;
+    result.presentationChanged = candidateSelected && !candidateNeedsGeoCheck
+            && (state == Active || state == Pending);
     result.requestAttention = candidateSelected && activeAfter == alertId
             && !candidateNeedsGeoCheck && attentionRequired;
     result.activeChanged = activeBefore != activeAfter
@@ -1107,6 +1109,7 @@ CellBroadcastStore::StoreResult CellBroadcastStore::resolveGeoFence(
     const quint64 activeAfter = activeAlertId();
     result.alertId = id;
     result.stored = true;
+    result.presentationChanged = display;
     result.requestAttention = activeAfter && activeAfter != activeBefore
             && (activeAfter != id || attentionRequired);
     result.activeChanged = activeAfter != activeBefore;

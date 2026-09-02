@@ -33,25 +33,51 @@ struct CellBroadcastCatalogRange
     int to;
     bool mandatory;
     bool apply;
+    QString languageRole;
+    QList<int> vibrationPattern;
 };
 
 struct CellBroadcastCatalogCategory
 {
     QString id;
     QString name;
+    QString title;
+    QString alertLevel;
     QString attentionProfile;
+    QString attentionPolicy;
+    QString display;
+    QString sourceRef;
     bool customName;
     bool defaultEnabled;
+    bool userConfigurable;
+    bool settingsVisible;
+    QList<int> vibrationPattern;
+    bool vibrationRepeat;
+    bool hasVibrationRepeat;
     QList<CellBroadcastCatalogRange> ranges;
+};
+
+struct CellBroadcastVibrationProfile
+{
+    QString id;
+    QList<int> vibrationPattern;
+    bool vibrationRepeat;
+
+    bool isValid() const;
 };
 
 struct CellBroadcastAttentionProfile
 {
     QString id;
+    QString event;
     QString soundFile;
     QString reservedUse;
+    QString vibrationProfile;
+    QList<int> vibrationPattern;
+    bool vibrationRepeat;
 
     bool isValid() const;
+    QString hapticSequence() const;
 };
 
 struct CellBroadcastCatalogEntry
@@ -59,6 +85,8 @@ struct CellBroadcastCatalogEntry
     QString plmn;
     QString alertSystem;
     QString defaultAttentionProfile;
+    QString defaultVibrationProfile;
+    QList<int> defaultVibrationPattern;
     QList<CellBroadcastCatalogCategory> categories;
 
     bool isValid() const;
@@ -75,12 +103,14 @@ public:
     QString sourceCommit() const;
 
     CellBroadcastAttentionProfile attentionProfile(const QString &id) const;
+    CellBroadcastVibrationProfile vibrationProfile(const QString &id) const;
     CellBroadcastCatalogEntry configuredEntryForPlmn(const QString &mcc, const QString &mnc) const;
     CellBroadcastCatalogEntry entryForPlmn(const QString &mcc, const QString &mnc) const;
     CellBroadcastCatalogEntry entryForKey(const QString &plmn) const;
 
 private:
     QHash<QString, CellBroadcastAttentionProfile> m_attentionProfiles;
+    QHash<QString, CellBroadcastVibrationProfile> m_vibrationProfiles;
     QHash<QString, CellBroadcastCatalogEntry> m_entries;
     QString m_sourceCommit;
     QString m_errorString;

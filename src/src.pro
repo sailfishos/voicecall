@@ -1,6 +1,6 @@
 TARGET = voicecall-manager
 TEMPLATE = app
-QT = core dbus
+QT = core dbus positioning sql
 CONFIG += link_pkgconfig
 
 INCLUDEPATH += ../lib/src
@@ -27,6 +27,10 @@ HEADERS += \
     cellbroadcastcatalog.h \
     cellbroadcastcontroller.h \
     cellbroadcastdaemon.h \
+    cellbroadcastdaemonpolicy_p.h \
+    cellbroadcastgeofence.h \
+    cellbroadcastgeometry.h \
+    cellbroadcaststore.h \
     cellbroadcasttopics.h \
     dbus/voicecallmanagerdbusservice.h \
     basicvoicecallconfigurator.h \
@@ -38,6 +42,9 @@ SOURCES += \
     cellbroadcastcatalog.cpp \
     cellbroadcastcontroller.cpp \
     cellbroadcastdaemon.cpp \
+    cellbroadcastgeofence.cpp \
+    cellbroadcastgeometry.cpp \
+    cellbroadcaststore.cpp \
     cellbroadcasttopics.cpp \
     dbus/voicecallmanagerdbusservice.cpp \
     dbus/voicecallmanagerdbusadapter.cpp \

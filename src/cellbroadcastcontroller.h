@@ -25,11 +25,13 @@
 
 #include <QHash>
 #include <QObject>
+#include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
 
 class CellBroadcastOfonoClient;
 class MDConfItem;
+class QTimer;
 
 class CellBroadcastController : public QObject
 {
@@ -76,16 +78,16 @@ public:
 
     QVariantList mandatoryChannels() const;
     QVariantList optionalChannels() const;
-    QVariantList roamingOptionalChannels() const;
     QVariantList unknownTopics() const;
     QVariantMap stateMap() const;
 
-    CellBroadcastAttentionProfile attentionProfileForChannel(int channel);
-    CellBroadcastAttentionProfile configuredAttentionProfile();
+    CellBroadcastAttentionProfile attentionProfileForChannel(
+            int channel, const QString &mcc, const QString &mnc);
+    CellBroadcastAttentionProfile emergencyAttentionProfile();
+    QVariantMap messagePropertiesForChannel(
+            int channel, const QString &mcc, const QString &mnc);
 
     void refresh();
-    void refreshAndApply();
-    void apply();
     void setChannelEnabled(const QString &categoryId,
                            const QString &scope,
                            bool enabled);
@@ -107,10 +109,13 @@ Q_SIGNALS:
     void errorStringChanged();
     void channelsChanged();
     void incomingBroadcast(const QString &text, int channel);
+    void incomingBroadcastWithProperties(const QString &text,
+                                         const QVariantMap &properties);
     void emergencyBroadcast(const QString &text, const QVariantMap &properties);
 
 private Q_SLOTS:
     void onAlertsEnabledSettingChanged();
+    void onCellBroadcastEnabledChanged(bool enabled);
     void onCellBroadcastTopicsChanged(const QString &topics);
     void onCellBroadcastValidChanged(bool valid);
 
@@ -119,15 +124,17 @@ private:
 
     struct ActiveCatalogEntry;
     struct ResolvedState;
-    enum PendingTopicsOperation {
-        NoTopicsOperation,
-        DisableTopicsOperation,
+    enum PendingPropertyOperation {
+        NoPropertyOperation,
+        SetPoweredOperation,
         SetTopicsOperation
     };
 
     void ensureCatalog();
     void recalculate();
     ActiveCatalogEntry activeEntry() const;
+    ActiveCatalogEntry activeEntryForPlmn(const QString &mcc,
+                                          const QString &mnc) const;
     ResolvedState resolve() const;
     QString identity() const;
     bool isRoamingNetworkRelevant() const;
@@ -137,17 +144,13 @@ private:
     CellBroadcastTopicRangeList lastManagedTopics() const;
     void setLastManagedTopics(const CellBroadcastTopicRangeList &topics);
     void setAlertsEnabledValue(bool enabled);
-    void disableCellBroadcast();
-    void setCellBroadcastPowered(bool powered);
-    void setTopics(const CellBroadcastTopicRangeList &topics,
-                   const CellBroadcastTopicRangeList &managedTopics);
+    void processTopicUpdate();
     void updateCurrentTopics(const QString &topics);
+    void cellBroadcastInterfaceDropped();
     void cellBroadcastPropertiesFinished(const QString &errorString);
     void cellBroadcastPropertySetFinished(const QString &property,
                                           const QString &errorString);
-    QVariantMap channelMap(const QString &id,
-                           const QString &name,
-                           bool customName,
+    QVariantMap channelMap(const CellBroadcastCatalogCategory &category,
                            const QString &alertSystem,
                            const QString &scope,
                            const QString &plmn,
@@ -171,18 +174,20 @@ private:
     bool m_available;
     bool m_catalogLoaded;
     bool m_haveTopics;
-    bool m_applyAfterRefresh;
-    PendingTopicsOperation m_pendingTopicsOperation;
+    bool m_refreshPending;
+    bool m_resetRequested;
+    PendingPropertyOperation m_pendingPropertyOperation;
     QString m_errorString;
     MDConfItem *m_alertsEnabledItem;
     CellBroadcastOfonoClient *m_cellBroadcast;
     mutable QHash<QString, MDConfItem *> m_settingItems;
     CellBroadcastCatalog m_catalog;
     CellBroadcastTopicRangeList m_currentTopics;
-    CellBroadcastTopicRangeList m_pendingManagedTopics;
+    CellBroadcastTopicRangeList m_requestedTopicRemovals;
+    CellBroadcastTopicRangeList m_inFlightManagedTopics;
+    QTimer *m_retryTimer;
     QVariantList m_mandatoryChannels;
     QVariantList m_optionalChannels;
-    QVariantList m_roamingOptionalChannels;
     QVariantList m_unknownTopics;
 };
 

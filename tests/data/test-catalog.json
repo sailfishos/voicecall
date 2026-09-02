@@ -1,0 +1,343 @@
+{
+  "source": {
+    "commit": "17f1a4acf0db7133581f006498a511266e58ee57"
+  },
+  "vibrationProfiles": {
+    "wea": {
+      "vibrationPattern": [
+        0, 2000, 500, 1000, 500, 1000, 500,
+        2000, 500, 1000, 500, 1000
+      ],
+      "vibrationRepeat": false
+    },
+    "sos": {
+      "vibrationPattern": [
+        0, 500, 500, 500, 500, 500, 500,
+        1000, 500, 1000, 500, 1000, 500,
+        500, 500, 500, 500, 500, 500
+      ],
+      "vibrationRepeat": true
+    }
+  },
+  "attentionProfiles": {
+    "standard": {
+      "event": "cellbroadcast_attention",
+      "reservedUse": "official-cell-broadcast-public-warning",
+      "soundFile": "/usr/share/cell-broadcast-provider-info/attention-tones/cellbroadcast-attention-853-960.ogg"
+    },
+    "critical": {
+      "event": "cellbroadcast_critical_attention",
+      "reservedUse": "official-cell-broadcast-public-warning",
+      "soundFile": "/usr/share/cell-broadcast-provider-info/attention-tones/cellbroadcast-attention-853-960.ogg",
+      "vibrationProfile": "sos"
+    },
+    "legacy": {
+      "event": "legacy_cellbroadcast_attention",
+      "reservedUse": "official-cell-broadcast-public-warning",
+      "soundFile": "/usr/share/cell-broadcast-provider-info/attention-tones/cellbroadcast-attention-853-960.ogg",
+      "vibrationPattern": [0, 100, 50, 100],
+      "vibrationRepeat": false
+    }
+  },
+  "entries": {
+    "default": {
+      "alertSystem": "Generic",
+      "categories": [
+        {
+          "id": "generic",
+          "name": "Generic alert",
+          "ranges": [
+            {
+              "apply": true,
+              "from": 0,
+              "mandatory": false,
+              "to": 0
+            }
+          ]
+        }
+      ]
+    },
+    "001": {
+      "alertSystem": "Test Alerts",
+      "defaultAttentionProfile": "standard",
+      "defaultVibrationProfile": "wea",
+      "categories": [
+        {
+          "id": "critical",
+          "name": "Critical Alert",
+          "title": "Critical Alert",
+          "customName": true,
+          "alertLevel": "critical",
+          "attentionProfile": "critical",
+          "attentionPolicy": "silent-dnd-override",
+          "display": "alert",
+          "sourceRef": "unit-test-policy",
+          "defaultEnabled": true,
+          "userConfigurable": false,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 4370,
+              "to": 4370,
+              "mandatory": true,
+              "languageRole": "local"
+            },
+            {
+              "apply": true,
+              "from": 4383,
+              "to": 4383,
+              "mandatory": true,
+              "languageRole": "additional"
+            }
+          ]
+        },
+        {
+          "id": "priority",
+          "name": "Priority Alert",
+          "title": "Priority Alert",
+          "customName": true,
+          "alertLevel": "priority",
+          "attentionProfile": "standard",
+          "attentionPolicy": "standard",
+          "display": "alert",
+          "sourceRef": "unit-test-policy",
+          "vibrationPattern": [
+            0, 500, 500, 500, 500, 500, 500,
+            1000, 500, 1000, 500, 1000, 500,
+            500, 500, 500, 500, 500, 500
+          ],
+          "defaultEnabled": true,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 4371,
+              "to": 4371,
+              "mandatory": false,
+              "languageRole": "local"
+            },
+            {
+              "apply": true,
+              "from": 4384,
+              "to": 4384,
+              "mandatory": false,
+              "languageRole": "additional",
+              "vibrationPattern": [0, 350, 250, 350]
+            }
+          ]
+        },
+        {
+          "id": "exercise",
+          "name": "Exercise",
+          "title": "Exercise",
+          "customName": true,
+          "alertLevel": "exercise",
+          "attentionProfile": "standard",
+          "attentionPolicy": "standard",
+          "display": "alert",
+          "sourceRef": "unit-test-policy",
+          "defaultEnabled": true,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 4381,
+              "to": 4381,
+              "mandatory": false,
+              "languageRole": "local"
+            },
+            {
+              "apply": true,
+              "from": 4394,
+              "to": 4394,
+              "mandatory": false,
+              "languageRole": "additional"
+            }
+          ]
+        },
+        {
+          "id": "monthly_test",
+          "name": "Test",
+          "title": "Test",
+          "customName": true,
+          "alertLevel": "test",
+          "attentionProfile": "standard",
+          "attentionPolicy": "standard",
+          "display": "alert",
+          "sourceRef": "unit-test-policy",
+          "defaultEnabled": false,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 4380,
+              "to": 4380,
+              "mandatory": false,
+              "languageRole": "local"
+            },
+            {
+              "apply": true,
+              "from": 4393,
+              "to": 4393,
+              "mandatory": false,
+              "languageRole": "additional"
+            }
+          ]
+        },
+        {
+          "id": "operator_test",
+          "name": "Operator Test",
+          "title": "Operator Test",
+          "customName": true,
+          "alertLevel": "operator-test",
+          "attentionProfile": "standard",
+          "attentionPolicy": "standard",
+          "display": "alert",
+          "sourceRef": "unit-test-policy",
+          "defaultEnabled": false,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 4382,
+              "to": 4382,
+              "mandatory": false,
+              "languageRole": "local"
+            },
+            {
+              "apply": true,
+              "from": 4395,
+              "to": 4395,
+              "mandatory": false,
+              "languageRole": "additional"
+            }
+          ]
+        },
+        {
+          "id": "state_local_test",
+          "name": "State/Local Test",
+          "title": "State/Local Test",
+          "customName": true,
+          "alertLevel": "state-local-test",
+          "attentionProfile": "standard",
+          "attentionPolicy": "standard",
+          "display": "alert",
+          "sourceRef": "unit-test-policy",
+          "defaultEnabled": true,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 4398,
+              "to": 4398,
+              "mandatory": false,
+              "languageRole": "local"
+            },
+            {
+              "apply": true,
+              "from": 4399,
+              "to": 4399,
+              "mandatory": false,
+              "languageRole": "additional"
+            }
+          ]
+        },
+        {
+          "id": "geo_fencing",
+          "name": "Device-Based Geo-Fencing",
+          "title": "Device-Based Geo-Fencing",
+          "customName": true,
+          "alertLevel": "geofencing",
+          "attentionPolicy": "none",
+          "display": "none",
+          "sourceRef": "unit-test-policy",
+          "defaultEnabled": true,
+          "userConfigurable": false,
+          "settingsVisible": false,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 4400,
+              "to": 4400,
+              "mandatory": true,
+              "languageRole": "not-applicable"
+            }
+          ]
+        }
+      ]
+    },
+    "002": {
+      "alertSystem": "Pattern Override Test",
+      "defaultAttentionProfile": "standard",
+      "defaultVibrationPattern": [0, 600, 400, 600],
+      "categories": [
+        {
+          "id": "entry_default",
+          "name": "Entry default",
+          "attentionProfile": "standard",
+          "defaultEnabled": true,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 5000,
+              "to": 5000,
+              "mandatory": true
+            }
+          ]
+        }
+      ]
+    },
+    "003": {
+      "alertSystem": "Critical Profile Test",
+      "defaultAttentionProfile": "standard",
+      "categories": [
+        {
+          "id": "critical",
+          "name": "Critical Alert",
+          "attentionProfile": "critical",
+          "defaultEnabled": true,
+          "userConfigurable": false,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 6000,
+              "to": 6000,
+              "mandatory": true
+            }
+          ]
+        }
+      ]
+    },
+    "004": {
+      "alertSystem": "Standard Profile Test",
+      "defaultAttentionProfile": "standard",
+      "categories": [
+        {
+          "id": "standard",
+          "name": "Standard Alert",
+          "attentionProfile": "standard",
+          "defaultEnabled": true,
+          "userConfigurable": true,
+          "settingsVisible": true,
+          "ranges": [
+            {
+              "apply": true,
+              "from": 7000,
+              "to": 7000,
+              "mandatory": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

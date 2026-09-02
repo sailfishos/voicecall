@@ -19,6 +19,9 @@
  *
  */
 #include "cellbroadcastdaemon.h"
+#include "cellbroadcastdaemonpolicy_p.h"
+#include "cellbroadcastgeofence.h"
+#include "cellbroadcaststore.h"
 
 #include <qofonomanager.h>
 #include <qofonomodem.h>
@@ -26,6 +29,7 @@
 #include <qofonosimmanager.h>
 
 #include <QDBusConnection>
+#include <QDateTime>
 #include <QDebug>
 #include <QFileInfo>
 #include <QSet>
@@ -37,10 +41,14 @@ const char SimManagerInterface[] = "org.ofono.SimManager";
 const char NetworkRegistrationInterface[] = "org.ofono.NetworkRegistration";
 const char AttentionEvent[] = "cellbroadcast_attention";
 const char AttentionEventProperty[] = "CellBroadcastAttentionEvent";
+const char AttentionHapticSequenceProperty[] = "CellBroadcastAttentionHapticSequence";
 const char AttentionReservedUse[] = "official-cell-broadcast-public-warning";
 const char AttentionSoundFileProperty[] = "CellBroadcastAttentionSoundFile";
 const char AttentionTonePrefix[] = "/usr/share/cell-broadcast-provider-info/attention-tones/";
+const char GeoFenceDeadlineProperty[] = "CellBroadcastGeoFenceDeadline";
+const char GeoFenceGeometriesProperty[] = "CellBroadcastGeoFenceGeometries";
 const char TopicProperty[] = "Topic";
+const int DefaultMaximumWaitSeconds = 30;
 
 bool attentionSoundFileAllowed(const QString &path)
 {
@@ -66,9 +74,43 @@ bool addAttentionProperties(QVariantMap *properties,
     }
 
     properties->insert(QString::fromLatin1(AttentionEventProperty),
-                       QString::fromLatin1(AttentionEvent));
+                       profile.event.isEmpty()
+                           ? QString::fromLatin1(AttentionEvent) : profile.event);
     properties->insert(QString::fromLatin1(AttentionSoundFileProperty), profile.soundFile);
+    const QString hapticSequence = profile.hapticSequence();
+    if (!hapticSequence.isEmpty()) {
+        properties->insert(QString::fromLatin1(AttentionHapticSequenceProperty),
+                           hapticSequence);
+    }
     return true;
+}
+
+QString geoFenceGeometries(const QVariantMap &alert)
+{
+    const QString prepared = alert.value(
+                QString::fromLatin1(GeoFenceGeometriesProperty)).toString();
+    return prepared.isEmpty()
+            ? alert.value(QStringLiteral("Geometries")).toString() : prepared;
+}
+
+qint64 geoFenceDeadline(const QVariantMap &alert)
+{
+    const qint64 prepared = alert.value(
+                QString::fromLatin1(GeoFenceDeadlineProperty)).toLongLong();
+    if (prepared > 0) {
+        return prepared;
+    }
+
+    int maximumWait = alert.value(QStringLiteral("MaximumWaitTime"),
+                                  DefaultMaximumWaitSeconds).toInt();
+    if (maximumWait <= 0 || maximumWait == 255) {
+        maximumWait = DefaultMaximumWaitSeconds;
+    }
+    qint64 receivedAt = alert.value(QStringLiteral("ReceivedAt")).toLongLong();
+    if (receivedAt <= 0) {
+        receivedAt = QDateTime::currentDateTimeUtc().toMSecsSinceEpoch();
+    }
+    return receivedAt + qint64(qBound(1, maximumWait, 255)) * 1000;
 }
 
 } // namespace
@@ -139,10 +181,14 @@ private:
     QOfonoNetworkRegistration *m_networkRegistration;
 };
 
-CellBroadcastDaemon::CellBroadcastDaemon(QObject *parent)
+CellBroadcastDaemon::CellBroadcastDaemon(QObject *parent, const QString &databasePath)
     : QObject(parent)
     , m_ofonoManager(new QOfonoManager(this))
+    , m_geoFence(new CellBroadcastGeoFence(this))
+    , m_store(new CellBroadcastStore(databasePath, this))
 {
+    connect(m_geoFence, &CellBroadcastGeoFence::resolved,
+            this, &CellBroadcastDaemon::geoFenceResolved);
     connect(m_ofonoManager, &QOfonoManager::modemsChanged,
             this, [this](const QStringList &) { reloadModems(); });
     connect(m_ofonoManager, &QOfonoManager::availableChanged,
@@ -150,6 +196,15 @@ CellBroadcastDaemon::CellBroadcastDaemon(QObject *parent)
     connect(m_ofonoManager, &QOfonoManager::modemRemoved,
             this, &CellBroadcastDaemon::modemRemoved);
 
+    QTimer::singleShot(0, this, [this]() {
+        const QVariantList alerts = m_store->pendingGeoFenceAlerts();
+        for (const QVariant &value : alerts) {
+            const QVariantMap alert = value.toMap();
+            m_geoFence->check(alert.value(QStringLiteral("RecordId")).toULongLong(),
+                              geoFenceGeometries(alert), geoFenceDeadline(alert),
+                              alert.value(QStringLiteral("CreatedAt")).toLongLong());
+        }
+    });
     QTimer::singleShot(0, this, &CellBroadcastDaemon::reloadModems);
 }
 
@@ -179,13 +234,18 @@ void CellBroadcastDaemon::setAlertsEnabled(bool enabled)
 QVariantMap CellBroadcastDaemon::modemState(const QString &path) const
 {
     if (CellBroadcastController *controller = m_controllers.value(path)) {
-        return controller->stateMap();
+        QVariantMap state = controller->stateMap();
+        state.insert(QStringLiteral("storageAvailable"), m_store->isDurable());
+        state.insert(QStringLiteral("storageError"), m_store->errorString());
+        return state;
     }
 
     QVariantMap state;
     state.insert(QStringLiteral("modemPath"), path);
     state.insert(QStringLiteral("alertsEnabled"), alertsEnabled());
     state.insert(QStringLiteral("available"), false);
+    state.insert(QStringLiteral("storageAvailable"), m_store->isDurable());
+    state.insert(QStringLiteral("storageError"), m_store->errorString());
     return state;
 }
 
@@ -218,40 +278,57 @@ void CellBroadcastDaemon::refresh(const QString &path)
     if (path.isEmpty()) {
         reloadModems();
     } else if (CellBroadcastController *controller = m_controllers.value(path)) {
-        controller->refreshAndApply();
+        controller->refresh();
     }
 }
 
-bool CellBroadcastDaemon::triggerTestBroadcast(const QString &path,
-                                               const QString &text,
-                                               int channel,
-                                               bool emergencyAlert)
+QVariantMap CellBroadcastDaemon::activeAlert() const
 {
-    QString modemPath(path);
-    if (modemPath.isEmpty()) {
-        for (const QString &candidate : m_ofonoManager->modems()) {
-            if (m_controllers.contains(candidate)) {
-                modemPath = candidate;
-                break;
-            }
-        }
-    }
+    return m_store->activeAlert();
+}
 
-    if (modemPath.isEmpty() || !m_controllers.contains(modemPath)) {
-        qWarning() << "Unable to trigger Cell Broadcast test alert for unknown modem"
-                   << path;
+QVariantMap CellBroadcastDaemon::alert(qulonglong id) const
+{
+    return m_store->alert(id);
+}
+
+QVariantList CellBroadcastDaemon::alertHistory(qulonglong beforeId, int limit) const
+{
+    return m_store->alertHistory(beforeId, limit);
+}
+
+bool CellBroadcastDaemon::acknowledgeAlert(qulonglong id)
+{
+    if (!m_store->acknowledge(id)) {
         return false;
     }
-
-    if (emergencyAlert) {
-        QVariantMap properties;
-        properties.insert(QString::fromLatin1(TopicProperty), channel);
-        properties.insert(QStringLiteral("EmergencyAlert"), true);
-        emergencyBroadcast(modemPath, text, properties);
-    } else {
-        incomingBroadcast(modemPath, text, channel);
+    const QVariantMap active = m_store->activeAlert();
+    if (!active.isEmpty()
+            && !active.value(QStringLiteral("SilencedAt")).toLongLong()) {
+        Q_EMIT alertAttentionRequested(
+                    active.value(QStringLiteral("RecordId")).toULongLong(), active);
     }
+    emitActiveAlert(active);
     return true;
+}
+
+bool CellBroadcastDaemon::silenceAlert(qulonglong id)
+{
+    if (!m_store->silence(id)) {
+        return false;
+    }
+    Q_EMIT activeAlertChanged(m_store->activeAlert());
+    return true;
+}
+
+bool CellBroadcastDaemon::deleteAlert(qulonglong id)
+{
+    return m_store->remove(id);
+}
+
+int CellBroadcastDaemon::clearAlertHistory()
+{
+    return m_store->clearHistory();
 }
 
 void CellBroadcastDaemon::reloadModems()
@@ -290,29 +367,172 @@ void CellBroadcastDaemon::propertyChanged(const QString &path,
 
 void CellBroadcastDaemon::incomingBroadcast(const QString &path, const QString &text, int channel)
 {
-    QVariantMap properties;
-    properties.insert(QString::fromLatin1(TopicProperty), channel);
-
-    CellBroadcastController *controller = m_controllers.value(path);
-    if (controller) {
-        addAttentionProperties(&properties, controller->attentionProfileForChannel(channel));
+    const QString signature = QString::number(channel) + QLatin1Char('|') + text;
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const QPair<QString, qint64> detailed = m_lastDetailedBroadcast.value(path);
+    if (detailed.first == signature) {
+        const qint64 elapsed = now - detailed.second;
+        if (elapsed >= 0 && elapsed < 1000) {
+            m_lastDetailedBroadcast.remove(path);
+            return;
+        }
+    }
+    if (detailed.second && now - detailed.second >= 1000) {
+        m_lastDetailedBroadcast.remove(path);
     }
 
-    Q_EMIT broadcastReceived(path, text, properties);
+    QVariantMap properties;
+    properties.insert(QString::fromLatin1(TopicProperty), channel);
+    receiveBroadcast(path, text, properties);
+}
+
+void CellBroadcastDaemon::incomingBroadcastWithProperties(
+        const QString &path, const QString &text, const QVariantMap &properties)
+{
+    QVariantMap detailed(properties);
+    const int channel = detailed.value(QStringLiteral("MessageIdentifier"),
+                                       detailed.value(QString::fromLatin1(TopicProperty))).toInt();
+    detailed.insert(QString::fromLatin1(TopicProperty), channel);
+    receiveBroadcast(path, text, detailed);
+    m_lastDetailedBroadcast.insert(
+                path, qMakePair(QString::number(channel) + QLatin1Char('|') + text,
+                                QDateTime::currentMSecsSinceEpoch()));
 }
 
 void CellBroadcastDaemon::emergencyBroadcast(const QString &path,
                                             const QString &text,
                                             const QVariantMap &properties)
 {
-    QVariantMap alertProperties(properties);
+    receiveBroadcast(path, text, properties);
+}
 
-    CellBroadcastController *controller = m_controllers.value(path);
-    if (controller && properties.value(QStringLiteral("EmergencyAlert")).toBool()) {
-        addAttentionProperties(&alertProperties, controller->configuredAttentionProfile());
+void CellBroadcastDaemon::receiveBroadcast(const QString &path,
+                                           const QString &text,
+                                           const QVariantMap &properties)
+{
+    if (!m_store->isDurable()) {
+        qCritical() << "Durable Cell Broadcast storage is unavailable; withholding alert:"
+                    << m_store->errorString();
+        return;
     }
 
-    Q_EMIT broadcastReceived(path, text, alertProperties);
+    QVariantMap alertProperties(properties);
+    alertProperties.insert(QStringLiteral("ModemPath"), path);
+    if (!alertProperties.contains(QStringLiteral("ReceivedAt"))) {
+        alertProperties.insert(QStringLiteral("ReceivedAt"),
+                               QDateTime::currentDateTimeUtc().toMSecsSinceEpoch());
+    }
+
+    CellBroadcastController *controller = m_controllers.value(path);
+    const int channel = alertProperties.value(QStringLiteral("MessageIdentifier"),
+                                              alertProperties.value(QString::fromLatin1(
+                                                  TopicProperty), -1)).toInt();
+    bool attentionAdded = false;
+    if (controller && channel >= 0) {
+        const QString mcc = alertProperties.value(
+                    QStringLiteral("MobileCountryCode")).toString();
+        const QString mnc = alertProperties.value(
+                    QStringLiteral("MobileNetworkCode")).toString();
+        const QVariantMap classified = controller->messagePropertiesForChannel(
+                    channel, mcc, mnc);
+        for (auto it = classified.begin(); it != classified.end(); ++it) {
+            alertProperties.insert(it.key(), it.value());
+        }
+        attentionAdded = addAttentionProperties(
+                    &alertProperties,
+                    controller->attentionProfileForChannel(channel, mcc, mnc));
+    }
+    if (controller && cellBroadcastNeedsEmergencyAttention(properties,
+                                                            attentionAdded)) {
+        alertProperties.insert(QStringLiteral("CellBroadcastAlertLevel"),
+                               QStringLiteral("critical"));
+        alertProperties.insert(QStringLiteral("CellBroadcastAttentionPolicy"),
+                               QStringLiteral("silent-dnd-override"));
+        addAttentionProperties(&alertProperties, controller->emergencyAttentionProfile());
+    }
+    if (alertProperties.value(QStringLiteral("Primary")).toBool()
+            && alertProperties.value(QStringLiteral("EmergencyType")).toString()
+               == QLatin1String("Test")) {
+        alertProperties.insert(QStringLiteral("CellBroadcastDisplay"),
+                               QStringLiteral("none"));
+        alertProperties.insert(QStringLiteral("CellBroadcastEnabled"), false);
+    }
+
+    const CellBroadcastStore::StoreResult result = m_store->store(text, alertProperties);
+    if (!result.stored) {
+        qCritical() << "Unable to persist Cell Broadcast alert; withholding presentation:"
+                    << m_store->errorString();
+        return;
+    }
+
+    Q_EMIT alertStored(result.alertId);
+    if (result.needsGeoCheck) {
+        const QVariantMap alert = m_store->alert(result.alertId);
+        m_geoFence->check(result.alertId, geoFenceGeometries(alert),
+                          geoFenceDeadline(alert),
+                          alert.value(QStringLiteral("CreatedAt")).toLongLong());
+    }
+
+    const QString referenceList = alertProperties.value(
+                QStringLiteral("DeviceBasedGeoFencingReferenceList")).toString();
+    if (!referenceList.isEmpty()) {
+        const QVariantList alerts = m_store->prepareGeoFenceTrigger(
+                    referenceList,
+                    alertProperties.value(
+                        QStringLiteral("DeviceBasedGeoFencingType")).toInt(),
+                    alertProperties.value(QStringLiteral("ReceivedAt")).toLongLong(),
+                    alertProperties);
+        for (const QVariant &value : alerts) {
+            const QVariantMap alert = value.toMap();
+            m_geoFence->check(alert.value(QStringLiteral("RecordId")).toULongLong(),
+                              geoFenceGeometries(alert), geoFenceDeadline(alert),
+                              alert.value(QStringLiteral("CreatedAt")).toLongLong());
+        }
+    }
+    if (result.requestAttention) {
+        QVariantMap attention(alertProperties);
+        attention.insert(QStringLiteral("RecordId"), result.alertId);
+        Q_EMIT alertAttentionRequested(result.alertId, attention);
+    }
+    if (result.activeChanged) {
+        emitActiveAlert(result.activeAlert);
+    } else if (result.presentationChanged) {
+        emitLegacyAlert(m_store->alert(result.alertId));
+    }
+}
+
+void CellBroadcastDaemon::geoFenceResolved(qulonglong id, bool display,
+                                           const QString &state)
+{
+    const CellBroadcastStore::StoreResult result = m_store->resolveGeoFence(id, display, state);
+    if (!result.stored) {
+        return;
+    }
+    if (result.requestAttention) {
+        const QVariantMap attention = result.activeAlert;
+        const quint64 attentionId = attention.value(
+                    QStringLiteral("RecordId")).toULongLong();
+        Q_EMIT alertAttentionRequested(attentionId, attention);
+    }
+    if (result.activeChanged) {
+        emitActiveAlert(result.activeAlert);
+    } else if (result.presentationChanged) {
+        emitLegacyAlert(m_store->alert(result.alertId));
+    }
+}
+
+void CellBroadcastDaemon::emitLegacyAlert(const QVariantMap &alert)
+{
+    if (!alert.isEmpty()) {
+        Q_EMIT broadcastReceived(alert.value(QStringLiteral("ModemPath")).toString(),
+                                 alert.value(QStringLiteral("Text")).toString(), alert);
+    }
+}
+
+void CellBroadcastDaemon::emitActiveAlert(const QVariantMap &alert)
+{
+    Q_EMIT activeAlertChanged(alert);
+    emitLegacyAlert(alert);
 }
 
 void CellBroadcastDaemon::applyModem()
@@ -323,7 +543,7 @@ void CellBroadcastDaemon::applyModem()
     }
     const QString path = timer->property("path").toString();
     if (CellBroadcastController *controller = m_controllers.value(path)) {
-        controller->refreshAndApply();
+        controller->refresh();
     }
 }
 
@@ -346,6 +566,10 @@ void CellBroadcastDaemon::ensureModem(const QString &path)
         connect(controller, &CellBroadcastController::incomingBroadcast,
                 this, [this, path](const QString &text, int channel) {
                     incomingBroadcast(path, text, channel);
+                });
+        connect(controller, &CellBroadcastController::incomingBroadcastWithProperties,
+                this, [this, path](const QString &text, const QVariantMap &properties) {
+                    incomingBroadcastWithProperties(path, text, properties);
                 });
         connect(controller, &CellBroadcastController::emergencyBroadcast,
                 this, [this, path](const QString &text, const QVariantMap &properties) {
@@ -374,6 +598,7 @@ void CellBroadcastDaemon::removeModem(const QString &path)
     delete m_controllers.take(path);
     delete m_watchers.take(path);
     delete m_applyTimers.take(path);
+    m_lastDetailedBroadcast.remove(path);
     Q_EMIT modemsChanged();
 }
 

@@ -59,6 +59,21 @@ bool attentionSoundFileAllowed(const QString &path)
 bool addAttentionProperties(QVariantMap *properties,
                             const CellBroadcastAttentionProfile &profile)
 {
+    const QString mode = properties->value(QStringLiteral("CellBroadcastAttentionMode")).toString();
+    if (mode == QLatin1String("silent")) {
+        return true;
+    }
+    if (mode == QLatin1String("sms")) {
+        properties->insert(QString::fromLatin1(AttentionEventProperty),
+                           QStringLiteral("cellbroadcast_sms_attention"));
+        const QString hapticSequence = profile.isValid()
+                ? profile.hapticSequence() : QString();
+        if (!hapticSequence.isEmpty()) {
+            properties->insert(QString::fromLatin1(AttentionHapticSequenceProperty),
+                               hapticSequence);
+        }
+        return true;
+    }
     if (!profile.isValid()) {
         return false;
     }
@@ -442,7 +457,7 @@ void CellBroadcastDaemon::receiveBroadcast(const QString &path,
                     &alertProperties,
                     controller->attentionProfileForChannel(channel, mcc, mnc));
     }
-    if (controller && cellBroadcastNeedsEmergencyAttention(properties,
+    if (controller && cellBroadcastNeedsEmergencyAttention(alertProperties,
                                                             attentionAdded)) {
         alertProperties.insert(QStringLiteral("CellBroadcastAlertLevel"),
                                QStringLiteral("critical"));

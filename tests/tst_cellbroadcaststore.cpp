@@ -17,6 +17,9 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QLocale>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSet>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -230,6 +233,9 @@ private Q_SLOTS:
     void refusesNonDurableFallback();
     void rejectsUnsupportedSchema();
     void rejectsUnversionedSchema();
+    void loadsRuntimeOverlays();
+    void rejectsInvalidOverlay_data();
+    void rejectsInvalidOverlay();
     void loadsCategoryPolicy();
     void loadsAttentionProfiles();
     void storesBeforePresentation();
@@ -242,6 +248,7 @@ private Q_SLOTS:
     void preservesUpdatedVersions();
     void acceptsWrappedHistoricalVersion();
     void groupsLanguageVariants();
+    void presentsUnfilteredLanguages();
     void keepsValidatedGeometryForLanguageVariant();
     void preservesPendingGeoFenceAttentionForLanguageVariant();
     void preservesValidatedPendingGeoFenceAttentionForLanguageVariant();
@@ -277,6 +284,121 @@ private Q_SLOTS:
     void preservesFreshnessForRepeatedGeoFenceRequest();
 #endif
 };
+
+namespace {
+
+QJsonObject testOverlay()
+{
+    return QJsonDocument::fromJson(R"({
+        "version": 1, "sources": {"test": {}}, "entries": {"999": {
+            "alertSystem": "Supplement", "defaultAttentionProfile": "standard",
+            "categories": [{"id": "test", "name": "Test", "sourceRef": "test",
+                "ranges": [{"from": 4370, "to": 4370, "mandatory": true}]}]
+        }}
+    })").object();
+}
+
+bool writeJson(const QString &path, const QJsonObject &object)
+{
+    QFile file(path);
+    const QByteArray data = QJsonDocument(object).toJson();
+    return file.open(QIODevice::WriteOnly) && file.write(data) == data.size();
+}
+
+}
+
+void TestCellBroadcastStore::loadsRuntimeOverlays()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    QFile source(catalogPath());
+    QVERIFY(source.open(QIODevice::ReadOnly));
+    QJsonObject base = QJsonDocument::fromJson(source.readAll()).object();
+    QJsonObject entries = base.value(QStringLiteral("entries")).toObject();
+    QJsonObject carrier = testOverlay().value(QStringLiteral("entries")).toObject().value(QStringLiteral("999")).toObject();
+    carrier.insert(QStringLiteral("alertSystem"), QStringLiteral("Old carrier"));
+    entries.insert(QStringLiteral("99901"), carrier);
+    base.insert(QStringLiteral("entries"), entries);
+    const QString path = directory.filePath(QStringLiteral("channels.json"));
+    QVERIFY(writeJson(path, base));
+    CellBroadcastCatalog catalog;
+    QVERIFY(catalog.load(path)); // Absent overlay directory is supported.
+    QCOMPARE(catalog.entryForPlmn(QStringLiteral("999"), QStringLiteral("01")).alertSystem, QStringLiteral("Old carrier"));
+    QVERIFY(QDir(directory.path()).mkdir(QStringLiteral("overrides.d")));
+    const QString first = directory.filePath(QStringLiteral("overrides.d/10-test.json"));
+    const QString last = directory.filePath(QStringLiteral("overrides.d/90-test.json"));
+    QJsonObject overlay = testOverlay();
+    QVERIFY(writeJson(first, overlay));
+    QVERIFY2(catalog.load(path), qPrintable(catalog.errorString()));
+    QCOMPARE(catalog.entryForPlmn(QStringLiteral("999"), QStringLiteral("01")).alertSystem, QStringLiteral("Supplement"));
+    QCOMPARE(catalog.entryForPlmn(QStringLiteral("999"), QStringLiteral("01")).plmn, QStringLiteral("999"));
+    QJsonObject overrides = overlay.value(QStringLiteral("entries")).toObject();
+    carrier.insert(QStringLiteral("alertSystem"), QStringLiteral("New carrier"));
+    overrides.insert(QStringLiteral("99901"), carrier);
+    overlay.insert(QStringLiteral("entries"), overrides);
+    QVERIFY(writeJson(first, overlay));
+    QVERIFY(catalog.load(path));
+    QCOMPARE(catalog.entryForPlmn(QStringLiteral("999"), QStringLiteral("01")).alertSystem, QStringLiteral("New carrier"));
+    QCOMPARE(catalog.entryForPlmn(QStringLiteral("999"), QStringLiteral("02")).alertSystem, QStringLiteral("Supplement"));
+    QVERIFY(writeJson(last, testOverlay()));
+    QVERIFY(catalog.load(path));
+    QCOMPARE(catalog.entryForPlmn(QStringLiteral("999"), QStringLiteral("01")).alertSystem, QStringLiteral("Supplement"));
+    QJsonObject conflicting = testOverlay();
+    QJsonObject conflictingSources;
+    QJsonObject conflictingSource;
+    conflictingSource.insert(QStringLiteral("title"), QStringLiteral("Different source"));
+    conflictingSources.insert(QStringLiteral("test"), conflictingSource);
+    conflicting.insert(QStringLiteral("sources"), conflictingSources);
+    QVERIFY(writeJson(last, conflicting));
+    QVERIFY(!catalog.load(path));
+    QVERIFY(catalog.errorString().contains(QStringLiteral("90-test.json")));
+    QVERIFY(QFile::remove(last));
+    QVERIFY(QFile::remove(first));
+    QVERIFY(catalog.load(path)); // Removal restores base policy, without stale overrides.
+    QCOMPARE(catalog.entryForPlmn(QStringLiteral("999"), QStringLiteral("01")).alertSystem, QStringLiteral("Old carrier"));
+}
+
+void TestCellBroadcastStore::rejectsInvalidOverlay_data()
+{
+    QTest::addColumn<QByteArray>("data");
+    const QByteArray valid = QJsonDocument(testOverlay()).toJson(QJsonDocument::Compact);
+    QTest::newRow("malformed-json") << QByteArray("{");
+    QTest::newRow("version") << QByteArray(valid).replace("\"version\":1", "\"version\":2");
+    QTest::newRow("default-replacement") << QByteArray(valid).replace("\"999\"", "\"default\"");
+    QTest::newRow("invalid-plmn") << QByteArray(valid).replace("\"999\"", "\"9999\"");
+    QTest::newRow("mismatched-plmn") << QByteArray(valid).replace("\"alertSystem\":", "\"plmn\":\"998\",\"alertSystem\":");
+    QTest::newRow("unknown-profile") << QByteArray(valid).replace("\"standard\"", "\"missing\"");
+    QTest::newRow("unknown-source") << QByteArray(valid).replace("\"sourceRef\":\"test\"", "\"sourceRef\":\"missing\"");
+    QTest::newRow("inverted-range") << QByteArray(valid).replace("\"to\":4370", "\"to\":4369");
+    QTest::newRow("range-overflow") << QByteArray(valid).replace("\"to\":4370", "\"to\":65536");
+    QTest::newRow("fractional-range") << QByteArray(valid).replace("\"to\":4370", "\"to\":4370.5");
+    QTest::newRow("empty-categories") << QByteArray(valid).replace("\"categories\":", "\"ignored\":");
+    QTest::newRow("invalid-mode") << QByteArray(valid).replace("\"id\":", "\"attentionMode\":\"loud\",\"id\":");
+    QTest::newRow("wrong-mode-type") << QByteArray(valid).replace("\"id\":", "\"attentionMode\":false,\"id\":");
+    QTest::newRow("invalid-duration") << QByteArray(valid).replace("\"id\":", "\"attentionDurationMs\":-1,\"id\":");
+    QTest::newRow("invalid-repeat") << QByteArray(valid).replace("\"id\":", "\"attentionRepeat\":1,\"id\":");
+    QTest::newRow("invalid-locale") << QByteArray(valid).replace("\"id\":", "\"translations\":{\"DE\":{}},\"id\":");
+    QTest::newRow("unknown-root-field") << QByteArray(valid).replace("\"version\":1", "\"profiles\":{},\"version\":1");
+}
+
+void TestCellBroadcastStore::rejectsInvalidOverlay()
+{
+    QFETCH(QByteArray, data);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("channels.json"));
+    QVERIFY(QFile::copy(catalogPath(), path));
+    QVERIFY(QDir(directory.path()).mkdir(QStringLiteral("overrides.d")));
+    QFile file(directory.filePath(QStringLiteral("overrides.d/test.json")));
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write(data), qint64(data.size()));
+    file.close();
+    CellBroadcastCatalog catalog;
+    QVERIFY(!catalog.load(path));
+    QVERIFY(!catalog.isValid());
+    QVERIFY(catalog.errorString().contains(QStringLiteral("test.json")));
+    QVERIFY(!catalog.configuredEntryForPlmn(QStringLiteral("999"), QString()).isValid());
+}
 
 void TestCellBroadcastStore::loadsCategoryPolicy()
 {
@@ -688,6 +810,28 @@ void TestCellBroadcastStore::acceptsWrappedHistoricalVersion()
              QStringLiteral("circle|-33.9,151.2|3000"));
     QCOMPARE(alert.value(QStringLiteral("WarningAreaCoordinates")).toByteArray(),
              QByteArray::fromHex("040506"));
+}
+
+void TestCellBroadcastStore::presentsUnfilteredLanguages()
+{
+    QTemporaryDir directory;
+    CellBroadcastStore store(directory.path() + QStringLiteral("/alerts.sqlite"));
+    QList<quint64> ids;
+    for (const QString &language : {QStringLiteral("de"), QStringLiteral("smn"), QStringLiteral("sms")}) {
+        QVariantMap properties = alertProperties(4383, 0x1230, 0,
+                QStringLiteral("additional"), language);
+        properties.insert(QStringLiteral("CellBroadcastLanguageFilter"), QStringLiteral("none"));
+        const CellBroadcastStore::StoreResult result = store.store(language, properties);
+        QVERIFY(result.stored);
+        QVERIFY(!ids.contains(result.alertId));
+        ids.append(result.alertId);
+        QCOMPARE(store.store(language, properties).alertId, result.alertId);
+    }
+    for (quint64 id : ids) {
+        QCOMPARE(store.activeAlert().value(QStringLiteral("RecordId")).toULongLong(), id);
+        store.acknowledge(id);
+    }
+    QVERIFY(store.activeAlert().isEmpty());
 }
 
 void TestCellBroadcastStore::groupsLanguageVariants()

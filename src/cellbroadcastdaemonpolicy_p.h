@@ -14,7 +14,9 @@
 inline bool cellBroadcastNeedsEmergencyAttention(const QVariantMap &properties,
                                                   bool attentionAdded)
 {
-    return !attentionAdded
+    const QString mode = properties.value(QStringLiteral("CellBroadcastAttentionMode")).toString();
+    return mode != QLatin1String("silent") && mode != QLatin1String("sms")
+            && !attentionAdded
             && (properties.value(QStringLiteral("EmergencyAlert")).toBool()
                 || properties.value(QStringLiteral("Primary")).toBool());
 }

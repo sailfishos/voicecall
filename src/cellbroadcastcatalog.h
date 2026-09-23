@@ -26,6 +26,7 @@
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <QVariantMap>
 
 struct CellBroadcastCatalogRange
 {
@@ -42,6 +43,12 @@ struct CellBroadcastCatalogCategory
     QString id;
     QString name;
     QString title;
+    QString description;
+    QVariantMap translations;
+    QString attentionMode;
+    int attentionDurationMs;
+    bool attentionRepeat;
+    QString languageFilter;
     QString alertLevel;
     QString attentionProfile;
     QString attentionPolicy;

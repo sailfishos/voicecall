@@ -41,6 +41,12 @@ const char GeoFenceAttentionRequiredProperty[] =
         "CellBroadcastGeoFenceAttentionRequired";
 const char WarningAreaCoordinatesProperty[] = "WarningAreaCoordinates";
 
+QString languageCode(QString language)
+{
+    language.replace(QLatin1Char('_'), QLatin1Char('-'));
+    return language.section(QLatin1Char('-'), 0, 0).toLower();
+}
+
 const QStringList TableStatements = {
     QStringLiteral(
         "CREATE TABLE IF NOT EXISTS cellbroadcast_alerts ("
@@ -474,6 +480,15 @@ QString CellBroadcastStore::logicalKey(const QString &text,
         family = QString::number(messageIdentifier);
     }
 
+    // A no-filter policy presents each language, while still deduplicating
+    // retransmissions and paired identifiers carrying the same language.
+    if (valueString(properties, "CellBroadcastLanguageFilter") == QLatin1String("none")) {
+        QString language = valueString(properties, "Language").toLower();
+        language.replace(QLatin1Char('_'), QLatin1Char('-'));
+        family += QStringLiteral("|language=") + (language.isEmpty()
+                ? QString::number(messageIdentifier) : language);
+    }
+
     QString area = broadcastPlmn(properties);
     if (scope == LocationAreaWideGeographicalScope) {
         area += QLatin1Char('|') + QString::number(valueInt(properties, "LocationAreaCode"));
@@ -513,18 +528,21 @@ bool CellBroadcastStore::presentationEligible(const QVariantMap &properties) con
         return false;
     }
 
+    if (valueString(properties, "CellBroadcastLanguageFilter") == QLatin1String("none")) {
+        return true;
+    }
     if (valueString(properties, "CellBroadcastLanguageRole") != QLatin1String("additional")) {
         return true;
     }
-    const QString language = valueString(properties, "Language").left(2).toLower();
-    return language.isEmpty() || language == QLocale::system().name().left(2).toLower();
+    const QString language = languageCode(valueString(properties, "Language"));
+    return language.isEmpty() || language == languageCode(QLocale::system().name());
 }
 
 int CellBroadcastStore::languageScore(const QVariantMap &properties) const
 {
     const QString role = valueString(properties, "CellBroadcastLanguageRole");
-    const QString language = valueString(properties, "Language").left(2).toLower();
-    const QString systemLanguage = QLocale::system().name().left(2).toLower();
+    const QString language = languageCode(valueString(properties, "Language"));
+    const QString systemLanguage = languageCode(QLocale::system().name());
     if (role == QLatin1String("additional") && language == systemLanguage) {
         return 3;
     }

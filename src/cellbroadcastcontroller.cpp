@@ -500,6 +500,16 @@ QVariantMap CellBroadcastController::messagePropertiesForChannel(
 
             properties.insert(QStringLiteral("CellBroadcastCategory"), category.id);
             properties.insert(QStringLiteral("CellBroadcastTitle"), category.title);
+            properties.insert(QStringLiteral("CellBroadcastTranslations"),
+                              category.translations);
+            properties.insert(QStringLiteral("CellBroadcastAttentionMode"),
+                              category.attentionMode);
+            properties.insert(QStringLiteral("CellBroadcastAttentionDurationMs"),
+                              category.attentionDurationMs);
+            properties.insert(QStringLiteral("CellBroadcastAttentionRepeat"),
+                              category.attentionRepeat);
+            properties.insert(QStringLiteral("CellBroadcastLanguageFilter"),
+                              category.languageFilter);
             properties.insert(QStringLiteral("CellBroadcastAlertLevel"), category.alertLevel);
             properties.insert(QStringLiteral("CellBroadcastAttentionPolicy"),
                               category.attentionPolicy);
@@ -1002,6 +1012,8 @@ QVariantMap CellBroadcastController::channelMap(
     map.insert(QStringLiteral("id"), category.id);
     map.insert(QStringLiteral("name"), category.name);
     map.insert(QStringLiteral("title"), category.title);
+    map.insert(QStringLiteral("description"), category.description);
+    map.insert(QStringLiteral("translations"), category.translations);
     map.insert(QStringLiteral("alertLevel"), category.alertLevel);
     map.insert(QStringLiteral("customName"), category.customName);
     map.insert(QStringLiteral("alertSystem"), alertSystem);

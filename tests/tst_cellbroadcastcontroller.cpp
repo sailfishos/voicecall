@@ -94,6 +94,8 @@ private Q_SLOTS:
     void classifiesUsingMessagePlmn();
     void normalizesOneDigitMnc();
     void resolvesVibrationPatterns();
+    void resolvesPresentationPolicies();
+    void explicitModesPreventEmergencyFallback();
     void emergencyAttentionFallback_data();
     void emergencyAttentionFallback();
 };
@@ -523,6 +525,42 @@ void TestCellBroadcastController::resolvesVibrationPatterns()
     QCOMPARE(fallback.event, QStringLiteral("cellbroadcast_critical_attention"));
     QCOMPARE(fallback.vibrationPattern, wea);
     QVERIFY(!fallback.vibrationRepeat);
+}
+
+void TestCellBroadcastController::resolvesPresentationPolicies()
+{
+    CellBroadcastController controller;
+    controller.setCatalogPath(catalogPath());
+    const QStringList modes = { QStringLiteral("warning"), QStringLiteral("silent"), QStringLiteral("sms") };
+    for (int index = 0; index < modes.size(); ++index) {
+        const QVariantMap properties = controller.messagePropertiesForChannel(
+                    7100 + index, QStringLiteral("005"), QStringLiteral("01"));
+        QCOMPARE(properties.value(QStringLiteral("CellBroadcastAttentionMode")).toString(), modes[index]);
+        QCOMPARE(properties.value(QStringLiteral("CellBroadcastAttentionDurationMs")).toInt(), index == 0 ? 1200 : 0);
+        QVERIFY(!properties.value(QStringLiteral("CellBroadcastAttentionRepeat")).toBool());
+        QCOMPARE(properties.value(QStringLiteral("CellBroadcastLanguageFilter")).toString(), QStringLiteral("none"));
+        const QVariantMap translations = properties.value(QStringLiteral("CellBroadcastTranslations")).toMap();
+        QCOMPARE(translations.value(QStringLiteral("sv")).toMap().value(QStringLiteral("title")).toString(),
+                 QStringLiteral("Translated title"));
+    }
+    const QVariantMap legacy = controller.messagePropertiesForChannel(
+                4370, QStringLiteral("001"), QStringLiteral("01"));
+    QCOMPARE(legacy.value(QStringLiteral("CellBroadcastAttentionMode")).toString(), QStringLiteral("warning"));
+    QCOMPARE(legacy.value(QStringLiteral("CellBroadcastAttentionDurationMs")).toInt(), 0);
+    QVERIFY(legacy.value(QStringLiteral("CellBroadcastAttentionRepeat")).toBool());
+    QCOMPARE(legacy.value(QStringLiteral("CellBroadcastLanguageFilter")).toString(), QStringLiteral("device"));
+}
+
+void TestCellBroadcastController::explicitModesPreventEmergencyFallback()
+{
+    QVariantMap properties;
+    properties.insert(QStringLiteral("EmergencyAlert"), true);
+    for (const QString &mode : {QStringLiteral("silent"), QStringLiteral("sms")}) {
+        properties.insert(QStringLiteral("CellBroadcastAttentionMode"), mode);
+        QVERIFY(!cellBroadcastNeedsEmergencyAttention(properties, false));
+    }
+    properties.insert(QStringLiteral("CellBroadcastAttentionMode"), QStringLiteral("warning"));
+    QVERIFY(cellBroadcastNeedsEmergencyAttention(properties, false));
 }
 
 void TestCellBroadcastController::emergencyAttentionFallback_data()

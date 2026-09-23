@@ -338,6 +338,97 @@
           ]
         }
       ]
+    },
+    "005": {
+      "alertSystem": "Policy Test",
+      "defaultAttentionProfile": "standard",
+      "defaultVibrationProfile": "wea",
+      "categories": [
+        {
+          "id": "warning",
+          "name": "Policy test",
+          "title": "Policy test",
+          "description": "Test description",
+          "translations": {
+            "sv": {
+              "title": "Translated title",
+              "name": "Translated name",
+              "description": "Translated description"
+            }
+          },
+          "attentionProfile": "standard",
+          "attentionMode": "warning",
+          "attentionDurationMs": 1200,
+          "attentionRepeat": false,
+          "languageFilter": "none",
+          "defaultEnabled": true,
+          "ranges": [
+            {
+              "from": 7100,
+              "to": 7100,
+              "mandatory": true,
+              "apply": true,
+              "languageRole": "additional"
+            }
+          ]
+        },
+        {
+          "id": "silent",
+          "name": "Policy test",
+          "title": "Policy test",
+          "description": "Test description",
+          "translations": {
+            "sv": {
+              "title": "Translated title",
+              "name": "Translated name",
+              "description": "Translated description"
+            }
+          },
+          "attentionProfile": "standard",
+          "attentionMode": "silent",
+          "attentionDurationMs": 0,
+          "attentionRepeat": false,
+          "languageFilter": "none",
+          "defaultEnabled": true,
+          "ranges": [
+            {
+              "from": 7101,
+              "to": 7101,
+              "mandatory": true,
+              "apply": true,
+              "languageRole": "additional"
+            }
+          ]
+        },
+        {
+          "id": "sms",
+          "name": "Policy test",
+          "title": "Policy test",
+          "description": "Test description",
+          "translations": {
+            "sv": {
+              "title": "Translated title",
+              "name": "Translated name",
+              "description": "Translated description"
+            }
+          },
+          "attentionProfile": "standard",
+          "attentionMode": "sms",
+          "attentionDurationMs": 0,
+          "attentionRepeat": false,
+          "languageFilter": "none",
+          "defaultEnabled": true,
+          "ranges": [
+            {
+              "from": 7102,
+              "to": 7102,
+              "mandatory": true,
+              "apply": true,
+              "languageRole": "additional"
+            }
+          ]
+        }
+      ]
     }
   }
 }

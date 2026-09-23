@@ -20,10 +20,14 @@
  */
 #include "cellbroadcastcatalog.h"
 
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
+#include <QSet>
 #include <QStringList>
 
 namespace {
@@ -53,6 +57,169 @@ QList<int> vibrationPattern(const QJsonValue &value)
         pattern.append(duration);
     }
     return pattern;
+}
+
+
+bool validOverlayEntry(const QJsonObject &entry, const QJsonObject &root)
+{
+    const auto validReference = [&root](const QJsonObject &object,
+                                       const QString &field, const QString &table) {
+        return !object.contains(field) || (object.value(field).isString()
+                && root.value(table).toObject().contains(object.value(field).toString()));
+    };
+    if (!validReference(entry, QStringLiteral("defaultAttentionProfile"), QStringLiteral("attentionProfiles"))
+            || !validReference(entry, QStringLiteral("defaultVibrationProfile"), QStringLiteral("vibrationProfiles"))) {
+        return false;
+    }
+    const QJsonArray categories = entry.value(QStringLiteral("categories")).toArray();
+    if (categories.isEmpty()) {
+        return false;
+    }
+    QSet<QString> ids;
+    for (const QJsonValue &value : categories) {
+        const QJsonObject category = value.toObject();
+        const QString id = category.value(QStringLiteral("id")).toString();
+        if (id.isEmpty() || ids.contains(id)
+                || !validReference(category, QStringLiteral("attentionProfile"), QStringLiteral("attentionProfiles"))
+                || !validReference(category, QStringLiteral("sourceRef"), QStringLiteral("regulatorySources"))) {
+            return false;
+        }
+        ids.insert(id);
+        for (const QString &key : { QStringLiteral("attentionMode"), QStringLiteral("languageFilter") }) {
+            if (category.contains(key) && !category.value(key).isString()) {
+                return false;
+            }
+        }
+        const QString mode = category.value(QStringLiteral("attentionMode")).toString(QStringLiteral("warning"));
+        const QString filter = category.value(QStringLiteral("languageFilter")).toString(QStringLiteral("device"));
+        if ((mode != QLatin1String("warning") && mode != QLatin1String("silent") && mode != QLatin1String("sms"))
+                || (filter != QLatin1String("device") && filter != QLatin1String("none"))) {
+            return false;
+        }
+        const QJsonValue duration = category.value(QStringLiteral("attentionDurationMs"));
+        if (!duration.isUndefined() && (!duration.isDouble() || duration.toDouble() < 0
+                || duration.toDouble() > 600000 || duration.toDouble() != duration.toInt())) {
+            return false;
+        }
+        const QStringList booleans = { QStringLiteral("attentionRepeat"), QStringLiteral("defaultEnabled"),
+            QStringLiteral("userConfigurable"), QStringLiteral("settingsVisible"), QStringLiteral("customName"),
+            QStringLiteral("vibrationRepeat") };
+        for (const QString &key : booleans) {
+            if (category.contains(key) && !category.value(key).isBool()) {
+                return false;
+            }
+        }
+        const QJsonValue translations = category.value(QStringLiteral("translations"));
+        if (!translations.isUndefined() && !translations.isObject()) {
+            return false;
+        }
+        const QJsonObject locales = translations.toObject();
+        const QRegularExpression language(QStringLiteral("^[a-z]{2,3}(?:-[a-z0-9]+)*$"));
+        for (auto it = locales.begin(); it != locales.end(); ++it) {
+            if (!language.match(it.key()).hasMatch() || !it.value().isObject()) {
+                return false;
+            }
+            const QJsonObject fields = it.value().toObject();
+            for (auto field = fields.begin(); field != fields.end(); ++field) {
+                if (!field.value().isString() || (field.key() != QLatin1String("name")
+                        && field.key() != QLatin1String("title") && field.key() != QLatin1String("description"))) {
+                    return false;
+                }
+            }
+        }
+        const QJsonArray ranges = category.value(QStringLiteral("ranges")).toArray();
+        if (ranges.isEmpty()) {
+            return false;
+        }
+        for (const QJsonValue &rangeValue : ranges) {
+            const QJsonObject range = rangeValue.toObject();
+            const QJsonValue from = range.value(QStringLiteral("from"));
+            const QJsonValue to = range.value(QStringLiteral("to"));
+            if (!from.isDouble() || !to.isDouble() || from.toDouble() != from.toInt()
+                    || to.toDouble() != to.toInt() || from.toInt() < 0
+                    || to.toInt() > 65535 || from.toInt() > to.toInt()) {
+                return false;
+            }
+            for (const QString &key : { QStringLiteral("mandatory"), QStringLiteral("apply") }) {
+                if (range.contains(key) && !range.value(key).isBool()) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool mergeOverlays(const QString &catalogPath, QJsonObject *root, QString *error)
+{
+    const QString directoryPath = QFileInfo(catalogPath).absolutePath() + QStringLiteral("/overrides.d");
+    const QFileInfo directoryInfo(directoryPath);
+    if (!directoryInfo.exists()) {
+        return true;
+    }
+    if (!directoryInfo.isDir() || !directoryInfo.isReadable()) {
+        *error = QStringLiteral("Cannot read catalog overlay directory: ") + directoryPath;
+        return false;
+    }
+    const QDir directory(directoryPath);
+    const QStringList files = directory.entryList(QStringList() << QStringLiteral("*.json"),
+                                                  QDir::Files, QDir::Name);
+    for (const QString &name : files) {
+        QFile file(directory.filePath(name));
+        *error = QStringLiteral("Invalid catalog overlay: ") + file.fileName();
+        if (!file.open(QIODevice::ReadOnly)) {
+            *error += QStringLiteral(": ") + file.errorString();
+            return false;
+        }
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+        const QJsonObject overlay = document.object();
+        if (parseError.error != QJsonParseError::NoError || !document.isObject()
+                || overlay.value(QStringLiteral("version")).toDouble() != 1
+                || !overlay.value(QStringLiteral("sources")).isObject()
+                || !overlay.value(QStringLiteral("entries")).isObject()) {
+            return false;
+        }
+        for (const QString &key : overlay.keys()) {
+            if (key != QLatin1String("version") && key != QLatin1String("sources")
+                    && key != QLatin1String("entries")) {
+                return false;
+            }
+        }
+        QJsonObject sources = root->value(QStringLiteral("regulatorySources")).toObject();
+        const QJsonObject addedSources = overlay.value(QStringLiteral("sources")).toObject();
+        for (auto it = addedSources.begin(); it != addedSources.end(); ++it) {
+            if (!it.value().isObject() || (sources.contains(it.key()) && sources.value(it.key()) != it.value())) {
+                return false;
+            }
+            sources.insert(it.key(), it.value());
+        }
+        root->insert(QStringLiteral("regulatorySources"), sources);
+        QJsonObject entries = root->value(QStringLiteral("entries")).toObject();
+        const QJsonObject overrides = overlay.value(QStringLiteral("entries")).toObject();
+        const QRegularExpression plmnPattern(QStringLiteral("^[0-9]{3}(?:[0-9]{2,3})?$"));
+        // QJsonObject iteration is sorted: MCC replacement precedes its PLMN exceptions.
+        for (auto it = overrides.begin(); it != overrides.end(); ++it) {
+            QJsonObject entry = it.value().toObject();
+            if (!plmnPattern.match(it.key()).hasMatch() || it.key() == QLatin1String("001")
+                    || (entry.contains(QStringLiteral("plmn")) && entry.value(QStringLiteral("plmn")).toString() != it.key())
+                    || !validOverlayEntry(entry, *root)) {
+                return false;
+            }
+            if (it.key().size() == 3) {
+                for (const QString &key : entries.keys()) {
+                    if (key.startsWith(it.key())) {
+                        entries.remove(key);
+                    }
+                }
+            }
+            entry.insert(QStringLiteral("plmn"), it.key());
+            entries.insert(it.key(), entry);
+        }
+        root->insert(QStringLiteral("entries"), entries);
+    }
+    error->clear();
+    return true;
 }
 
 }
@@ -119,7 +286,11 @@ bool CellBroadcastCatalog::load(const QString &path)
         return false;
     }
 
-    const QJsonObject root = document.object();
+    QJsonObject root = document.object();
+    if (!mergeOverlays(catalogPath, &root, &m_errorString)) {
+        m_valid = false;
+        return false;
+    }
     m_sourceCommit = root.value(QStringLiteral("source")).toObject()
             .value(QStringLiteral("commit")).toString();
 
@@ -183,6 +354,22 @@ bool CellBroadcastCatalog::load(const QString &path)
             category.id = categoryObject.value(QStringLiteral("id")).toString();
             category.name = categoryObject.value(QStringLiteral("name")).toString();
             category.title = categoryObject.value(QStringLiteral("title")).toString(category.name);
+            category.description = categoryObject.value(QStringLiteral("description")).toString();
+            category.translations = categoryObject.value(
+                        QStringLiteral("translations")).toObject().toVariantMap();
+            category.attentionMode = categoryObject.value(QStringLiteral("attentionMode")).toString();
+            if (category.attentionMode != QLatin1String("silent")
+                    && category.attentionMode != QLatin1String("sms")) {
+                category.attentionMode = QStringLiteral("warning");
+            }
+            category.attentionDurationMs = qBound(0, categoryObject.value(
+                        QStringLiteral("attentionDurationMs")).toInt(), 600000);
+            category.attentionRepeat = categoryObject.value(
+                        QStringLiteral("attentionRepeat")).toBool(true);
+            category.languageFilter = categoryObject.value(QStringLiteral("languageFilter")).toString();
+            if (category.languageFilter != QLatin1String("none")) {
+                category.languageFilter = QStringLiteral("device");
+            }
             category.alertLevel = categoryObject.value(QStringLiteral("alertLevel")).toString();
             category.attentionProfile = categoryObject.value(QStringLiteral("attentionProfile")).toString();
             category.attentionPolicy = categoryObject.value(QStringLiteral("attentionPolicy")).toString();

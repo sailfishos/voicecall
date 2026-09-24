@@ -480,6 +480,9 @@ void CellBroadcastDaemon::receiveBroadcast(const QString &path,
         return;
     }
 
+    if (result.presentationChanged && !result.needsGeoCheck) {
+        m_geoFence->cancel(result.alertId);
+    }
     Q_EMIT alertStored(result.alertId);
     if (result.needsGeoCheck) {
         const QVariantMap alert = m_store->alert(result.alertId);

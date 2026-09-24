@@ -29,6 +29,7 @@ public:
 
     void check(quint64 alertId, const QString &geometries, qint64 deadline,
                qint64 createdAt);
+    void cancel(quint64 alertId);
 
 Q_SIGNALS:
     void resolved(quint64 alertId, bool display, const QString &state);

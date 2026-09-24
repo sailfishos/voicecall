@@ -260,6 +260,7 @@ private Q_SLOTS:
     void separatesEtwsServingAreas();
     void waitsForGeoFenceResolution();
     void rechecksNewerGeofencedUpdate();
+    void presentsNewerUpdateWithoutGeometry();
     void promotesQueueAfterUpdatedGeoFenceIsOutside();
     void resolvesGeoFenceOutside();
     void queuesGeoFenceResultWithoutAttention();
@@ -282,6 +283,7 @@ private Q_SLOTS:
     void waitsForAccurateLocation();
     void ignoresStaleLocation();
     void preservesFreshnessForRepeatedGeoFenceRequest();
+    void cancelsObsoleteGeoFenceRequest();
 #endif
 };
 
@@ -319,14 +321,14 @@ void TestCellBroadcastStore::loadsRuntimeOverlays()
     carrier.insert(QStringLiteral("alertSystem"), QStringLiteral("Old carrier"));
     entries.insert(QStringLiteral("99901"), carrier);
     base.insert(QStringLiteral("entries"), entries);
-    const QString path = directory.filePath(QStringLiteral("channels.json"));
+    const QString path = directory.path() + QStringLiteral("/channels.json");
     QVERIFY(writeJson(path, base));
     CellBroadcastCatalog catalog;
     QVERIFY(catalog.load(path)); // Absent overlay directory is supported.
     QCOMPARE(catalog.entryForPlmn(QStringLiteral("999"), QStringLiteral("01")).alertSystem, QStringLiteral("Old carrier"));
     QVERIFY(QDir(directory.path()).mkdir(QStringLiteral("overrides.d")));
-    const QString first = directory.filePath(QStringLiteral("overrides.d/10-test.json"));
-    const QString last = directory.filePath(QStringLiteral("overrides.d/90-test.json"));
+    const QString first = directory.path() + QStringLiteral("/overrides.d/10-test.json");
+    const QString last = directory.path() + QStringLiteral("/overrides.d/90-test.json");
     QJsonObject overlay = testOverlay();
     QVERIFY(writeJson(first, overlay));
     QVERIFY2(catalog.load(path), qPrintable(catalog.errorString()));
@@ -386,10 +388,10 @@ void TestCellBroadcastStore::rejectsInvalidOverlay()
     QFETCH(QByteArray, data);
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
-    const QString path = directory.filePath(QStringLiteral("channels.json"));
+    const QString path = directory.path() + QStringLiteral("/channels.json");
     QVERIFY(QFile::copy(catalogPath(), path));
     QVERIFY(QDir(directory.path()).mkdir(QStringLiteral("overrides.d")));
-    QFile file(directory.filePath(QStringLiteral("overrides.d/test.json")));
+    QFile file(directory.path() + QStringLiteral("/overrides.d/test.json"));
     QVERIFY(file.open(QIODevice::WriteOnly));
     QCOMPARE(file.write(data), qint64(data.size()));
     file.close();
@@ -1207,6 +1209,44 @@ void TestCellBroadcastStore::rechecksNewerGeofencedUpdate()
              QStringLiteral("Updated area"));
 }
 
+void TestCellBroadcastStore::presentsNewerUpdateWithoutGeometry()
+{
+    QTemporaryDir directory;
+    const QString path = directory.path() + QStringLiteral("/alerts.sqlite");
+    quint64 alertId = 0;
+    {
+        CellBroadcastStore store(path);
+        QVariantMap originalProperties = alertProperties(4370, 0x1230, 0);
+        originalProperties.insert(QStringLiteral("Geometries"),
+                                  QStringLiteral("circle|-35.3,149.1|1000"));
+        const CellBroadcastStore::StoreResult original = store.store(
+                    QStringLiteral("Original area"), originalProperties);
+        QVERIFY(original.needsGeoCheck);
+        alertId = original.alertId;
+
+        const CellBroadcastStore::StoreResult update = store.store(
+                    QStringLiteral("Updated without geometry"),
+                    alertProperties(4370, 0x1231, 1));
+        QCOMPARE(update.alertId, alertId);
+        QVERIFY(!update.needsGeoCheck);
+        QVERIFY(update.presentationChanged);
+        QVERIFY(update.requestAttention);
+        QVERIFY(update.activeChanged);
+        QVERIFY(store.pendingGeoFenceAlerts().isEmpty());
+        const QVariantMap active = store.activeAlert();
+        QCOMPARE(active.value(QStringLiteral("Text")).toString(),
+                 QStringLiteral("Updated without geometry"));
+        QVERIFY(active.value(QStringLiteral("GeoState")).toString().isEmpty());
+    }
+
+    CellBroadcastStore restarted(path);
+    QVERIFY(restarted.pendingGeoFenceAlerts().isEmpty());
+    QCOMPARE(restarted.activeAlert().value(QStringLiteral("RecordId")).toULongLong(),
+             alertId);
+    QCOMPARE(restarted.activeAlert().value(QStringLiteral("Text")).toString(),
+             QStringLiteral("Updated without geometry"));
+}
+
 void TestCellBroadcastStore::promotesQueueAfterUpdatedGeoFenceIsOutside()
 {
     QTemporaryDir directory;
@@ -1847,6 +1887,24 @@ void TestCellBroadcastStore::preservesFreshnessForRepeatedGeoFenceRequest()
     source.sendPosition(freshOutside);
     QCOMPARE(resolved.count(), 1);
     QCOMPARE(resolved.takeFirst().at(1).toBool(), false);
+}
+
+void TestCellBroadcastStore::cancelsObsoleteGeoFenceRequest()
+{
+    TestPositionSource source;
+    CellBroadcastGeoFence geoFence(0, &source);
+    QSignalSpy resolved(&geoFence, &CellBroadcastGeoFence::resolved);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    geoFence.check(1, QStringLiteral("circle|-35.3,149.1|1000"),
+                   now + 10000, now);
+    geoFence.cancel(1);
+
+    QGeoPositionInfo freshOutside(
+                QGeoCoordinate(-30.0, 140.0),
+                QDateTime::fromMSecsSinceEpoch(now + 1, Qt::UTC));
+    freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
+    source.sendPosition(freshOutside);
+    QCOMPARE(resolved.count(), 0);
 }
 #endif
 

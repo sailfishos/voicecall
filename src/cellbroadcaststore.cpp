@@ -877,6 +877,9 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
     if (candidateSelected) {
         if (candidateNeedsGeoCheck) {
             state = AwaitingLocation;
+        } else if (state == AwaitingLocation
+                   && !needsGeoCheck(jsonProperties)) {
+            state = activeBefore ? Pending : Active;
         } else if (state == Suppressed && eligible
                    && (!needsGeoCheck(jsonProperties) || currentGeoState.isEmpty())) {
             state = activeBefore ? Pending : Active;

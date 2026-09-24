@@ -64,6 +64,13 @@ void CellBroadcastGeoFence::check(quint64 alertId, const QString &geometries,
     updateSource();
 }
 
+void CellBroadcastGeoFence::cancel(quint64 alertId)
+{
+    if (m_requests.remove(alertId)) {
+        updateSource();
+    }
+}
+
 void CellBroadcastGeoFence::positionUpdated(const QGeoPositionInfo &position)
 {
     const QGeoCoordinate coordinate = position.coordinate();

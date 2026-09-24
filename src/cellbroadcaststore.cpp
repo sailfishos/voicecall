@@ -76,12 +76,14 @@ const QStringList TableStatements = {
         "    geographical_scope INTEGER,"
         "    message_code INTEGER,"
         "    update_number INTEGER,"
+        // Data Coding Scheme (DCS)
         "    dcs INTEGER,"
         "    language TEXT,"
         "    language_role TEXT,"
         "    page_count INTEGER,"
         "    body TEXT NOT NULL,"
         "    properties_json TEXT NOT NULL,"
+        // Warning Area Coordinates (WAC)
         "    wac BLOB,"
         "    received_at INTEGER NOT NULL,"
         "    last_received_at INTEGER NOT NULL,"
@@ -104,7 +106,9 @@ QString currentBootId()
 {
     // A CBS update number is only four bits, so persisted values cannot always
     // be ordered against the modem's sequence after a reboot. The boot ID lets
-    // the first different update establish a fresh ordering baseline.
+    // the first different update establish a fresh ordering baseline. This is
+    // only a best-effort epoch estimate: it cannot detect a sequence reset
+    // caused by an oFono restart or network re-registration within one boot.
     QFile file(QStringLiteral("/proc/sys/kernel/random/boot_id"));
     return file.open(QIODevice::ReadOnly | QIODevice::Text)
             ? QString::fromLatin1(file.readAll()).trimmed() : QString();

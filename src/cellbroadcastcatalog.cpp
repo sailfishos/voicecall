@@ -63,7 +63,7 @@ QList<int> vibrationPattern(const QJsonValue &value)
 bool validOverlayEntry(const QJsonObject &entry, const QJsonObject &root)
 {
     const auto validReference = [&root](const QJsonObject &object,
-                                       const QString &field, const QString &table) {
+                                        const QString &field, const QString &table) {
         return !object.contains(field) || (object.value(field).isString()
                 && root.value(table).toObject().contains(object.value(field).toString()));
     };

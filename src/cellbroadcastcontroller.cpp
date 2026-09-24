@@ -240,6 +240,16 @@ void CellBroadcastController::setAlertsGloballyEnabled(bool enabled)
     item.set(enabled);
 }
 
+bool CellBroadcastController::requiresEmergencyAttentionFallback(
+        const QVariantMap &properties)
+{
+    const QString mode = properties.value(
+                QStringLiteral("CellBroadcastAttentionMode")).toString();
+    return mode != QLatin1String("silent") && mode != QLatin1String("sms")
+            && (properties.value(QStringLiteral("EmergencyAlert")).toBool()
+                || properties.value(QStringLiteral("Primary")).toBool());
+}
+
 QString CellBroadcastController::catalogPath() const
 {
     return m_catalogPath;

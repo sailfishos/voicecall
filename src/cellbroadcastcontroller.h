@@ -42,6 +42,8 @@ public:
 
     static bool alertsGloballyEnabled();
     static void setAlertsGloballyEnabled(bool enabled);
+    static bool requiresEmergencyAttentionFallback(
+            const QVariantMap &properties);
 
     QString catalogPath() const;
     void setCatalogPath(const QString &path);

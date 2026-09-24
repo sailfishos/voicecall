@@ -19,7 +19,6 @@
  *
  */
 #include "cellbroadcastdaemon.h"
-#include "cellbroadcastdaemonpolicy_p.h"
 #include "cellbroadcastgeofence.h"
 #include "cellbroadcaststore.h"
 
@@ -457,8 +456,9 @@ void CellBroadcastDaemon::receiveBroadcast(const QString &path,
                     &alertProperties,
                     controller->attentionProfileForChannel(channel, mcc, mnc));
     }
-    if (controller && cellBroadcastNeedsEmergencyAttention(alertProperties,
-                                                            attentionAdded)) {
+    if (controller && !attentionAdded
+            && CellBroadcastController::requiresEmergencyAttentionFallback(
+                alertProperties)) {
         alertProperties.insert(QStringLiteral("CellBroadcastAlertLevel"),
                                QStringLiteral("critical"));
         alertProperties.insert(QStringLiteral("CellBroadcastAttentionPolicy"),

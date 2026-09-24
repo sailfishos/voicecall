@@ -13,7 +13,6 @@ HEADERS += \
     fakes/qofonocellbroadcast.h \
     ../src/cellbroadcastcatalog.h \
     ../src/cellbroadcastcontroller.h \
-    ../src/cellbroadcastdaemonpolicy_p.h \
     ../src/cellbroadcasttopics.h
 
 SOURCES += \

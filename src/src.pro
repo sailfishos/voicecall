@@ -27,7 +27,6 @@ HEADERS += \
     cellbroadcastcatalog.h \
     cellbroadcastcontroller.h \
     cellbroadcastdaemon.h \
-    cellbroadcastdaemonpolicy_p.h \
     cellbroadcastgeofence.h \
     cellbroadcastgeometry.h \
     cellbroadcaststore.h \

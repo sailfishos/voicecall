@@ -7,7 +7,6 @@
  * (at your option) any later version.
  */
 #include "cellbroadcastcontroller.h"
-#include "cellbroadcastdaemonpolicy_p.h"
 #include "cellbroadcasttopics.h"
 
 #include <MDConfItem>
@@ -555,39 +554,43 @@ void TestCellBroadcastController::explicitModesPreventEmergencyFallback()
 {
     QVariantMap properties;
     properties.insert(QStringLiteral("EmergencyAlert"), true);
-    for (const QString &mode : {QStringLiteral("silent"), QStringLiteral("sms")}) {
+    const QStringList modes = {
+        QStringLiteral("silent"),
+        QStringLiteral("sms")
+    };
+    for (const QString &mode : modes) {
         properties.insert(QStringLiteral("CellBroadcastAttentionMode"), mode);
-        QVERIFY(!cellBroadcastNeedsEmergencyAttention(properties, false));
+        QVERIFY(!CellBroadcastController::requiresEmergencyAttentionFallback(
+                    properties));
     }
     properties.insert(QStringLiteral("CellBroadcastAttentionMode"), QStringLiteral("warning"));
-    QVERIFY(cellBroadcastNeedsEmergencyAttention(properties, false));
+    QVERIFY(CellBroadcastController::requiresEmergencyAttentionFallback(
+                properties));
 }
 
 void TestCellBroadcastController::emergencyAttentionFallback_data()
 {
     QTest::addColumn<bool>("primary");
     QTest::addColumn<bool>("emergencyAlert");
-    QTest::addColumn<bool>("attentionAdded");
     QTest::addColumn<bool>("expected");
 
-    QTest::newRow("primary") << true << false << false << true;
-    QTest::newRow("emergency-alert") << false << true << false << true;
-    QTest::newRow("ordinary") << false << false << false << false;
-    QTest::newRow("already-classified") << true << true << true << false;
+    QTest::newRow("primary") << true << false << true;
+    QTest::newRow("emergency-alert") << false << true << true;
+    QTest::newRow("ordinary") << false << false << false;
 }
 
 void TestCellBroadcastController::emergencyAttentionFallback()
 {
     QFETCH(bool, primary);
     QFETCH(bool, emergencyAlert);
-    QFETCH(bool, attentionAdded);
     QFETCH(bool, expected);
 
     QVariantMap properties;
     properties.insert(QStringLiteral("Primary"), primary);
     properties.insert(QStringLiteral("EmergencyAlert"), emergencyAlert);
-    QCOMPARE(cellBroadcastNeedsEmergencyAttention(properties, attentionAdded),
-             expected);
+    const bool fallbackRequired =
+            CellBroadcastController::requiresEmergencyAttentionFallback(properties);
+    QCOMPARE(fallbackRequired, expected);
 }
 
 QTEST_GUILESS_MAIN(TestCellBroadcastController)

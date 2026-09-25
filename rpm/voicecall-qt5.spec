@@ -10,11 +10,15 @@ Requires:   systemd
 Requires:   systemd-user-session-targets
 Requires:   voicecall-qt5-plugin-telepathy = %{version}
 Requires:   cell-broadcast-provider-info
+Requires:   libqofono-qt5 >= 0.131
+Requires:   qt5-plugin-sqldriver-sqlite
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Test)
 BuildRequires:  pkgconfig(Qt5Multimedia)
+BuildRequires:  pkgconfig(Qt5Positioning)
+BuildRequires:  pkgconfig(Qt5Sql)
 BuildRequires:  pkgconfig(libresourceqt5)
 BuildRequires:  pkgconfig(libpulse-mainloop-glib)
 BuildRequires:  pkgconfig(ngf-qt5)
@@ -23,6 +27,7 @@ BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
 BuildRequires:  pkgconfig(systemd)
 BuildRequires:  pkgconfig(mlite5)
+BuildRequires:  libqofono-qt5-devel >= 0.131
 BuildRequires:  oneshot
 %{_oneshot_requires_post}
 
@@ -135,6 +140,7 @@ fi
 %{_userunitdir}/voicecall-manager.service
 %{_userunitdir}/user-session.target.wants/voicecall-manager.service
 %{_datadir}/ngfd/events.d/cellbroadcast_attention.ini
+%{_sysconfdir}/pulse/xpolicy.conf.d/50-cellbroadcast-critical.conf
 %{_datadir}/mapplauncherd/privileges.d/*
 %{_oneshotdir}/phone-move-recordings-dir
 
@@ -159,3 +165,4 @@ fi
 
 %files tests
 /opt/tests/voicecall/filter
+/opt/tests/voicecall/cellbroadcast

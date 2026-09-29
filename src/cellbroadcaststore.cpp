@@ -41,10 +41,12 @@ const char GeoFenceAttentionRequiredProperty[] =
         "CellBroadcastGeoFenceAttentionRequired";
 const char WarningAreaCoordinatesProperty[] = "WarningAreaCoordinates";
 
-QString languageCode(QString language)
+QString languageCode(QString locale)
 {
-    language.replace(QLatin1Char('_'), QLatin1Char('-'));
-    return language.section(QLatin1Char('-'), 0, 0).toLower();
+    // Matching currently uses only the base language. Script and region
+    // subtags are ignored, so e.g. zh-Hans and zh-Hant are treated alike.
+    locale.replace(QLatin1Char('_'), QLatin1Char('-'));
+    return locale.section(QLatin1Char('-'), 0, 0).toLower();
 }
 
 const QStringList TableStatements = {
@@ -198,6 +200,99 @@ bool sameBroadcastContext(const QVariantMap &referenced,
     const QString triggerPlmn = broadcastPlmn(trigger);
     return referencedPlmn.isEmpty() || triggerPlmn.isEmpty()
             || referencedPlmn == triggerPlmn;
+}
+
+QString logicalKey(const QString &text, const QVariantMap &properties)
+{
+    const int serial = valueInt(properties, "SerialNumber");
+    if (serial < 0) {
+        const QByteArray legacy = text.toUtf8() + QByteArray::number(
+                    valueInt(properties, "Topic")) + QByteArray::number(receivedTime(properties));
+        return QStringLiteral("legacy|") + digest(legacy);
+    }
+
+    const int scope = valueInt(properties, "GeographicalScope");
+    const int messageIdentifier = valueInt(properties, "MessageIdentifier",
+                                           valueInt(properties, "Topic"));
+    const QString languageRole = valueString(properties, "CellBroadcastLanguageRole");
+    QString family;
+    if (languageRole == QLatin1String("local")
+            || languageRole == QLatin1String("additional")) {
+        family = valueString(properties, "CellBroadcastCategory");
+    }
+    if (family.isEmpty()) {
+        family = QString::number(messageIdentifier);
+    }
+
+    // A no-filter policy presents each language, while still deduplicating
+    // retransmissions and paired identifiers carrying the same language.
+    if (valueString(properties, "CellBroadcastLanguageFilter") == QLatin1String("none")) {
+        QString language = valueString(properties, "Language").toLower();
+        language.replace(QLatin1Char('_'), QLatin1Char('-'));
+        family += QStringLiteral("|language=") + (language.isEmpty()
+                ? QString::number(messageIdentifier) : language);
+    }
+
+    QString area = broadcastPlmn(properties);
+    if (scope == LocationAreaWideGeographicalScope) {
+        area += QLatin1Char('|') + QString::number(valueInt(properties, "LocationAreaCode"));
+    } else if (scope != PlmnWideGeographicalScope) {
+        area += QLatin1Char('|') + QString::number(valueInt(properties, "LocationAreaCode"));
+        area += QLatin1Char('|') + QString::number(valueInt(properties, "CellId"));
+    }
+
+    return area + QLatin1Char('|') + QString::number(scope) + QLatin1Char('|')
+            + family + QLatin1Char('|') + QString::number((serial >> 4) & 0x03ff);
+}
+
+QString versionKey(const QString &key, const QString &text,
+                   const QVariantMap &properties)
+{
+    QByteArray value = key.toUtf8();
+    value += '|';
+    value += QByteArray::number(valueInt(properties, "MessageIdentifier",
+                                         valueInt(properties, "Topic")));
+    value += '|';
+    value += QByteArray::number(valueInt(properties, "SerialNumber"));
+    value += '|';
+    value += valueString(properties, "Language").toUtf8();
+    value += '|';
+    value += text.toUtf8();
+    return digest(value);
+}
+
+bool presentationEligible(const QVariantMap &properties)
+{
+    if (valueString(properties, "CellBroadcastDisplay") == QLatin1String("none")) {
+        return false;
+    }
+    if (properties.contains(QStringLiteral("CellBroadcastEnabled"))
+            && !properties.value(QStringLiteral("CellBroadcastEnabled")).toBool()) {
+        return false;
+    }
+
+    if (valueString(properties, "CellBroadcastLanguageFilter") == QLatin1String("none")) {
+        return true;
+    }
+    if (valueString(properties, "CellBroadcastLanguageRole") != QLatin1String("additional")) {
+        return true;
+    }
+    const QString language = languageCode(valueString(properties, "Language"));
+    return language.isEmpty() || language == languageCode(QLocale::system().name());
+}
+
+int languageScore(const QVariantMap &properties)
+{
+    const QString role = valueString(properties, "CellBroadcastLanguageRole");
+    const QString language = languageCode(valueString(properties, "Language"));
+    const QString systemLanguage = languageCode(QLocale::system().name());
+    if (role == QLatin1String("additional") && language == systemLanguage) {
+        return 3;
+    }
+    if (role == QLatin1String("local")) {
+        return 2;
+    }
+    return language.isEmpty() ? 1 : 0;
 }
 
 } // namespace
@@ -459,101 +554,6 @@ bool CellBroadcastStore::pruneSuppressed(QSqlDatabase &database, qint64 now,
         return false;
     }
     return true;
-}
-
-QString CellBroadcastStore::logicalKey(const QString &text,
-                                       const QVariantMap &properties) const
-{
-    const int serial = valueInt(properties, "SerialNumber");
-    if (serial < 0) {
-        const QByteArray legacy = text.toUtf8() + QByteArray::number(
-                    valueInt(properties, "Topic")) + QByteArray::number(receivedTime(properties));
-        return QStringLiteral("legacy|") + digest(legacy);
-    }
-
-    const int scope = valueInt(properties, "GeographicalScope");
-    const int messageIdentifier = valueInt(properties, "MessageIdentifier",
-                                           valueInt(properties, "Topic"));
-    const QString languageRole = valueString(properties, "CellBroadcastLanguageRole");
-    QString family;
-    if (languageRole == QLatin1String("local")
-            || languageRole == QLatin1String("additional")) {
-        family = valueString(properties, "CellBroadcastCategory");
-    }
-    if (family.isEmpty()) {
-        family = QString::number(messageIdentifier);
-    }
-
-    // A no-filter policy presents each language, while still deduplicating
-    // retransmissions and paired identifiers carrying the same language.
-    if (valueString(properties, "CellBroadcastLanguageFilter") == QLatin1String("none")) {
-        QString language = valueString(properties, "Language").toLower();
-        language.replace(QLatin1Char('_'), QLatin1Char('-'));
-        family += QStringLiteral("|language=") + (language.isEmpty()
-                ? QString::number(messageIdentifier) : language);
-    }
-
-    QString area = broadcastPlmn(properties);
-    if (scope == LocationAreaWideGeographicalScope) {
-        area += QLatin1Char('|') + QString::number(valueInt(properties, "LocationAreaCode"));
-    } else if (scope != PlmnWideGeographicalScope) {
-        area += QLatin1Char('|') + QString::number(valueInt(properties, "LocationAreaCode"));
-        area += QLatin1Char('|') + QString::number(valueInt(properties, "CellId"));
-    }
-
-    return area + QLatin1Char('|') + QString::number(scope) + QLatin1Char('|')
-            + family + QLatin1Char('|') + QString::number((serial >> 4) & 0x03ff);
-}
-
-QString CellBroadcastStore::versionKey(const QString &key,
-                                       const QString &text,
-                                       const QVariantMap &properties) const
-{
-    QByteArray value = key.toUtf8();
-    value += '|';
-    value += QByteArray::number(valueInt(properties, "MessageIdentifier",
-                                         valueInt(properties, "Topic")));
-    value += '|';
-    value += QByteArray::number(valueInt(properties, "SerialNumber"));
-    value += '|';
-    value += valueString(properties, "Language").toUtf8();
-    value += '|';
-    value += text.toUtf8();
-    return digest(value);
-}
-
-bool CellBroadcastStore::presentationEligible(const QVariantMap &properties) const
-{
-    if (valueString(properties, "CellBroadcastDisplay") == QLatin1String("none")) {
-        return false;
-    }
-    if (properties.contains(QStringLiteral("CellBroadcastEnabled"))
-            && !properties.value(QStringLiteral("CellBroadcastEnabled")).toBool()) {
-        return false;
-    }
-
-    if (valueString(properties, "CellBroadcastLanguageFilter") == QLatin1String("none")) {
-        return true;
-    }
-    if (valueString(properties, "CellBroadcastLanguageRole") != QLatin1String("additional")) {
-        return true;
-    }
-    const QString language = languageCode(valueString(properties, "Language"));
-    return language.isEmpty() || language == languageCode(QLocale::system().name());
-}
-
-int CellBroadcastStore::languageScore(const QVariantMap &properties) const
-{
-    const QString role = valueString(properties, "CellBroadcastLanguageRole");
-    const QString language = languageCode(valueString(properties, "Language"));
-    const QString systemLanguage = languageCode(QLocale::system().name());
-    if (role == QLatin1String("additional") && language == systemLanguage) {
-        return 3;
-    }
-    if (role == QLatin1String("local")) {
-        return 2;
-    }
-    return language.isEmpty() ? 1 : 0;
 }
 
 CellBroadcastStore::StoreResult CellBroadcastStore::store(

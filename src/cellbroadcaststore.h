@@ -72,12 +72,6 @@ private:
     bool reconcileQueue();
     bool pruneSuppressed(QSqlDatabase &database, qint64 now,
                          const QString &preserveLogicalKey = QString());
-    QString logicalKey(const QString &text, const QVariantMap &properties) const;
-    QString versionKey(const QString &logicalKey,
-                       const QString &text,
-                       const QVariantMap &properties) const;
-    bool presentationEligible(const QVariantMap &properties) const;
-    int languageScore(const QVariantMap &properties) const;
     QVariantMap readAlert(quint64 id) const;
     quint64 activeAlertId() const;
     void setError(const QString &errorString) const;

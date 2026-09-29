@@ -1,6 +1,6 @@
 Name:       voicecall-qt5
 Summary:    Dialer engine for Nemo Mobile
-Version:    0.7.14
+Version:    0.8.0
 Release:    1
 License:    ASL 2.0 and GPLv2+ and LGPLv2+ and BSD
 URL:        https://github.com/sailfishos/voicecall

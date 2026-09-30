@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testdefinition version="1.0">
+  <suite name="voicecall-cellbroadcast-tests" domain="mw">
+    <description>Voicecall Cell Broadcast automatic tests</description>
+    <set name="unit-tests" feature="Cell Broadcast">
+      <description>Cell Broadcast service unit tests</description>
+      <case manual="false" name="store">
+        <step>/opt/tests/voicecall/cellbroadcast/tst_cellbroadcast</step>
+      </case>
+      <case manual="false" name="controller">
+        <step>/opt/tests/voicecall/cellbroadcast/tst_cellbroadcastcontroller</step>
+      </case>
+    </set>
+  </suite>
+</testdefinition>

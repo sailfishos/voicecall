@@ -25,10 +25,13 @@
 
 #include <QHash>
 #include <QObject>
+#include <QPair>
 #include <QTimer>
 #include <QVariantMap>
 
 class ModemSignalWatcher;
+class CellBroadcastGeoFence;
+class CellBroadcastStore;
 class QOfonoManager;
 
 class CellBroadcastDaemon : public QObject
@@ -37,7 +40,8 @@ class CellBroadcastDaemon : public QObject
     Q_CLASSINFO("D-Bus Interface", "org.nemomobile.voicecall.CellBroadcast")
 
 public:
-    explicit CellBroadcastDaemon(QObject *parent = 0);
+    explicit CellBroadcastDaemon(QObject *parent = 0,
+                                 const QString &databasePath = QString());
 
     bool registerObject();
 
@@ -52,10 +56,13 @@ public Q_SLOTS:
     Q_SCRIPTABLE void removeUnknownTopic(const QString &path, const QString &topics);
     Q_SCRIPTABLE void resetToRecommended(const QString &path);
     Q_SCRIPTABLE void refresh(const QString &path);
-    Q_SCRIPTABLE bool triggerTestBroadcast(const QString &path,
-                                           const QString &text,
-                                           int channel,
-                                           bool emergencyAlert);
+    Q_SCRIPTABLE QVariantMap activeAlert() const;
+    Q_SCRIPTABLE QVariantMap alert(qulonglong id) const;
+    Q_SCRIPTABLE QVariantList alertHistory(qulonglong beforeId, int limit) const;
+    Q_SCRIPTABLE bool acknowledgeAlert(qulonglong id);
+    Q_SCRIPTABLE bool silenceAlert(qulonglong id);
+    Q_SCRIPTABLE bool deleteAlert(qulonglong id);
+    Q_SCRIPTABLE int clearAlertHistory();
 
 Q_SIGNALS:
     void alertsEnabledChanged(bool enabled);
@@ -64,6 +71,9 @@ Q_SIGNALS:
     void broadcastReceived(const QString &path,
                            const QString &text,
                            const QVariantMap &properties);
+    void activeAlertChanged(const QVariantMap &alert);
+    void alertStored(qulonglong id);
+    void alertAttentionRequested(qulonglong id, const QVariantMap &properties);
 
 private Q_SLOTS:
     void reloadModems();
@@ -73,9 +83,13 @@ private Q_SLOTS:
                          const QString &property,
                          const QVariant &value);
     void incomingBroadcast(const QString &path, const QString &text, int channel);
+    void incomingBroadcastWithProperties(const QString &path,
+                                         const QString &text,
+                                         const QVariantMap &properties);
     void emergencyBroadcast(const QString &path,
                             const QString &text,
                             const QVariantMap &properties);
+    void geoFenceResolved(qulonglong id, bool display, const QString &state);
     void applyModem();
 
 private:
@@ -85,12 +99,20 @@ private:
     void updateProperties(const QString &path,
                           const QString &interface,
                           const QVariantMap &properties);
+    void receiveBroadcast(const QString &path,
+                          const QString &text,
+                          const QVariantMap &properties);
+    void emitLegacyAlert(const QVariantMap &alert);
+    void emitActiveAlert(const QVariantMap &alert);
 
 private:
     QHash<QString, CellBroadcastController *> m_controllers;
     QHash<QString, ModemSignalWatcher *> m_watchers;
     QHash<QString, QTimer *> m_applyTimers;
+    QHash<QString, QPair<QString, qint64> > m_lastDetailedBroadcast;
     QOfonoManager *m_ofonoManager;
+    CellBroadcastGeoFence *m_geoFence;
+    CellBroadcastStore *m_store;
 };
 
 #endif

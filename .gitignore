@@ -1,4 +1,7 @@
 Makefile
+Makefile.*
+/documentation.list
+/src/voicecall-manager
 *.o
 moc_*
 *.moc
@@ -7,3 +10,4 @@ moc_*
 *.pc
 *.prl
 tst_*
+!tests/tst_*.cpp

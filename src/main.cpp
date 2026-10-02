@@ -28,7 +28,7 @@ Q_DECL_EXPORT int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
 
-    QCoreApplication::setOrganizationName("nemomobile");
+    QCoreApplication::setOrganizationName("org.sailfishos");
     QCoreApplication::setApplicationName("voicecall");
 
     VoiceCallManager manager;

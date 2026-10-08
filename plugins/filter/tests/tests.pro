@@ -4,7 +4,7 @@ TEMPLATE = app
 TARGET = tst_filter
 QT += testlib
 
-PKGCONFIG += mlite5 commhistory-qt5
+PKGCONFIG += mlite$${QT_MAJOR_VERSION} commhistory-qt$${QT_MAJOR_VERSION}
 
 SRCDIR = ../lib
 INCLUDEPATH += $$SRCDIR

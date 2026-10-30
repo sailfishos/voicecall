@@ -440,13 +440,6 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
                 this, &StreamChannelHandler::onStreamedMediaChannelHoldStateChanged);
     }
 
-    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CONFERENCE)) {
-        DEBUG_T("Creating Conference interface");
-        QList<Tp::ChannelPtr> channels = d->channel->conferenceChannels();
-        foreach (Tp::ChannelPtr channel, channels)
-            emit channelMerged(channel);
-    }
-
     Tp::Client::ChannelInterfaceServicePointInterface *servicePointInterface
         = d->channel->optionalInterface<Tp::Client::ChannelInterfaceServicePointInterface>();
     if (servicePointInterface) {
@@ -481,6 +474,14 @@ void StreamChannelHandler::onStreamedMediaChannelReady(Tp::PendingOperation *op)
     d->isIncoming = !d->channel->isRequested();
 
     emit ready();
+
+    // The provider only knows this conference once ready() has been handled
+    if (d->channel->hasInterface(TP_QT_IFACE_CHANNEL_INTERFACE_CONFERENCE)) {
+        DEBUG_T("Creating Conference interface");
+        QList<Tp::ChannelPtr> channels = d->channel->conferenceChannels();
+        foreach (Tp::ChannelPtr channel, channels)
+            emit channelMerged(channel);
+    }
 }
 
 void StreamChannelHandler::onStreamedMediaChannelInvalidated(Tp::DBusProxy *, const QString &errorName, const QString &errorMessage)

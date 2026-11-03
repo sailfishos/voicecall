@@ -13,6 +13,7 @@ Requires:   cell-broadcast-provider-info
 Requires:   libqofono-qt5 >= 0.131
 Requires:   qt5-plugin-sqldriver-sqlite
 Requires(post): /sbin/ldconfig
+Requires(post): %{_bindir}/mountpoint
 Requires(postun): /sbin/ldconfig
 BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Test)
@@ -104,8 +105,7 @@ chmod +x %{buildroot}/%{_oneshotdir}/*
 %post
 /sbin/ldconfig
 if [ "$1" -ge 1 ]; then
-systemctl-user daemon-reload || :
-systemctl-user restart voicecall-manager.service || :
+%{_bindir}/add-oneshot --now --all-users voicecall-migrate-settings || :
 fi
 
 # run now for sufficient permissions to move to privileged dir
@@ -143,6 +143,7 @@ fi
 %{_sysconfdir}/pulse/xpolicy.conf.d/50-cellbroadcast-critical.conf
 %{_datadir}/mapplauncherd/privileges.d/*
 %{_oneshotdir}/phone-move-recordings-dir
+%{_oneshotdir}/voicecall-migrate-settings
 
 %files devel
 %{_libdir}/libvoicecall.so

@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Retry at next boot if home is unavailable during an offline upgrade.
+mountpoint -q /home || exit 1
+
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/$(id -u)/dbus/user_bus_socket}"
+systemctl --user stop voicecall-manager.service || exit 1
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+legacy_settings="$config_dir/nemomobile/voicecall.conf"
+settings_dir="$config_dir/org.sailfishos"
+settings="$settings_dir/voicecall.conf"
+
+if [ -f "$legacy_settings" ] && [ ! -e "$settings" ] && [ ! -L "$settings" ]; then
+    mkdir -p "$settings_dir" || exit 1
+    mv "$legacy_settings" "$settings" || exit 1
+fi
+
+systemctl --user daemon-reload || exit 1
+# At boot, Voicecall must wait for this oneshot to finish.
+systemctl --user --no-block start voicecall-manager.service

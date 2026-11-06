@@ -13,7 +13,18 @@ VOICECALL_LIBDIR = $$[QT_INSTALL_LIBS]
 !isEmpty(VOICECALL_INSTALL_LIBDIR): VOICECALL_LIBDIR = $${VOICECALL_INSTALL_LIBDIR}
 DEFINES += VOICECALL_PLUGIN_DIRECTORY=\"\\\"$${VOICECALL_LIBDIR}/voicecall/plugins\\\"\"
 
-PKGCONFIG += mlite$${QT_MAJOR_VERSION} qofono-qt$${QT_MAJOR_VERSION}
+PKGCONFIG += qofono-qt$${QT_MAJOR_VERSION}
+
+# The cell broadcast settings live in dconf, which is reached through mlite.
+# mlite is part of the Nemo stack and is not packaged everywhere, so use it
+# when it is there and fall back to a QSettings-backed store when it is not,
+# rather than dropping the feature. See cellbroadcastsettings.h.
+packagesExist(mlite$${QT_MAJOR_VERSION}) {
+    PKGCONFIG += mlite$${QT_MAJOR_VERSION}
+    DEFINES += HAVE_MLITE
+} else {
+    warning("mlite not found; cell broadcast settings will be kept in a local settings file")
+}
 
 enable-nemo-devicelock {
     PKGCONFIG += nemodevicelock
@@ -31,6 +42,7 @@ LIBS += -L../lib/src -lvoicecall
 
 HEADERS += \
     cellbroadcastcatalog.h \
+    cellbroadcastsettings.h \
     cellbroadcastcontroller.h \
     cellbroadcastdaemon.h \
     cellbroadcastgeofence.h \
@@ -45,6 +57,7 @@ HEADERS += \
 
 SOURCES += \
     cellbroadcastcatalog.cpp \
+    cellbroadcastsettings.cpp \
     cellbroadcastcontroller.cpp \
     cellbroadcastdaemon.cpp \
     cellbroadcastgeofence.cpp \

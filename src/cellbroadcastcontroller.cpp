@@ -20,7 +20,6 @@
  */
 #include "cellbroadcastcontroller.h"
 
-#include <MDConfItem>
 #include <qofonocellbroadcast.h>
 
 #include <QDBusError>
@@ -91,7 +90,7 @@ QString lastManagedSettingKey(const QString &identity, const QString &modemPath)
 
 bool alertsEnabledFromSettings()
 {
-    MDConfItem item(QString::fromLatin1(AlertsEnabledSettingKey));
+    CellBroadcastSettingItem item(QString::fromLatin1(AlertsEnabledSettingKey));
     return item.value(true).toBool();
 }
 
@@ -198,12 +197,12 @@ CellBroadcastController::CellBroadcastController(QObject *parent)
     , m_refreshPending(false)
     , m_resetRequested(false)
     , m_pendingPropertyOperation(NoPropertyOperation)
-    , m_alertsEnabledItem(new MDConfItem(QString::fromLatin1(AlertsEnabledSettingKey), this))
+    , m_alertsEnabledItem(new CellBroadcastSettingItem(QString::fromLatin1(AlertsEnabledSettingKey), this))
     , m_cellBroadcast(new CellBroadcastOfonoClient(this))
     , m_retryTimer(new QTimer(this))
 {
     m_alertsEnabled = m_alertsEnabledItem->value(true).toBool();
-    connect(m_alertsEnabledItem, &MDConfItem::valueChanged,
+    connect(m_alertsEnabledItem, &CellBroadcastSettingItem::valueChanged,
             this, &CellBroadcastController::onAlertsEnabledSettingChanged);
     connect(m_cellBroadcast, &QOfonoCellBroadcast::topicsChanged,
             this, &CellBroadcastController::onCellBroadcastTopicsChanged);
@@ -236,7 +235,7 @@ bool CellBroadcastController::alertsGloballyEnabled()
 
 void CellBroadcastController::setAlertsGloballyEnabled(bool enabled)
 {
-    MDConfItem item(QString::fromLatin1(AlertsEnabledSettingKey));
+    CellBroadcastSettingItem item(QString::fromLatin1(AlertsEnabledSettingKey));
     item.set(enabled);
 }
 
@@ -904,7 +903,7 @@ bool CellBroadcastController::channelEnabled(const QString &scope,
 {
     const QString id = identity();
     const QVariant scopedValue = settingItem(channelSettingKey(id, scope, category.id))->value();
-    MDConfItem *patternItem = settingItem(channelPatternSettingKey(id, category.id));
+    CellBroadcastSettingItem *patternItem = settingItem(channelPatternSettingKey(id, category.id));
 
     if (scopedValue.isValid()) {
         if (!patternItem->value().isValid()) {
@@ -921,11 +920,11 @@ bool CellBroadcastController::channelEnabled(const QString &scope,
     return category.defaultEnabled;
 }
 
-MDConfItem *CellBroadcastController::settingItem(const QString &key) const
+CellBroadcastSettingItem *CellBroadcastController::settingItem(const QString &key) const
 {
-    MDConfItem *item = m_settingItems.value(key);
+    CellBroadcastSettingItem *item = m_settingItems.value(key);
     if (!item) {
-        item = new MDConfItem(key, const_cast<CellBroadcastController *>(this));
+        item = new CellBroadcastSettingItem(key, const_cast<CellBroadcastController *>(this));
         m_settingItems.insert(key, item);
     }
     return item;

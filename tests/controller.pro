@@ -8,11 +8,16 @@ MOC_DIR = $$OUT_PWD/.moc/controller
 
 INCLUDEPATH += fakes ../src
 
+# fakes/MDConfItem stands in for mlite, so the controller is built the way it
+# is with mlite available. See ../src/cellbroadcastsettings.h.
+DEFINES += HAVE_MLITE
+
 HEADERS += \
     fakes/fake_mdconfitem.h \
     fakes/qofonocellbroadcast.h \
     ../src/cellbroadcastcatalog.h \
     ../src/cellbroadcastcontroller.h \
+    ../src/cellbroadcastsettings.h \
     ../src/cellbroadcasttopics.h
 
 SOURCES += \

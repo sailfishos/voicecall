@@ -81,6 +81,10 @@ void OfonoVoiceCallProvider::initialize()
 
     QObject::connect(d->ofonoManager, SIGNAL(callAdded(QString)), SLOT(onCallAdded(QString)));
     QObject::connect(d->ofonoManager, SIGNAL(callRemoved(QString)), SLOT(onCallRemoved(QString)));
+    QObject::connect(d->ofonoManager, SIGNAL(createMultipartyComplete(bool,QStringList)),
+                     SLOT(onCallControlComplete(bool)));
+    QObject::connect(d->ofonoManager, SIGNAL(privateChatComplete(bool,QStringList)),
+                     SLOT(onCallControlComplete(bool)));
 
     foreach (const QString &call, d->ofonoManager->getCalls())
         onCallAdded(call);
@@ -156,6 +160,23 @@ void OfonoVoiceCallProvider::onDialComplete(const bool status)
     }
     if (!status)
         d->setError(d->ofonoManager->errorMessage());
+}
+
+void OfonoVoiceCallProvider::reportCallControlError(const QString &message)
+{
+    TRACE
+    Q_D(OfonoVoiceCallProvider);
+    d->setError(message);
+    emit error(message);
+}
+
+// errorMessage() starts with the oFono method, which is how clients tell them apart.
+void OfonoVoiceCallProvider::onCallControlComplete(bool status)
+{
+    TRACE
+    Q_D(OfonoVoiceCallProvider);
+    if (!status && d->ofonoManager)
+        reportCallControlError(d->ofonoManager->errorMessage());
 }
 
 void OfonoVoiceCallProvider::interfacesChanged(const QStringList &interfaces)

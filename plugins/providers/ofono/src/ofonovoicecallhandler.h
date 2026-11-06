@@ -68,10 +68,8 @@ public Q_SLOTS:
     void deflect(const QString &target);
     void sendDtmf(const QString &tones);
     void filter(VoiceCallFilterAction action);
-
-    // TODO: unimplemented - JB#35997
-    void merge(const QString &) {}
-    void split() {}
+    void merge(const QString &callHandle) override;
+    void split() override;
 
 protected Q_SLOTS:
     void onStatusChanged();

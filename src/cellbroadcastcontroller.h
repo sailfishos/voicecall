@@ -22,6 +22,7 @@
 #define CELLBROADCASTCONTROLLER_H
 
 #include "cellbroadcastcatalog.h"
+#include "cellbroadcastsettings.h"
 
 #include <QHash>
 #include <QObject>
@@ -30,7 +31,6 @@
 #include <QVariantMap>
 
 class CellBroadcastOfonoClient;
-class MDConfItem;
 class QTimer;
 
 class CellBroadcastController : public QObject
@@ -142,7 +142,7 @@ private:
     bool isRoamingNetworkRelevant() const;
     bool channelEnabled(const QString &scope,
                         const CellBroadcastCatalogCategory &category) const;
-    MDConfItem *settingItem(const QString &key) const;
+    CellBroadcastSettingItem *settingItem(const QString &key) const;
     CellBroadcastTopicRangeList lastManagedTopics() const;
     void setLastManagedTopics(const CellBroadcastTopicRangeList &topics);
     void setAlertsEnabledValue(bool enabled);
@@ -180,9 +180,9 @@ private:
     bool m_resetRequested;
     PendingPropertyOperation m_pendingPropertyOperation;
     QString m_errorString;
-    MDConfItem *m_alertsEnabledItem;
+    CellBroadcastSettingItem *m_alertsEnabledItem;
     CellBroadcastOfonoClient *m_cellBroadcast;
-    mutable QHash<QString, MDConfItem *> m_settingItems;
+    mutable QHash<QString, CellBroadcastSettingItem *> m_settingItems;
     CellBroadcastCatalog m_catalog;
     CellBroadcastTopicRangeList m_currentTopics;
     CellBroadcastTopicRangeList m_requestedTopicRemovals;

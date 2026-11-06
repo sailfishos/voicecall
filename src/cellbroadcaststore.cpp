@@ -1296,8 +1296,13 @@ QVariantList CellBroadcastStore::geoFenceAlerts(
     }
 
     const qint64 cutoff = QDateTime::currentDateTimeUtc().addDays(-1).toMSecsSinceEpoch();
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    const QStringList references = referenceList.split(QLatin1Char(';'),
+                                                       Qt::SkipEmptyParts);
+#else
     const QStringList references = referenceList.split(QLatin1Char(';'),
                                                        QString::SkipEmptyParts);
+#endif
     QSet<quint64> alertIds;
     for (const QString &reference : references) {
         const QStringList identity = reference.split(QLatin1Char(','));
@@ -1375,8 +1380,13 @@ QVariantList CellBroadcastStore::prepareGeoFenceTrigger(
         const QVariantMap alert = value.toMap();
         maximumWait = qMax(maximumWait, maximumWaitSeconds(alert));
         if (triggerType == SharedWarningAreaTriggerType) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+            const QStringList areas = valueString(alert, "Geometries").split(
+                        QLatin1Char(';'), Qt::SkipEmptyParts);
+#else
             const QStringList areas = valueString(alert, "Geometries").split(
                         QLatin1Char(';'), QString::SkipEmptyParts);
+#endif
             for (const QString &area : areas) {
                 if (!commonAreas.contains(area)) {
                     commonAreas.append(area);

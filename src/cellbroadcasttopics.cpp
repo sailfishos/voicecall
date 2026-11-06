@@ -20,6 +20,8 @@
  */
 #include "cellbroadcasttopics.h"
 
+#include <QtGlobal>
+
 #include <algorithm>
 
 #include <QStringList>
@@ -45,7 +47,11 @@ CellBroadcastTopicRangeList CellBroadcastTopics::parse(const QString &topics)
         return ranges;
     }
 
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    const QStringList parts = trimmed.split(QLatin1Char(','), Qt::SkipEmptyParts);
+#else
     const QStringList parts = trimmed.split(QLatin1Char(','), QString::SkipEmptyParts);
+#endif
     for (const QString &part : parts) {
         const QString range = part.trimmed();
         const int separator = range.indexOf(QLatin1Char('-'));

@@ -31,8 +31,18 @@ CellBroadcastGeoFence::CellBroadcastGeoFence(QObject *parent,
         m_source->setUpdateInterval(1000);
         connect(m_source, &QGeoPositionInfoSource::positionUpdated,
                 this, &CellBroadcastGeoFence::positionUpdated);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        // Qt 6 reports a timed out update as UpdateTimeoutError instead
+        connect(m_source, &QGeoPositionInfoSource::errorOccurred,
+                this, [this](QGeoPositionInfoSource::Error error) {
+            if (error == QGeoPositionInfoSource::UpdateTimeoutError) {
+                positionTimeout();
+            }
+        });
+#else
         connect(m_source, &QGeoPositionInfoSource::updateTimeout,
                 this, &CellBroadcastGeoFence::positionTimeout);
+#endif
     }
 }
 

@@ -5,16 +5,22 @@ CONFIG += link_pkgconfig
 
 INCLUDEPATH += ../lib/src
 
-DEFINES += VOICECALL_PLUGIN_DIRECTORY=\"\\\"$$[QT_INSTALL_LIBS]/voicecall/plugins\\\"\"
 
-PKGCONFIG += mlite5 qofono-qt5
+# $$[QT_INSTALL_LIBS] is queried from the Qt that runs qmake, which is the host
+# Qt when cross-building, so distributions need to be able to say where the
+# libraries will actually live on the target.
+VOICECALL_LIBDIR = $$[QT_INSTALL_LIBS]
+!isEmpty(VOICECALL_INSTALL_LIBDIR): VOICECALL_LIBDIR = $${VOICECALL_INSTALL_LIBDIR}
+DEFINES += VOICECALL_PLUGIN_DIRECTORY=\"\\\"$${VOICECALL_LIBDIR}/voicecall/plugins\\\"\"
+
+PKGCONFIG += mlite$${QT_MAJOR_VERSION} qofono-qt$${QT_MAJOR_VERSION}
 
 enable-nemo-devicelock {
     PKGCONFIG += nemodevicelock
     DEFINES += WITH_NEMO_DEVICELOCK
 }
 
-packagesExist(qt5-boostable) {
+equals(QT_MAJOR_VERSION, 5):packagesExist(qt5-boostable) {
     DEFINES += HAS_BOOSTER
     PKGCONFIG += qt5-boostable
 } else {

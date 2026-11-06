@@ -195,7 +195,11 @@ AbstractVoiceCallHandler::VoiceCallStatus OfonoVoiceCallHandler::status() const
     } else if (d->filterHasRun && (state == "incoming" || state == "disconnected")) {
         switch (d->filterAction) {
         case ACTION_CONTINUE:
-            return STATUS_INCOMING;
+            /* Only a call still ringing is incoming. Once one that was let
+             * through has ended it is disconnected like any other: reporting
+             * it as incoming again made every answered call look like a new
+             * incoming call for the moment it took to go away. */
+            return state == "disconnected" ? STATUS_DISCONNECTED : STATUS_INCOMING;
         case ACTION_IGNORE:
             return STATUS_IGNORED;
         case ACTION_REJECT:
@@ -270,6 +274,73 @@ void OfonoVoiceCallHandler::filter(VoiceCallFilterAction action)
         hangup();
     }
     emit statusChanged(status());
+}
+
+/*
+ * oFono has no call to merge one call into another: CreateMultiparty (AT+CHLD=3)
+ * joins whatever is active with whatever is held on the modem. So callHandle
+ * only says which two calls the caller means, and they have to be those two.
+ * Either may already be a conference; the other one then joins it.
+ *
+ * Nothing changes on a failure, here or if oFono refuses it later: both calls
+ * stay as they are and the provider reports the error.
+ */
+void OfonoVoiceCallHandler::merge(const QString &callHandle)
+{
+    TRACE
+    Q_D(OfonoVoiceCallHandler);
+
+    if (!d->ofonoVoiceCallManager->isValid()) {
+        d->provider->reportCallControlError(QStringLiteral("CreateMultiparty: no connection to the modem"));
+        return;
+    }
+
+    const auto calls = d->provider->voiceCalls();
+    const AbstractVoiceCallHandler *other = nullptr;
+    for (AbstractVoiceCallHandler *call : calls) {
+        if (call->handlerId() == callHandle) {
+            other = call;
+            break;
+        }
+    }
+
+    if (!other) {
+        d->provider->reportCallControlError(
+                    QStringLiteral("CreateMultiparty: no call %1 on this modem").arg(callHandle));
+        return;
+    }
+
+    const VoiceCallStatus mine = status();
+    const VoiceCallStatus theirs = other->status();
+    if (!((mine == STATUS_ACTIVE && theirs == STATUS_HELD) || (mine == STATUS_HELD && theirs == STATUS_ACTIVE))) {
+        d->provider->reportCallControlError(QStringLiteral("CreateMultiparty: need one active and one held call"));
+        return;
+    }
+
+    d->ofonoVoiceCallManager->createMultiparty();
+}
+
+/*
+ * PrivateChat (AT+CHLD=2X): this call stays active, the rest of the conference
+ * goes on hold. oFono refuses it with a call on hold, which includes the
+ * conference itself being held.
+ */
+void OfonoVoiceCallHandler::split()
+{
+    TRACE
+    Q_D(OfonoVoiceCallHandler);
+
+    if (!d->ofonoVoiceCallManager->isValid()) {
+        d->provider->reportCallControlError(QStringLiteral("PrivateChat: no connection to the modem"));
+        return;
+    }
+
+    if (!isMultiparty()) {
+        d->provider->reportCallControlError(QStringLiteral("PrivateChat: the call is not in a conference"));
+        return;
+    }
+
+    d->ofonoVoiceCallManager->privateChat(path());
 }
 
 void OfonoVoiceCallHandler::timerEvent(QTimerEvent *event)

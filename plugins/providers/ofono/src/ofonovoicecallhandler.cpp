@@ -195,7 +195,11 @@ AbstractVoiceCallHandler::VoiceCallStatus OfonoVoiceCallHandler::status() const
     } else if (d->filterHasRun && (state == "incoming" || state == "disconnected")) {
         switch (d->filterAction) {
         case ACTION_CONTINUE:
-            return STATUS_INCOMING;
+            /* Only a call still ringing is incoming. Once one that was let
+             * through has ended it is disconnected like any other: reporting
+             * it as incoming again made every answered call look like a new
+             * incoming call for the moment it took to go away. */
+            return state == "disconnected" ? STATUS_DISCONNECTED : STATUS_INCOMING;
         case ACTION_IGNORE:
             return STATUS_IGNORED;
         case ACTION_REJECT:

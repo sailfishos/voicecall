@@ -3,6 +3,13 @@
 
 #include <QObject>
 #include <QDateTime>
+#include <QtGlobal>
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+// moc needs to know where the forward-declared type lives to generate the
+// property metacalls; before 5.15 it found it via the old include scan.
+Q_MOC_INCLUDE("voicecallmodel.h")
+#endif
 
 #include <QDBusInterface>
 #include <QDBusPendingCallWatcher>

@@ -2,7 +2,7 @@ include(../../../plugin.pri)
 TARGET = voicecall-ofono-plugin
 QT += dbus
 
-PKGCONFIG += qofono-qt5
+PKGCONFIG += qofono-qt$${QT_MAJOR_VERSION}
 
 HEADERS += \
     ofonovoicecallhandler.h  \

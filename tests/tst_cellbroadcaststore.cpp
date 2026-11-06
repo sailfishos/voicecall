@@ -1908,5 +1908,5 @@ void TestCellBroadcastStore::cancelsObsoleteGeoFenceRequest()
 }
 #endif
 
-QTEST_APPLESS_MAIN(TestCellBroadcastStore)
+QTEST_GUILESS_MAIN(TestCellBroadcastStore)
 #include "tst_cellbroadcaststore.moc"

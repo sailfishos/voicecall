@@ -7,6 +7,10 @@
 #include <QDBusInterface>
 #include <QDBusPendingCallWatcher>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+Q_MOC_INCLUDE("voicecallmodel.h");
+#endif
+
 class VoiceCallModel;
 
 class VoiceCallHandler : public QObject

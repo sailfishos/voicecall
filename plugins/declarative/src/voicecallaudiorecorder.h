@@ -34,8 +34,12 @@
 
 #ifndef VOICECALLAUDIORECORDER_H
 #define VOICECALLAUDIORECORDER_H
-
+#include <QtCore>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QAudioSource>
+#else
 #include <QAudioInput>
+#endif
 #include <QFile>
 #include <QScopedPointer>
 #include <QDBusPendingCallWatcher>
@@ -85,8 +89,11 @@ private slots:
 private:
     bool initiateRecording(const QString &fileName);
     void terminateRecording();
-
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    QScopedPointer<QAudioSource> input;
+#else
     QScopedPointer<QAudioInput> input;
+#endif
     QScopedPointer<QFile> output;
     QString label;
     bool featureAvailable;

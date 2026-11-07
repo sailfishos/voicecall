@@ -45,7 +45,13 @@ CellBroadcastTopicRangeList CellBroadcastTopics::parse(const QString &topics)
         return ranges;
     }
 
-    const QStringList parts = trimmed.split(QLatin1Char(','), QString::SkipEmptyParts);
+    const QStringList parts = trimmed.split(QLatin1Char(','),
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+                                            Qt::SkipEmptyParts
+#else
+                                            QString::SkipEmptyParts
+#endif
+                                            );
     for (const QString &part : parts) {
         const QString range = part.trimmed();
         const int separator = range.indexOf(QLatin1Char('-'));

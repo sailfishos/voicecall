@@ -20,8 +20,6 @@ class VoiceCallHandler : public QObject
 {
     Q_OBJECT
 
-    Q_ENUMS(VoiceCallStatus)
-
     Q_PROPERTY(QString handlerId READ handlerId CONSTANT)
     Q_PROPERTY(QString providerId READ providerId CONSTANT)
     Q_PROPERTY(int status READ status NOTIFY statusChanged)
@@ -48,6 +46,7 @@ public:
         STATUS_WAITING,
         STATUS_DISCONNECTED
     };
+    Q_ENUM(VoiceCallStatus)
 
     explicit VoiceCallHandler(const QString &handlerId, QObject *parent = 0);
     ~VoiceCallHandler();

@@ -51,6 +51,8 @@
 #include <QAudioDeviceInfo>
 #endif
 
+#include <memory>
+
 #include <unistd.h>
 
 namespace {
@@ -296,7 +298,7 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
 
     filePath.append(QStringLiteral(".tmp"));
 
-    QScopedPointer<QFile> file(new QFile(filePath));
+    std::unique_ptr<QFile> file(new QFile(filePath));
     if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         qWarning() << "Unable to open file for write:" << filePath;
         emit recordingError(FileCreation);
@@ -319,7 +321,7 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
         return false;
     }
 
-    output.swap(file);
+    output.reset(file.release());
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     input.reset(new QAudioSource(recordingFormat));

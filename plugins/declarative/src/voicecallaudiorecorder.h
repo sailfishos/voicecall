@@ -50,7 +50,6 @@ class VoiceCallAudioRecorder : public QObject
     Q_OBJECT
     Q_DISABLE_COPY(VoiceCallAudioRecorder)
 
-    Q_ENUMS(ErrorCondition)
 
     Q_PROPERTY(bool available READ available NOTIFY availableChanged)
     Q_PROPERTY(bool recording READ recording NOTIFY recordingChanged)
@@ -62,6 +61,7 @@ public:
         FileStorage,
         AudioRouting,
     };
+    Q_ENUM(ErrorCondition)
 
     explicit VoiceCallAudioRecorder(QObject *parent);
     ~VoiceCallAudioRecorder();

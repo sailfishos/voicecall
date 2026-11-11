@@ -37,9 +37,6 @@ class AbstractVoiceCallHandler : public QObject
 {
     Q_OBJECT
 
-    Q_ENUMS(VoiceCallStatus)
-    Q_ENUMS(VoiceCallFilterAction)
-
     Q_PROPERTY(QString handlerId READ handlerId CONSTANT)
     Q_PROPERTY(AbstractVoiceCallProvider* provider READ provider)
     Q_PROPERTY(VoiceCallStatus status READ status NOTIFY statusChanged)
@@ -68,12 +65,14 @@ public:
         STATUS_REJECTED,
         STATUS_IGNORED
     };
+    Q_ENUM(VoiceCallStatus)
 
     enum VoiceCallFilterAction {
         ACTION_CONTINUE,
         ACTION_IGNORE,
         ACTION_REJECT
     };
+    Q_ENUM(VoiceCallFilterAction)
 
     explicit AbstractVoiceCallHandler(QObject *parent = 0) : QObject(parent) {/* ... */}
     virtual ~AbstractVoiceCallHandler() {/* ... */}

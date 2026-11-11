@@ -14,4 +14,8 @@ tests_xml.files = tests.xml
 
 INSTALLS += tests_xml
 
-OTHER_FILES += tests.xml
+OTHER_FILES += tests.xml \
+    hardening/README \
+    hardening/run \
+    hardening/static-analysis \
+    hardening/static-analysis.baseline

@@ -1,0 +1,79 @@
+Hardening harness
+=================
+
+Two scripts on top of the unit tests, for the checks the plain test
+build alone doesn't do. Both work for a native build and for a cross
+build tested on the build host through a sysroot.
+
+run - runtime checkers
+----------------------
+
+    tests/hardening/run [-c compiler]... [asan|tsan|valgrind]...
+
+Builds tests/tests.pro from clean in a shadow build directory for each
+checker and runs every tst_* binary with:
+
+  asan       AddressSanitizer + UndefinedBehaviorSanitizer, any report
+             is fatal, leaks included
+  tsan       ThreadSanitizer, with ASLR off as TSan needs
+  valgrind   memcheck; fails on any error or definite leak
+
+Pass -c once per C++ compiler to build the sanitizer runs with (GCC and
+Clang find different things), e.g. -c g++ -c clang++. QMAKE selects the
+qmake (default: qmake). Logs go to tests/hardening/logs.
+
+Cross build, run on the build host through the sysroot's loader:
+
+    TEST_RUNNER="$SYSROOT/usr/lib/ld-linux-x86-64.so.2 --library-path $SYSROOT/usr/lib" \
+    QMAKE=<qmake for that sysroot> \
+    tests/hardening/run -c "x86_64-linux-g++ --sysroot=$SYSROOT" \
+        -c "clang++ --target=x86_64-linux-gnu --sysroot=$SYSROOT"
+
+The sysroot needs the sanitizer runtimes (libasan, libubsan, libtsan;
+compiler-rt for Clang).
+
+static-analysis - analyzers and warnings on every target
+--------------------------------------------------------
+
+    tests/hardening/static-analysis [-c name=compiler [-q qmake]]... [-u]
+
+Builds voicecall.pro with g++ and clang++ through a wrapper that records
+the compile commands, and runs over our own sources (src/, lib/,
+plugins/) gcc -fanalyzer (-O0 and -O2), clang --analyze with the alpha
+checkers, clang-tidy, cppcheck (exhaustive) and flawfinder, plus
+shellcheck over the scripts in oneshot/, which run as root at install
+time. Every -c compiler then builds the tree with -Wall -Wextra -Wshadow
+-Wformat=2 -Wcast-align -Wpointer-arith -Wvla -Wnon-virtual-dtor
+-Wnull-dereference -Wimplicit-fallthrough; -q after a -c gives the qmake
+for that target. Build with GCC and Clang for each supported target:
+armv7 is 32-bit and catches what the 64-bit targets don't. Link errors
+are ignored, so the plugins can be checked against header-only
+dependencies.
+
+Not run, and why:
+
+  sparse      parses C only; there is no C in this tree.
+  Coccinelle  its C++ support doesn't get through Qt code (Q_OBJECT,
+              signals:, foreach, lambdas): spatch 1.3 parses 3 of the 39
+              sources fully, so a semantic patch would silently skip a
+              third of the code.
+
+Findings are compared, without line numbers, with
+static-analysis.baseline, where every accepted finding carries the
+reason it was accepted. Anything new fails the run; baseline entries
+that went away are listed so they can be dropped. -u regenerates the
+baseline from the current run, keeping the reasons of the entries that
+are still there and marking the new ones "TODO" - review those, fix
+what's real and explain the rest before committing.
+
+Third-party headers (Qt, TelepathyQt, GStreamer, libcommhistory) are
+outside the gate: only diagnostics located in our own files count.
+
+Adding tests
+------------
+
+New unit tests go in tests/ as <name>.pro plus tst_<name>.cpp, and in
+tests/tests.pro, tests/tests.xml and the %files tests section of the
+spec. A test for a fix should fail with the fix reverted; check that
+before relying on it. Tests that use timers or QTest::qWait() need an
+application object: use QTEST_GUILESS_MAIN, not QTEST_APPLESS_MAIN.

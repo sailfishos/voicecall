@@ -1,0 +1,138 @@
+# Triaged findings of tests/hardening/static-analysis, without line numbers.
+# Each finding is followed by the reason it is accepted. Generated with
+# GCC 15, Clang 21, cppcheck 2.19, flawfinder 2.0.19 and shellcheck 0.11 on
+# armv7, aarch64 and x86-64 against Qt 5.15; other tool and Qt versions
+# may report more or less.
+
+clang-tidy: plugins/declarative/src/voicecallaudiorecorder.cpp: returning a constant reference parameter may cause use-after-free when the parameter is constructed from a temporary [bugprone-return-const-ref-from-parameter]
+  why: QDBusArgument operator>> must return the const QDBusArgument & it was given; Qt's D-Bus marshalling signature
+clang-tidy: plugins/declarative/src/voicecallhandler.cpp: an assignment within an 'if' condition is bug-prone [bugprone-assignment-in-if-condition]
+  why: intentional: 'if (!(d->connected = success))' style, assignment is the point and is parenthesised
+clang-tidy: plugins/declarative/src/voicecallmanager.cpp: an assignment within an 'if' condition is bug-prone [bugprone-assignment-in-if-condition]
+  why: intentional: 'if (!(d->connected = success))' style, assignment is the point and is parenthesised
+clang-tidy: plugins/filter/lib/filter.cpp: repeated branch body in conditional chain [bugprone-branch-clone]
+  why: filter rules are applied in priority order (exact match before pattern match); same action from different rules is the point
+clang-tidy: plugins/providers/telepathy/src/callchannelhandler.cpp: Call to virtual method 'CallChannelHandler::startedAt' during construction bypasses virtual dispatch [clang-analyzer-optin.cplusplus.VirtualCall]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+clang-tidy: plugins/providers/telepathy/src/callchannelhandler.cpp: switch has 2 consecutive identical branches [bugprone-branch-clone]
+  why: one case per Tp::CallState kept on purpose, so each telepathy state's mapping is explicit
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: an assignment within an 'if' condition is bug-prone [bugprone-assignment-in-if-condition]
+  why: intentional: 'if (!(d->connected = success))' style, assignment is the point and is parenthesised
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'FsConference *' (aka '_FsConference *') to 'GstElement *' (aka '_GstElement *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GParamSpec *' (aka '_GParamSpec *') to 'GParamSpecDouble *' (aka '_GParamSpecDouble *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GstBin *' (aka '_GstBin *') to 'GstElement *' (aka '_GstElement *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GstElement *' (aka '_GstElement *') to 'GObject *' (aka '_GObject *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GstElement *' (aka '_GstElement *') to 'GstBin *' (aka '_GstBin *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GstElement *' (aka '_GstElement *') to 'GstElement *' through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GstElement *' (aka '_GstElement *') to 'GstObject *' (aka '_GstObject *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GstElement *' (aka '_GstElement *') to 'GstPipeline *' (aka '_GstPipeline *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GstElement *const' (aka '_GstElement *const') to 'GObject *' (aka '_GObject *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: do not cast 'GstPad *' (aka '_GstPad *') to 'GstGhostPad *' (aka '_GstGhostPad *') through 'void *'; use reinterpret_cast instead [bugprone-casting-through-void]
+  why: GLib/GStreamer instance cast macros (GST_ELEMENT, G_OBJECT, ...) cast through gpointer by design; checked casts at runtime with G_TYPE_CHECK_INSTANCE_CAST
+clang-tidy: plugins/providers/telepathy/src/farstreamchannel.cpp: function 'strcmp' is called without explicitly comparing result [bugprone-suspicious-string-compare]
+  why: compares compile-time element names (AUDIO_SINK_ELEMENT); '!strcmp' idiom
+clang-tidy: plugins/providers/telepathy/src/streamchannelhandler.cpp: Call to virtual method 'StreamChannelHandler::startedAt' during construction bypasses virtual dispatch [clang-analyzer-optin.cplusplus.VirtualCall]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+clang-tidy: plugins/providers/telepathy/src/streamchannelhandler.cpp: switching on non-enum value without default case may not cover all cases [bugprone-switch-missing-default-case]
+  why: Tp::LocalHoldState: the pending states need no action, only held/unheld change the status
+clang-tidy: src/cellbroadcaststore.cpp: repeated branch body in conditional chain [bugprone-branch-clone]
+  why: two different conditions (geo check no longer needed / first presentable) lead to the same presentation state; kept separate for readability
+clang-tidy: src/dbus/voicecallhandlerdbusadapter.cpp: The value '3' provided to the cast expression is not in the valid range of values for 'VoiceCallFilterAction' [clang-analyzer-optin.core.EnumCastOutOfRange]
+  why: deliberate: unknown D-Bus integers map to 3, inside the enumeration's value range ([dcl.enum]/8, two bits) but no action, so filter() rejects it
+clang-tidy: src/dbus/voicecallhandlerdbusadapter.cpp: returning a constant reference parameter may cause use-after-free when the parameter is constructed from a temporary [bugprone-return-const-ref-from-parameter]
+  why: QDBusArgument operator>> must return the const QDBusArgument & it was given; Qt's D-Bus marshalling signature
+cppcheck: plugins/providers/ofono/src/ofonovoicecallhandler.h: Virtual function 'status' is called from constructor 'OfonoVoiceCallHandler(const QString&handlerId,const QString&path,OfonoVoiceCallProvider*provider,QOfonoVoiceCallManager*manager)' at line 74. Dynamic binding is not used. [virtualCallInConstructor]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+cppcheck: plugins/providers/ofono/src/ofonovoicecallprovider.cpp: Condition '!d->ofonoManager->isValid()' is always false [knownConditionTrueFalse]
+  why: false positive: QOfonoManager::isValid() is only declared in the header, cppcheck guesses its value
+cppcheck: plugins/providers/ofono/src/ofonovoicecallproviderfactory.cpp: Pointer expression 'this' converted to bool is always true. [knownPointerToBool]
+  why: false positive: 'new QOfonoManager(this)' passes the parent, nothing is converted to bool
+cppcheck: plugins/providers/telepathy/src/callchannelhandler.h: Virtual function 'lineId' is called from constructor 'CallChannelHandler(const QString&id,Tp::CallChannelPtr channel,const QDateTime&userActionTime,TelepathyProvider*provider=0)' at line 103. Dynamic binding is not used. [virtualCallInConstructor]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+cppcheck: plugins/providers/telepathy/src/callchannelhandler.h: Virtual function 'setStatus' is called from constructor 'CallChannelHandler(const QString&id,Tp::CallChannelPtr channel,const QDateTime&userActionTime,TelepathyProvider*provider=0)' at line 107. Dynamic binding is not used. [virtualCallInConstructor]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+cppcheck: plugins/providers/telepathy/src/callchannelhandler.h: Virtual function 'startedAt' is called from constructor 'CallChannelHandler(const QString&id,Tp::CallChannelPtr channel,const QDateTime&userActionTime,TelepathyProvider*provider=0)' at line 109. Dynamic binding is not used. [virtualCallInConstructor]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+cppcheck: plugins/providers/telepathy/src/streamchannelhandler.h: Virtual function 'lineId' is called from constructor 'StreamChannelHandler(const QString&id,Tp::StreamedMediaChannelPtr channel,const QDateTime&userActionTime,TelepathyProvider*provider=0)' at line 105. Dynamic binding is not used. [virtualCallInConstructor]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+cppcheck: plugins/providers/telepathy/src/streamchannelhandler.h: Virtual function 'setStatus' is called from constructor 'StreamChannelHandler(const QString&id,Tp::StreamedMediaChannelPtr channel,const QDateTime&userActionTime,TelepathyProvider*provider=0)' at line 109. Dynamic binding is not used. [virtualCallInConstructor]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+cppcheck: plugins/providers/telepathy/src/streamchannelhandler.h: Virtual function 'startedAt' is called from constructor 'StreamChannelHandler(const QString&id,Tp::StreamedMediaChannelPtr channel,const QDateTime&userActionTime,TelepathyProvider*provider=0)' at line 111. Dynamic binding is not used. [virtualCallInConstructor]
+  why: the handler classes are not subclassed; the call is meant to reach this class's own implementation
+cppcheck: src/audiocallpolicyproxy.cpp: The class 'AudioCallPolicyProxy' defines member function with name 'statusText' also defined in its parent class 'AbstractVoiceCallHandler'. [duplInheritedMember]
+  why: AudioCallPolicyProxy::statusText hides the non-virtual base one; both derive the text from the virtual status(), so either gives the same result
+cppcheck: src/audiocallpolicyproxy.h: The class 'AudioCallPolicyProxy' defines member function with name 'statusText' also defined in its parent class 'AbstractVoiceCallHandler'. [duplInheritedMember]
+  why: AudioCallPolicyProxy::statusText hides the non-virtual base one; both derive the text from the virtual status(), so either gives the same result
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function acknowledge.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function active.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function archive.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function archiveAlert.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function archiveMessages.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function current.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function database.rollback() is not used. [ignoredReturnErrorCode]
+  why: rollback() on a path that already failed; there is nothing left to do if it fails too, the transaction ends with the connection
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function duplicate.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function existing.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function insertAlert.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function insertMessage.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function promote.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function query.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function selectProperties.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function update.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function updateAlert.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/cellbroadcaststore.cpp: Error code from the return value of function updateMessage.prepare() is not used. [ignoredReturnErrorCode]
+  why: a failed prepare() makes the following exec() fail, and every exec() result is checked
+cppcheck: src/voicecallmanager.cpp: The one definition rule is violated, different classes/structs have the same name 'VoiceCallManagerPrivate' [ctuOneDefinitionRuleViolation]
+  why: VoiceCallManagerPrivate of the daemon and of the QML plugin live in different binaries and are never linked together
+fanalyzer: lib/src/abstractvoicecallhandler.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+fanalyzer: plugins/declarative/src/voicecallaudiorecorder.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+fanalyzer: plugins/filter/lib/filter.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+fanalyzer: plugins/filter/lib/filterlist.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+fanalyzer: plugins/filter/tests/tst_filter.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+fanalyzer: plugins/providers/ofono/src/ofonovoicecallhandler.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+fanalyzer: src/dbus/voicecallhandlerdbusadapter.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+fanalyzer: src/dbus/voicecallmanagerdbusadapter.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+fanalyzer: src/dbus/voicecallmanagerdbusservice.cpp: use of uninitialized value '<unknown>' [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  why: false positive of GCC 15's experimental C++ analyzer on Qt implicitly shared temporaries (QString from a literal, QList/QHash copies); the reported paths end in Qt's reference counting
+flawfinder: plugins/declarative/src/voicecallaudiorecorder.cpp: [2] (misc) open
+  why: QFile/QSqlDatabase::open(), not open(2): the files are the catalog (root-owned), the database and recordings in the user's own private directory, with sanitised names
+flawfinder: src/cellbroadcastcatalog.cpp: [2] (misc) open
+  why: QFile/QSqlDatabase::open(), not open(2): the files are the catalog (root-owned), the database and recordings in the user's own private directory, with sanitised names
+flawfinder: src/cellbroadcaststore.cpp: [2] (misc) open
+  why: QFile/QSqlDatabase::open(), not open(2): the files are the catalog (root-owned), the database and recordings in the user's own private directory, with sanitised names
+flawfinder: src/cellbroadcaststore.cpp: [4] (shell) system
+  why: QLocale::system(), not system(3)
+flawfinder: src/cellbroadcaststore.h: [2] (misc) open
+  why: QFile/QSqlDatabase::open(), not open(2): the files are the catalog (root-owned), the database and recordings in the user's own private directory, with sanitised names

@@ -158,16 +158,10 @@ void PlaybackManagerPlugin::setMuteSpeaker(bool on)
 {
     TRACE
     Q_D(PlaybackManagerPlugin);
-    QDBusMessage message = QDBusMessage::createMethodCall(ORG_MAEMO_PLAYBACK_DEST,
-                                                          ORG_MAEMO_PLAYBACK_PATH,
-                                                          ORG_MAEMO_PLAYBACK_IFACE,
-                                                          ORG_MAEMO_PLAYBACK_REQUEST_MUTE);
-    message << !on;
-
-    if (!QDBusConnection::sessionBus().send(message)) {
-        WARNING_T("Failed to send RequestMute method call.");
-        return;
-    }
+    // The playback manager has no speaker mute. RequestMute is the
+    // microphone mute (see setMuteMicrophone()), so sending it here, as this
+    // used to, un-muted the microphone whenever the speaker was muted.
+    DEBUG_T("Speaker mute %s is not supported by the playback manager.", on ? "on" : "off");
 
     d->manager->onMuteSpeakerChanged(on);
 }

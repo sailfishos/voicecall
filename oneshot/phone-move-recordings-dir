@@ -1,14 +1,51 @@
 #!/bin/sh
 
-USERS=$(getent group users | cut -d ":" -f 4 | tr "," "\n")
+# Moves ~/CallRecordings of each member of "users" into the privileged Phone
+# directory. This runs as root (add-oneshot --now from %post) over paths the
+# user owns and can change at any time, so:
+#  - refuse when any of the paths involved is a symbolic link,
+#  - never let chown follow a link (-h), and only touch what was moved,
+#  - quote every path, and look the home directory up instead of eval.
+
+is_link_free() {
+    # $1: home, $2: path below it
+    p=$1
+    [ -L "$p" ] && return 1
+    old_ifs=$IFS
+    IFS=/
+    for component in $2; do
+        [ -n "$component" ] || continue
+        p="$p/$component"
+        if [ -L "$p" ]; then
+            IFS=$old_ifs
+            return 1
+        fi
+    done
+    IFS=$old_ifs
+    return 0
+}
+
+USERS=$(getent group users | cut -d ":" -f 4 | tr "," " ")
 for user in $USERS; do
-    USERHOME=$(eval echo ~${user})
+    USERHOME=$(getent passwd "$user" | cut -d ":" -f 6)
+    [ -n "$USERHOME" ] && [ -d "$USERHOME" ] || continue
 
     legacy_dir="${USERHOME}/CallRecordings"
     new_dir="${USERHOME}/.local/share/system/privileged/Phone"
-    if [ -d $legacy_dir -a ! -d "${new_dir}/CallRecordings" ]; then
-        mkdir -p $new_dir
-        mv $legacy_dir $new_dir
-        chown -R ${user}:privileged $new_dir
+
+    [ -d "$legacy_dir" ] || continue
+    if [ -e "${new_dir}/CallRecordings" ] || [ -L "${new_dir}/CallRecordings" ]; then
+        continue
     fi
+
+    if ! is_link_free "$USERHOME" "CallRecordings" \
+        || ! is_link_free "$USERHOME" ".local/share/system/privileged/Phone"; then
+        echo "phone-move-recordings-dir: symbolic link in the paths of $user, not moving" >&2
+        continue
+    fi
+
+    mkdir -p "$new_dir" || continue
+    mv -- "$legacy_dir" "$new_dir/" || continue
+    chown -h "${user}:privileged" "$new_dir"
+    chown -R -h "${user}:privileged" "${new_dir}/CallRecordings"
 done

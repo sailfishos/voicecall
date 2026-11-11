@@ -22,6 +22,9 @@
       <case manual="false" name="ofono-provider">
         <step>/opt/tests/voicecall/ofono/tst_ofonoprovider</step>
       </case>
+      <case manual="false" name="telepathy-dtmf">
+        <step>/opt/tests/voicecall/telepathy/tst_dtmf</step>
+      </case>
     </set>
   </suite>
 </testdefinition>

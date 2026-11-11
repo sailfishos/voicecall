@@ -167,7 +167,12 @@ bool TelepathyProvider::createConference(Tp::ChannelPtr channel1, Tp::ChannelPtr
     }
 
     if (d->account->protocolName() == "sip") {
-        WARNING_T("Conference calls not supported for SIP protocol");
+        // Fail like the other unsupported cases: there is no request to
+        // wait for (connecting to a null request only produced warnings).
+        d->errorString = "Conference calls not supported for SIP protocol";
+        WARNING_T("%s", qPrintable(d->errorString));
+        emit this->error(d->errorString);
+        return false;
     } else if (d->account->protocolName() == "tel") {
         QList<Tp::ChannelPtr> channels;
         channels << channel1 << channel2;

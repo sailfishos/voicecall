@@ -22,6 +22,7 @@
 #include "streamchannelhandler.h"
 
 #include "telepathyprovider.h"
+#include "dtmf.h"
 
 #include <TelepathyQt/Channel>
 
@@ -62,7 +63,7 @@ class StreamChannelHandlerPrivate
 public:
     StreamChannelHandlerPrivate(StreamChannelHandler *q, const QString &id, Tp::StreamedMediaChannelPtr c, const QDateTime &s, TelepathyProvider *p)
         : q_ptr(q), pendingHangup(NULL), handlerId(id), provider(p), startedAt(s), status(AbstractVoiceCallHandler::STATUS_NULL),
-          channel(c), duration(0), durationTimerId(-1), isEmergency(false),
+          channel(c), duration(0), connectedAt(0), durationTimerId(-1), isEmergency(false),
           isForwarded(false), isIncoming(false), isRemoteHeld(false)
     { /* ... */ }
 
@@ -312,26 +313,21 @@ void StreamChannelHandler::sendDtmf(const QString &tones)
     TRACE
     Q_D(StreamChannelHandler);
 
-    bool ok = true;
-    unsigned int toneId = tones.toInt(&ok);
-
-    if (!ok) {
-        if (tones == "*") toneId = 10;
-        else if (tones == "#") toneId = 11;
-        else if (tones == "A") toneId = 12;
-        else if (tones == "B") toneId = 13;
-        else if (tones == "C") toneId = 14;
-        else if (tones == "D") toneId = 15;
-        else return;
-    }
-
     Tp::Client::ChannelInterfaceDTMFInterface *dtmfIface
         = d->channel->optionalInterface<Tp::Client::ChannelInterfaceDTMFInterface>();
-    if (dtmfIface) {
-        dtmfIface->StartTone(1, toneId, 0);
-        //dtmfIface->MultipleTones(tones);
-    } else {
+    if (!dtmfIface) {
         WARNING_T("Cannot send DTMF, no interface");
+        return;
+    }
+
+    // A single key, as the keypad sends, is one event; "123".toInt() used
+    // to be sent as event 123, and lower case keys were dropped.
+    if (tones.length() == 1) {
+        const int event = Dtmf::event(tones.at(0));
+        if (event >= 0)
+            dtmfIface->StartTone(1, uchar(event));
+    } else if (!tones.isEmpty()) {
+        dtmfIface->MultipleTones(tones);
     }
 }
 
@@ -508,6 +504,10 @@ void StreamChannelHandler::onStreamedMediaChannelInvalidated(Tp::DBusProxy *, co
     foreach (AbstractVoiceCallHandler *callHandler, d->childCalls) {
         static_cast<BaseChannelHandler*>(callHandler)->setParentHandlerId(QString());
     }
+    // Released: with their parent id cleared, the children no longer remove
+    // themselves from this list when they are deleted, which may be before
+    // this handler is (the destructor walks the list).
+    d->childCalls.clear();
 
     setStatus(STATUS_NULL);
     emit this->invalidated(errorName, errorMessage);

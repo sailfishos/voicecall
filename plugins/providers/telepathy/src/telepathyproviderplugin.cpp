@@ -93,7 +93,9 @@ TelepathyProviderPlugin::~TelepathyProviderPlugin()
 {
     TRACE
     Q_D(TelepathyProviderPlugin);
-    d->tpClientRegistrar->unregisterClient(d->tpClientHandler);
+    // Not there if initialize() never ran
+    if (d->tpClientRegistrar)
+        d->tpClientRegistrar->unregisterClient(d->tpClientHandler);
     delete this->d_ptr;
 }
 
@@ -226,6 +228,9 @@ void TelepathyProviderPlugin::handleChannels(const Tp::MethodInvocationContextPt
 
     if (!d->providers.contains(account.data()->uniqueIdentifier())) {
         DEBUG_T("Ignoring channels as account '%s' is not registered.", qPrintable(account.data()->uniqueIdentifier()));
+        // Answer, or the channel dispatcher waits for the D-Bus timeout
+        context->setFinishedWithError(TP_QT_ERROR_NOT_AVAILABLE,
+                                      QLatin1String("Account is not registered with voicecall"));
         return;
     }
 

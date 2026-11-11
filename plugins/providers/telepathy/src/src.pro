@@ -16,7 +16,8 @@ HEADERS += \
     farstreamchannel.h \
     callchannelhandler.h \
     streamchannelhandler.h \
-    basechannelhandler.h
+    basechannelhandler.h \
+    dtmf.h
 
 SOURCES += \
     telepathyproviderplugin.cpp \

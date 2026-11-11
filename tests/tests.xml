@@ -25,6 +25,9 @@
       <case manual="false" name="telepathy-dtmf">
         <step>/opt/tests/voicecall/telepathy/tst_dtmf</step>
       </case>
+      <case manual="false" name="declarative-recordingfile">
+        <step>/opt/tests/voicecall/declarative/tst_recordingfile</step>
+      </case>
     </set>
   </suite>
 </testdefinition>

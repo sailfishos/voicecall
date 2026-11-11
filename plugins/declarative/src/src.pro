@@ -14,6 +14,7 @@ enable-ngf {
 }
 
 HEADERS += \
+    recordingfile.h \
     voicecallaudiorecorder.h \
     voicecallhandler.h \
     voicecallmanager.h \

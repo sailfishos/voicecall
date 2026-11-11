@@ -109,6 +109,9 @@ private Q_SLOTS:
     void onGetPropertiesFinished(QDBusPendingCallWatcher *watcher);
 
 private:
+    QDBusInterface *createInterface();
+    void ensureChildCalls();
+
     class VoiceCallHandlerPrivate *d_ptr;
 
     Q_DISABLE_COPY(VoiceCallHandler)

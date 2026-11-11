@@ -170,3 +170,4 @@ fi
 /opt/tests/voicecall/manager
 /opt/tests/voicecall/ofono
 /opt/tests/voicecall/telepathy
+/opt/tests/voicecall/declarative

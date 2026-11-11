@@ -68,11 +68,7 @@ VoiceCallHandler::VoiceCallHandler(const QString &handlerId, QObject *parent)
     TRACE
     Q_D(VoiceCallHandler);
     DEBUG_T("Creating D-Bus interface to: %s", qPrintable(handlerId));
-    d->interface = new QDBusInterface("org.nemomobile.voicecall",
-                                      "/calls/" + handlerId,
-                                      "org.nemomobile.voicecall.VoiceCall",
-                                      QDBusConnection::sessionBus(),
-                                      this);
+    d->interface = createInterface();
 
     QTimer::singleShot(0, this, SLOT(initialize()));
 }
@@ -91,11 +87,28 @@ QDBusInterface* VoiceCallHandler::interface() const
     return d->interface;
 }
 
+QDBusInterface *VoiceCallHandler::createInterface()
+{
+    Q_D(VoiceCallHandler);
+    return new QDBusInterface("org.nemomobile.voicecall",
+                              "/calls/" + d->handlerId,
+                              "org.nemomobile.voicecall.VoiceCall",
+                              QDBusConnection::sessionBus(),
+                              this);
+}
+
 void VoiceCallHandler::initialize()
 {
     TRACE
     Q_D(VoiceCallHandler);
     bool success = false;
+
+    // A QDBusInterface whose introspection failed never becomes valid, so
+    // retrying with the same one could not succeed.
+    if (!d->interface->isValid()) {
+        delete d->interface;
+        d->interface = createInterface();
+    }
 
     if (d->interface->isValid()) {
         success = true;
@@ -155,16 +168,13 @@ void VoiceCallHandler::onGetPropertiesFinished(QDBusPendingCallWatcher *watcher)
         if (d->forwarded)
             emit forwardedChanged();
         if (d->remoteHeld)
-            emit isRemoteHeld();
+            emit remoteHeldChanged();
         if (!d->parentHandlerId.isEmpty()) {
             d->parentCall = VoiceCallManager::getCallHandler(d->parentHandlerId);
             emit parentCallChanged();
         }
-        if (d->multiparty) {
-            d->childCalls = new VoiceCallModel(this);
-            emit childCallsListChanged();
-            emit childCallsChanged();
-        }
+        if (d->multiparty)
+            ensureChildCalls();
     }
 }
 
@@ -214,6 +224,20 @@ void VoiceCallHandler::onMultipartyChanged(bool multiparty)
     Q_D(VoiceCallHandler);
     d->multiparty = multiparty;
     emit multipartyChanged();
+    // A call that becomes a conference after it was set up needs the model
+    // of its members as well.
+    if (multiparty)
+        ensureChildCalls();
+}
+
+void VoiceCallHandler::ensureChildCalls()
+{
+    Q_D(VoiceCallHandler);
+    if (d->childCalls)
+        return;
+    d->childCalls = new VoiceCallModel(this);
+    emit childCallsListChanged();
+    emit childCallsChanged();
 }
 
 void VoiceCallHandler::onForwardedChanged(bool forwarded)
@@ -471,10 +495,11 @@ void VoiceCallHandler::onPendingCallFinished(QDBusPendingCallWatcher *watcher)
         WARNING_T("Received error reply for member: %s (%s)",
                   qPrintable(reply.reply().member()), qPrintable(reply.error().message()));
         emit this->error(reply.error().message());
-        watcher->deleteLater();
     } else {
         DEBUG_T("Received successful reply for member: %s", qPrintable(reply.reply().member()));
     }
+    // Successful calls' watchers were kept until the call ended
+    watcher->deleteLater();
 }
 
 void VoiceCallHandler::onPendingVoidCallFinished(QDBusPendingCallWatcher *watcher)
@@ -486,8 +511,8 @@ void VoiceCallHandler::onPendingVoidCallFinished(QDBusPendingCallWatcher *watche
         WARNING_T("Received error reply for member: %s (%s)",
                   qPrintable(reply.reply().member()), qPrintable(reply.error().message()));
         emit this->error(reply.error().message());
-        watcher->deleteLater();
     } else {
         DEBUG_T("Received successful reply for member: %s", qPrintable(reply.reply().member()));
     }
+    watcher->deleteLater();
 }

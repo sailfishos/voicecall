@@ -10,6 +10,7 @@
 #include <QTimer>
 #include <QDBusInterface>
 #include <QDBusPendingReply>
+#include <QPointer>
 #include <QSharedPointer>
 #include <QGlobalStatic>
 
@@ -36,7 +37,9 @@ public:
     QDBusInterface *interface;
     VoiceCallModel *voicecalls;
     VoiceCallProviderModel *providers;
-    VoiceCallHandler* activeVoiceCall;
+    // The model owns the handlers and may drop one before the daemon's
+    // activeVoiceCallChanged arrives.
+    QPointer<VoiceCallHandler> activeVoiceCall;
 
 #ifdef WITH_NGF
     Ngf::Client *ngf;
@@ -52,14 +55,17 @@ VoiceCallManager::VoiceCallManager(QObject *parent)
 {
     TRACE
     Q_D(VoiceCallManager);
-    d->interface = new QDBusInterface("org.nemomobile.voicecall",
-                                      "/",
-                                      "org.nemomobile.voicecall.VoiceCallManager",
-                                      QDBusConnection::sessionBus(),
-                                      this);
+    d->interface = createInterface();
 
     d->voicecalls = new VoiceCallModel(this);
     d->providers = new VoiceCallProviderModel(this);
+
+#ifdef WITH_NGF
+    // Once: initialize() runs again every two seconds until the manager
+    // service is reachable.
+    d->ngf = new Ngf::Client(this);
+    d->ngf->connect();
+#endif
 
     this->initialize();
 }
@@ -77,10 +83,12 @@ void VoiceCallManager::initialize()
     Q_D(VoiceCallManager);
     bool success = false;
 
-#ifdef WITH_NGF
-    d->ngf = new Ngf::Client(this);
-    d->ngf->connect();
-#endif
+    // A QDBusInterface whose introspection failed (voicecall-manager not
+    // running yet) never becomes valid; retry with a new one.
+    if (!d->interface->isValid()) {
+        delete d->interface;
+        d->interface = createInterface();
+    }
 
     if (d->interface->isValid()) {
         success = true;
@@ -93,13 +101,23 @@ void VoiceCallManager::initialize()
         success &= (bool)QObject::connect(d->interface, SIGNAL(microphoneMutedChanged()), SIGNAL(microphoneMutedChanged()));
         success &= (bool)QObject::connect(d->interface, SIGNAL(speakerMutedChanged()), SIGNAL(speakerMutedChanged()));
 
-        onActiveVoiceCallChanged();
+        // The calls first: the active call is looked up in the model.
         onVoiceCallsChanged();
+        onActiveVoiceCallChanged();
     }
 
     if (!(d->connected = success)) {
         QTimer::singleShot(2000, this, SLOT(initialize()));
     }
+}
+
+QDBusInterface *VoiceCallManager::createInterface()
+{
+    return new QDBusInterface("org.nemomobile.voicecall",
+                              "/",
+                              "org.nemomobile.voicecall.VoiceCallManager",
+                              QDBusConnection::sessionBus(),
+                              this);
 }
 
 QDBusInterface* VoiceCallManager::interface() const

@@ -5,8 +5,9 @@ controller.file = controller.pro
 manager.file = manager.pro
 ofono.file = ofono.pro
 dtmf.file = dtmf.pro
+recordingfile.file = recordingfile.pro
 
-SUBDIRS += store controller manager ofono dtmf
+SUBDIRS += store controller manager ofono dtmf recordingfile
 
 tests_xml.path = /opt/tests/voicecall/cellbroadcast
 tests_xml.files = tests.xml

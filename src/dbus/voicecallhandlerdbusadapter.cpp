@@ -224,8 +224,16 @@ bool VoiceCallHandlerDBusAdapter::filter(AbstractVoiceCallHandler::VoiceCallFilt
 {
     TRACE
     Q_D(VoiceCallHandlerDBusAdapter);
-    d->handler->filter(action);
-    return true;
+    // Any session bus client can call this with any integer.
+    switch (action) {
+    case AbstractVoiceCallHandler::ACTION_CONTINUE:
+    case AbstractVoiceCallHandler::ACTION_IGNORE:
+    case AbstractVoiceCallHandler::ACTION_REJECT:
+        d->handler->filter(action);
+        return true;
+    }
+    WARNING_T("Ignoring unknown filter action %d", int(action));
+    return false;
 }
 
 /*!
@@ -344,6 +352,12 @@ const QDBusArgument &operator>>(const QDBusArgument &argument, AbstractVoiceCall
     argument.beginStructure();
     argument >> value;
     argument.endStructure();
+    // Converting an integer outside the enumeration's range is undefined.
+    // Map unknown values to 3, which the enumeration can hold (its values
+    // fit in two bits) but no action has; filter() rejects it.
+    if (value < AbstractVoiceCallHandler::ACTION_CONTINUE
+            || value > AbstractVoiceCallHandler::ACTION_REJECT)
+        value = 3;
     action = static_cast<AbstractVoiceCallHandler::VoiceCallFilterAction>(value);
     return argument;
 }

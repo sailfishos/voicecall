@@ -115,11 +115,13 @@ bool BasicVoiceCallConfigurator::installPlugin(AbstractVoiceCallManagerPlugin *p
         return false;
     }
 
-    d->plugins.insert(plugin->pluginId(), plugin);
-
     plugin->initialize();
+    // The caller deletes a plugin that fails to configure, so only keep the
+    // ones that succeed.
     if (!plugin->configure(d->manager))
         return false;
+
+    d->plugins.insert(plugin->pluginId(), plugin);
     plugin->start();
     return true;
 }

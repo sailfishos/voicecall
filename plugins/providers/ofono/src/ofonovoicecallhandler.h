@@ -38,6 +38,9 @@ public:
     ~OfonoVoiceCallHandler();
 
     QString path() const;
+    bool isValid() const;
+
+    static QDateTime parseStartTime(const QString &startTime);
 
     AbstractVoiceCallProvider* provider() const override;
 

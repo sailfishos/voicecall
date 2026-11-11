@@ -61,6 +61,7 @@ protected Q_SLOTS:
 
 private:
     void initialize();
+    void addValidCall(class OfonoVoiceCallHandler *handler);
     class OfonoVoiceCallProviderPrivate *d_ptr;
 
     Q_DECLARE_PRIVATE(OfonoVoiceCallProvider)

@@ -26,6 +26,7 @@
 #include <qofonovoicecallmanager.h>
 
 #include <QElapsedTimer>
+#include <QPointer>
 #include <QTimerEvent>
 
 class OfonoVoiceCallHandlerPrivate
@@ -35,7 +36,7 @@ class OfonoVoiceCallHandlerPrivate
 public:
     OfonoVoiceCallHandlerPrivate(OfonoVoiceCallHandler *q, const QString &pHandlerId, OfonoVoiceCallProvider *pProvider, QOfonoVoiceCallManager *manager)
         : q_ptr(q), handlerId(pHandlerId), provider(pProvider), ofonoVoiceCallManager(manager), ofonoVoiceCall(NULL)
-        , duration(0), durationTimerId(-1), isIncoming(false)
+        , duration(0), durationTimerId(-1), isIncoming(false), directionKnown(false)
     { /* ... */ }
 
     OfonoVoiceCallHandler *q_ptr;
@@ -44,13 +45,16 @@ public:
 
     OfonoVoiceCallProvider *provider;
 
-    QOfonoVoiceCallManager *ofonoVoiceCallManager;
+    // Owned by the provider, which deletes it when the modem loses its
+    // VoiceCallManager interface.
+    QPointer<QOfonoVoiceCallManager> ofonoVoiceCallManager;
     QOfonoVoiceCall *ofonoVoiceCall;
 
     quint64 duration;
     int durationTimerId;
     QElapsedTimer elapsedTimer;
     bool isIncoming;
+    bool directionKnown;
     bool filterHasRun = false;
     AbstractVoiceCallHandler::VoiceCallFilterAction filterAction = AbstractVoiceCallHandler::ACTION_CONTINUE;
 };
@@ -68,6 +72,9 @@ OfonoVoiceCallHandler::OfonoVoiceCallHandler(const QString &handlerId, const QSt
     QObject::connect(d->ofonoVoiceCall, SIGNAL(multipartyChanged(bool)), SIGNAL(multipartyChanged(bool)));
 
     QObject::connect(d->ofonoVoiceCall, SIGNAL(stateChanged(QString)), SLOT(onStatusChanged()));
+    QObject::connect(d->ofonoVoiceCall, &QOfonoVoiceCall::startTimeChanged, this, [this]() {
+        emit startedAtChanged(startedAt());
+    });
 
     QObject::connect(d->ofonoVoiceCall, SIGNAL(validChanged(bool)), SLOT(onValidChanged(bool)));
     if (d->ofonoVoiceCall->isValid()) {
@@ -86,12 +93,24 @@ void OfonoVoiceCallHandler::onValidChanged(bool isValid)
 {
     Q_D(OfonoVoiceCallHandler);
 
-    if (isValid) {
-        // Properties are now ready
-        d->isIncoming = d->ofonoVoiceCall->state() == QLatin1String("incoming");
+    if (isValid && !d->directionKnown) {
+        // Properties are now ready. A call waiting behind another one is
+        // mobile terminated as well. The direction can't change, so don't
+        // recompute it when ofono comes back mid-call (it would say
+        // "active" by then).
+        const QString state = d->ofonoVoiceCall->state();
+        d->isIncoming = state == QLatin1String("incoming") || state == QLatin1String("waiting");
+        d->directionKnown = true;
     }
 
     emit validChanged(isValid);
+}
+
+bool OfonoVoiceCallHandler::isValid() const
+{
+    TRACE
+    Q_D(const OfonoVoiceCallHandler);
+    return d->ofonoVoiceCall->isValid();
 }
 
 QString OfonoVoiceCallHandler::path() const
@@ -134,7 +153,7 @@ QDateTime OfonoVoiceCallHandler::startedAt() const
     TRACE
     Q_D(const OfonoVoiceCallHandler);
     DEBUG_T("CALL START TIME: %s", qPrintable(d->ofonoVoiceCall->startTime()));
-    return QDateTime::fromString(d->ofonoVoiceCall->startTime(), "");
+    return parseStartTime(d->ofonoVoiceCall->startTime());
 }
 
 int OfonoVoiceCallHandler::duration() const
@@ -220,10 +239,12 @@ void OfonoVoiceCallHandler::answer()
 {
     TRACE
     Q_D(OfonoVoiceCallHandler);
-    if (status() == STATUS_WAITING)
-        d->ofonoVoiceCallManager->holdAndAnswer();
-    else
+    if (status() == STATUS_WAITING) {
+        if (QOfonoVoiceCallManager *manager = d->ofonoVoiceCallManager)
+            manager->holdAndAnswer();
+    } else {
         d->ofonoVoiceCall->answer();
+    }
 }
 
 void OfonoVoiceCallHandler::hangup()
@@ -235,14 +256,14 @@ void OfonoVoiceCallHandler::hangup()
 
 void OfonoVoiceCallHandler::hold(bool on)
 {
-    Q_UNUSED(on)
     TRACE
     Q_D(OfonoVoiceCallHandler);
     bool isHeld = status() == STATUS_HELD;
-    if (isHeld == on)
+    QOfonoVoiceCallManager *manager = d->ofonoVoiceCallManager;
+    if (isHeld == on || !manager)
         return;
 
-    d->ofonoVoiceCallManager->swapCalls();
+    manager->swapCalls();
 }
 
 void OfonoVoiceCallHandler::deflect(const QString &target)
@@ -256,7 +277,8 @@ void OfonoVoiceCallHandler::sendDtmf(const QString &tones)
 {
     TRACE
     Q_D(OfonoVoiceCallHandler);
-    d->ofonoVoiceCallManager->sendTones(tones);
+    if (QOfonoVoiceCallManager *manager = d->ofonoVoiceCallManager)
+        manager->sendTones(tones);
 }
 
 void OfonoVoiceCallHandler::filter(VoiceCallFilterAction action)
@@ -290,7 +312,8 @@ void OfonoVoiceCallHandler::merge(const QString &callHandle)
     TRACE
     Q_D(OfonoVoiceCallHandler);
 
-    if (!d->ofonoVoiceCallManager->isValid()) {
+    QOfonoVoiceCallManager *manager = d->ofonoVoiceCallManager;
+    if (!manager || !manager->isValid()) {
         d->provider->reportCallControlError(QStringLiteral("CreateMultiparty: no connection to the modem"));
         return;
     }
@@ -317,7 +340,7 @@ void OfonoVoiceCallHandler::merge(const QString &callHandle)
         return;
     }
 
-    d->ofonoVoiceCallManager->createMultiparty();
+    manager->createMultiparty();
 }
 
 /*
@@ -330,7 +353,8 @@ void OfonoVoiceCallHandler::split()
     TRACE
     Q_D(OfonoVoiceCallHandler);
 
-    if (!d->ofonoVoiceCallManager->isValid()) {
+    QOfonoVoiceCallManager *manager = d->ofonoVoiceCallManager;
+    if (!manager || !manager->isValid()) {
         d->provider->reportCallControlError(QStringLiteral("PrivateChat: no connection to the modem"));
         return;
     }
@@ -340,7 +364,7 @@ void OfonoVoiceCallHandler::split()
         return;
     }
 
-    d->ofonoVoiceCallManager->privateChat(path());
+    manager->privateChat(path());
 }
 
 void OfonoVoiceCallHandler::timerEvent(QTimerEvent *event)
@@ -351,7 +375,8 @@ void OfonoVoiceCallHandler::timerEvent(QTimerEvent *event)
     // Whilst call is active, increase duration by a second each second.
     if (isOngoing() && event->timerId() == d->durationTimerId) {
         d->duration += d->elapsedTimer.restart();
-        emit this->durationChanged(d->duration);
+        // In seconds, like duration(); d->duration is in milliseconds.
+        emit this->durationChanged(duration());
     }
 }
 
@@ -371,4 +396,16 @@ void OfonoVoiceCallHandler::onStatusChanged()
     }
 
     emit statusChanged(status());
+}
+
+// ofono's StartTime is "%Y-%m-%dT%H:%M:%S%z", e.g. "2024-05-01T12:00:00+0300".
+QDateTime OfonoVoiceCallHandler::parseStartTime(const QString &startTime)
+{
+    QString iso = startTime.trimmed();
+    // Qt's ISO parser wants the offset as +HH:MM
+    const int length = iso.length();
+    if (length > 5 && (iso.at(length - 5) == QLatin1Char('+') || iso.at(length - 5) == QLatin1Char('-'))) {
+        iso.insert(length - 2, QLatin1Char(':'));
+    }
+    return QDateTime::fromString(iso, Qt::ISODate);
 }

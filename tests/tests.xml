@@ -19,6 +19,9 @@
       <case manual="false" name="manager">
         <step>/opt/tests/voicecall/manager/tst_voicecallmanager</step>
       </case>
+      <case manual="false" name="ofono-provider">
+        <step>/opt/tests/voicecall/ofono/tst_ofonoprovider</step>
+      </case>
     </set>
   </suite>
 </testdefinition>

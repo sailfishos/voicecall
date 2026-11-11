@@ -56,10 +56,20 @@ private Q_SLOTS:
     void duplicateCallAddedIgnored();
     void interfaceLossDeletesPendingCalls();
     void callValidAtCreationAnnounced();
+    void mergeJoinsActiveAndHeld();
+    void mergeNeedsActiveAndHeld();
+    void mergeFailureReported();
+    void splitNeedsConference();
+    void callControlAfterInterfaceLoss();
+    void mergeAcrossModemsRefused();
+    void modemLossLeavesOtherModem();
 
 private:
-    OfonoVoiceCallProvider *createProvider();
+    OfonoVoiceCallProvider *createProvider(const char *modemPath = ModemPath);
     OfonoVoiceCallHandler *addValidCall(const QString &path, const QString &state);
+    static OfonoVoiceCallHandler *addValidCall(OfonoVoiceCallProvider *provider,
+                                               QOfonoVoiceCallManager *manager,
+                                               const QString &path, const QString &state);
 
     VoiceCallManager *m_manager = 0;
     OfonoVoiceCallProvider *m_provider = 0;
@@ -81,21 +91,28 @@ void tst_OfonoProvider::cleanup()
     m_manager = 0;
 }
 
-OfonoVoiceCallProvider *tst_OfonoProvider::createProvider()
+OfonoVoiceCallProvider *tst_OfonoProvider::createProvider(const char *modemPath)
 {
-    OfonoVoiceCallProvider *provider = new OfonoVoiceCallProvider(QLatin1String(ModemPath), m_manager);
+    OfonoVoiceCallProvider *provider = new OfonoVoiceCallProvider(QLatin1String(modemPath), m_manager);
     m_manager->appendProvider(provider);
     return provider;
 }
 
 OfonoVoiceCallHandler *tst_OfonoProvider::addValidCall(const QString &path, const QString &state)
 {
-    emit QOfonoVoiceCallManager::last()->callAdded(path);
+    return addValidCall(m_provider, QOfonoVoiceCallManager::last(), path, state);
+}
+
+OfonoVoiceCallHandler *tst_OfonoProvider::addValidCall(OfonoVoiceCallProvider *provider,
+                                                       QOfonoVoiceCallManager *manager,
+                                                       const QString &path, const QString &state)
+{
+    emit manager->callAdded(path);
     QOfonoVoiceCall *call = QOfonoVoiceCall::instances().value(path);
     if (!call)
         return 0;
     call->becomeValid(state);
-    foreach (AbstractVoiceCallHandler *handler, m_provider->voiceCalls()) {
+    foreach (AbstractVoiceCallHandler *handler, provider->voiceCalls()) {
         OfonoVoiceCallHandler *ofonoHandler = qobject_cast<OfonoVoiceCallHandler *>(handler);
         if (ofonoHandler && ofonoHandler->path() == path)
             return ofonoHandler;
@@ -291,6 +308,155 @@ void tst_OfonoProvider::callValidAtCreationAnnounced()
     QCOMPARE(added.count(), 1);
     QCOMPARE(m_provider->voiceCalls().count(), 1);
     QVERIFY(m_provider->voiceCalls().first()->isIncoming());
+}
+
+// CreateMultiparty joins the modem's active and held calls, so merge()
+// asks for it only when the two calls named are those.
+void tst_OfonoProvider::mergeJoinsActiveAndHeld()
+{
+    OfonoVoiceCallHandler *active = addValidCall(QStringLiteral("/ril_0/voicecall01"),
+                                                 QStringLiteral("active"));
+    OfonoVoiceCallHandler *held = addValidCall(QStringLiteral("/ril_0/voicecall02"),
+                                               QStringLiteral("held"));
+    QVERIFY(active && held);
+    QSignalSpy errors(m_provider, SIGNAL(error(QString)));
+
+    active->merge(held->handlerId());
+    QCOMPARE(QOfonoVoiceCallManager::last()->requests, QStringList() << QStringLiteral("createMultiparty"));
+    held->merge(active->handlerId());
+    QCOMPARE(QOfonoVoiceCallManager::last()->requests.count(QStringLiteral("createMultiparty")), 2);
+    QCOMPARE(errors.count(), 0);
+}
+
+void tst_OfonoProvider::mergeNeedsActiveAndHeld()
+{
+    OfonoVoiceCallHandler *first = addValidCall(QStringLiteral("/ril_0/voicecall01"),
+                                                QStringLiteral("active"));
+    OfonoVoiceCallHandler *second = addValidCall(QStringLiteral("/ril_0/voicecall02"),
+                                                 QStringLiteral("dialing"));
+    QVERIFY(first && second);
+    QSignalSpy errors(m_provider, SIGNAL(error(QString)));
+
+    first->merge(second->handlerId());
+    first->merge(first->handlerId());
+    first->merge(QStringLiteral("no-such-call"));
+    QCOMPARE(errors.count(), 3);
+    QVERIFY(errors.at(0).at(0).toString().startsWith(QLatin1String("CreateMultiparty:")));
+    QVERIFY(QOfonoVoiceCallManager::last()->requests.isEmpty());
+}
+
+void tst_OfonoProvider::mergeFailureReported()
+{
+    QSignalSpy errors(m_provider, SIGNAL(error(QString)));
+    QOfonoVoiceCallManager *manager = QOfonoVoiceCallManager::last();
+    manager->error = QStringLiteral("CreateMultiparty: org.ofono.Error.Failed");
+    emit manager->createMultipartyComplete(true, QStringList());
+    QCOMPARE(errors.count(), 0);
+    emit manager->createMultipartyComplete(false, QStringList());
+    emit manager->privateChatComplete(false, QStringList());
+    QCOMPARE(errors.count(), 2);
+    QCOMPARE(errors.at(0).at(0).toString(), manager->error);
+}
+
+void tst_OfonoProvider::splitNeedsConference()
+{
+    const QString path = QStringLiteral("/ril_0/voicecall01");
+    OfonoVoiceCallHandler *handler = addValidCall(path, QStringLiteral("active"));
+    QVERIFY(handler);
+    QSignalSpy errors(m_provider, SIGNAL(error(QString)));
+
+    handler->split();
+    QCOMPARE(errors.count(), 1);
+    QVERIFY(QOfonoVoiceCallManager::last()->requests.isEmpty());
+
+    QOfonoVoiceCall::instances().value(path)->multipartyCall = true;
+    handler->split();
+    QCOMPARE(errors.count(), 1);
+    QCOMPARE(QOfonoVoiceCallManager::last()->requests, QStringList() << QStringLiteral("privateChat:") + path);
+}
+
+// The handlers outlive the call manager they were made with until their
+// deferred delete; call control in between must not reach the dead one.
+void tst_OfonoProvider::callControlAfterInterfaceLoss()
+{
+    QPointer<OfonoVoiceCallHandler> active = addValidCall(QStringLiteral("/ril_0/voicecall01"),
+                                                          QStringLiteral("active"));
+    QPointer<OfonoVoiceCallHandler> held = addValidCall(QStringLiteral("/ril_0/voicecall02"),
+                                                        QStringLiteral("held"));
+    QVERIFY(active && held);
+    const QString heldId = held->handlerId();
+
+    QOfonoModem::last()->changeInterfaces(QStringList());
+    QVERIFY(!QOfonoVoiceCallManager::last());
+    QSignalSpy errors(m_provider, SIGNAL(error(QString)));
+    QVERIFY(active);
+    active->merge(heldId);
+    active->split();
+    active->hold(true);
+    active->sendDtmf(QStringLiteral("1"));
+    QCOMPARE(errors.count(), 2);
+    QCoreApplication::sendPostedEvents(Q_NULLPTR, QEvent::DeferredDelete);
+    QVERIFY(!active && !held);
+}
+
+// Dual SIM: each modem has its own provider and call manager, and oFono
+// can only join calls on one modem.
+void tst_OfonoProvider::mergeAcrossModemsRefused()
+{
+    QOfonoVoiceCallManager *manager0 = QOfonoVoiceCallManager::last();
+    OfonoVoiceCallProvider *provider1 = createProvider("/ril_1");
+    QOfonoVoiceCallManager *manager1 = QOfonoVoiceCallManager::last();
+    QVERIFY(manager0 && manager1 && manager0 != manager1);
+
+    OfonoVoiceCallHandler *active = addValidCall(m_provider, manager0, QStringLiteral("/ril_0/voicecall01"),
+                                                 QStringLiteral("active"));
+    OfonoVoiceCallHandler *held = addValidCall(provider1, manager1, QStringLiteral("/ril_1/voicecall01"),
+                                               QStringLiteral("held"));
+    QVERIFY(active && held);
+    QVERIFY(active->handlerId() != held->handlerId());
+    QSignalSpy errors0(m_provider, SIGNAL(error(QString)));
+    QSignalSpy errors1(provider1, SIGNAL(error(QString)));
+
+    active->merge(held->handlerId());
+    held->merge(active->handlerId());
+    QCOMPARE(errors0.count(), 1);
+    QCOMPARE(errors1.count(), 1);
+    QVERIFY(manager0->requests.isEmpty());
+    QVERIFY(manager1->requests.isEmpty());
+    delete provider1;
+}
+
+// Dual SIM: one modem losing its voice call interface (SIM removed, modem
+// reset) takes only that modem's calls with it.
+void tst_OfonoProvider::modemLossLeavesOtherModem()
+{
+    QOfonoVoiceCallManager *manager0 = QOfonoVoiceCallManager::last();
+    QOfonoModem *modem0 = QOfonoModem::last();
+    OfonoVoiceCallProvider *provider1 = createProvider("/ril_1");
+    QOfonoVoiceCallManager *manager1 = QOfonoVoiceCallManager::last();
+    QOfonoModem *modem1 = QOfonoModem::last();
+    QVERIFY(modem0 != modem1);
+
+    QPointer<OfonoVoiceCallHandler> call0 = addValidCall(m_provider, manager0, QStringLiteral("/ril_0/voicecall01"),
+                                                         QStringLiteral("held"));
+    QPointer<OfonoVoiceCallHandler> call1 = addValidCall(provider1, manager1, QStringLiteral("/ril_1/voicecall01"),
+                                                         QStringLiteral("active"));
+    QVERIFY(call0 && call1);
+    QCOMPARE(m_manager->voiceCalls().count(), 2);
+    QCOMPARE(m_manager->activeVoiceCall(), static_cast<AbstractVoiceCallHandler *>(call1.data()));
+
+    QSignalSpy removed(m_manager, SIGNAL(voiceCallRemoved(QString)));
+    modem1->changeInterfaces(QStringList());
+    QCoreApplication::sendPostedEvents(Q_NULLPTR, QEvent::DeferredDelete);
+    QCOMPARE(removed.count(), 1);
+    QVERIFY(!call1);
+    QVERIFY(call0);
+    QCOMPARE(m_manager->voiceCalls().count(), 1);
+    QCOMPARE(m_manager->activeVoiceCall(), static_cast<AbstractVoiceCallHandler *>(call0.data()));
+
+    call0->hold(false);
+    QCOMPARE(manager0->requests, QStringList() << QStringLiteral("swapCalls"));
+    delete provider1;
 }
 
 QTEST_GUILESS_MAIN(tst_OfonoProvider)

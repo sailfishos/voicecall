@@ -118,7 +118,8 @@ public:
     }
 
     void setModemPath(const QString &path) { m_path = path; }
-    bool isValid() const { return true; }
+    // Reads a member, so a call through a dangling or null pointer fails
+    bool isValid() const { return valid; }
     QStringList getCalls() const { return calls; }
     QString errorMessage() const { return error; }
 
@@ -132,6 +133,7 @@ public:
     QStringList calls;
     QString error;
     QStringList requests;
+    bool valid = true;
 
 Q_SIGNALS:
     void callAdded(const QString &call);

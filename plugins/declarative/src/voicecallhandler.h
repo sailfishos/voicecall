@@ -5,9 +5,9 @@
 #include <QDateTime>
 #include <QtGlobal>
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 // moc needs to know where the forward-declared type lives to generate the
-// property metacalls; before 5.15 it found it via the old include scan.
+// property metacalls. The macro is new in Qt 6; Qt 5 moc did without it.
 Q_MOC_INCLUDE("voicecallmodel.h")
 #endif
 

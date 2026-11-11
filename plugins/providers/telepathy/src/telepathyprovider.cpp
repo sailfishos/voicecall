@@ -287,12 +287,13 @@ void TelepathyProvider::createHandler(Tp::ChannelPtr ch, const QDateTime &userAc
     QObject::connect(handler, SIGNAL(error(QString)), SIGNAL(error(QString)));
     QObject::connect(handler, SIGNAL(invalidated(QString,QString)), SLOT(onHandlerInvalidated(QString,QString)));
 
-    connect(handler, &BaseChannelHandler::ready,
+    // Context object: the lambda must not outlive the provider.
+    connect(handler, &BaseChannelHandler::ready, this,
             [this, handler] () {
-                Q_D(TelepathyProvider);
-                d->invalidVoiceCalls.remove(handler->handlerId());
+                TelepathyProviderPrivate *priv = d_func();
+                priv->invalidVoiceCalls.remove(handler->handlerId());
 
-                d->voiceCalls.insert(handler->handlerId(), handler);
+                priv->voiceCalls.insert(handler->handlerId(), handler);
                 emit this->voiceCallAdded(handler);
                 emit this->voiceCallsChanged();
             });

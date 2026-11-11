@@ -36,20 +36,20 @@ public:
     ~StreamChannelHandler();
 
     /*** AbstractVoiceCallHandler Implementation ***/
-    AbstractVoiceCallProvider* provider() const;
-    QString handlerId() const;
-    QString lineId() const;
-    QDateTime startedAt() const;
-    int duration() const;
-    bool isIncoming() const;
-    bool isMultiparty() const;
-    bool isEmergency() const;
-    bool isForwarded() const;
-    bool isRemoteHeld() const;
+    AbstractVoiceCallProvider* provider() const override;
+    QString handlerId() const override;
+    QString lineId() const override;
+    QDateTime startedAt() const override;
+    int duration() const override;
+    bool isIncoming() const override;
+    bool isMultiparty() const override;
+    bool isEmergency() const override;
+    bool isForwarded() const override;
+    bool isRemoteHeld() const override;
     QString parentHandlerId() const override;
     QList<AbstractVoiceCallHandler*> childCalls() const override;
 
-    VoiceCallStatus status() const;
+    VoiceCallStatus status() const override;
 
     /*** BaseChannelHandler Implementation ***/
     Tp::ChannelPtr channel() const override;
@@ -60,13 +60,13 @@ public:
 
 public Q_SLOTS:
     /*** AbstractVoiceCallHandler Implementation ***/
-    void answer();
-    void hangup();
-    void hold(bool on);
-    void deflect(const QString &target);
-    void sendDtmf(const QString &tones);
-    void merge(const QString &callHandle);
-    void split();
+    void answer() override;
+    void hangup() override;
+    void hold(bool on) override;
+    void deflect(const QString &target) override;
+    void sendDtmf(const QString &tones) override;
+    void merge(const QString &callHandle) override;
+    void split() override;
 
 protected Q_SLOTS:
     void onStatusChanged();
@@ -102,9 +102,9 @@ protected Q_SLOTS:
     void onStreamedMediaChannelConferenceMergeChannelFinished(Tp::PendingOperation *op);
 
 protected:
-    void setStatus(VoiceCallStatus newStatus);
+    void setStatus(VoiceCallStatus newStatus) override;
 
-    void timerEvent(QTimerEvent *event);
+    void timerEvent(QTimerEvent *event) override;
     void addChildCall(BaseChannelHandler *handler) override;
     void removeChildCall(BaseChannelHandler *handler) override;
 

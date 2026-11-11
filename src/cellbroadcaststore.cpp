@@ -797,9 +797,9 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
             GeoFenceAttentionRequiredProperty
         };
         for (const char *keyName : preservedKeys) {
-            const QString key = QString::fromLatin1(keyName);
-            if (currentProperties.contains(key)) {
-                jsonProperties.insert(key, currentProperties.value(key));
+            const QString preservedKey = QString::fromLatin1(keyName);
+            if (currentProperties.contains(preservedKey)) {
+                jsonProperties.insert(preservedKey, currentProperties.value(preservedKey));
             }
         }
     }

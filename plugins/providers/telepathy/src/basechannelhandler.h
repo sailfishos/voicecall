@@ -52,7 +52,7 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     /*** AbstractVoiceCallHandler Implementation ***/
-    void filter(VoiceCallFilterAction action);
+    void filter(VoiceCallFilterAction action) override;
 
 protected:
     virtual void setStatus(VoiceCallStatus newStatus) = 0;

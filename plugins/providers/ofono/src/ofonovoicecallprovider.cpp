@@ -46,10 +46,10 @@ public:
     QHash<QString,OfonoVoiceCallHandler*> invalidVoiceCalls;
 
     QString errorString;
-    void setError(const QString &errorString)
+    void setError(const QString &message)
     {
-        this->errorString = errorString;
-        debugMessage(errorString);
+        errorString = message;
+        debugMessage(message);
     }
 
     void debugMessage(const QString &message)

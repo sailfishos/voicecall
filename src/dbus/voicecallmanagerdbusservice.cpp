@@ -123,7 +123,6 @@ void VoiceCallManagerDBusService::finalize()
 void VoiceCallManagerDBusService::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
 {
     TRACE
-    Q_D(VoiceCallManagerDBusService);
 
     new VoiceCallHandlerDBusAdapter(handler);
 
@@ -135,7 +134,6 @@ void VoiceCallManagerDBusService::onVoiceCallAdded(AbstractVoiceCallHandler *han
 void VoiceCallManagerDBusService::onVoiceCallRemoved(const QString &handlerId)
 {
     TRACE
-    Q_D(VoiceCallManagerDBusService);
 
     QDBusConnection::sessionBus().unregisterObject("/calls/" + handlerId);
 }

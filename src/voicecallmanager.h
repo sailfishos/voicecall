@@ -31,54 +31,54 @@ public:
     explicit VoiceCallManager(QObject *parent = 0);
     ~VoiceCallManager();
 
-    QList<AbstractVoiceCallProvider*> providers() const;
+    QList<AbstractVoiceCallProvider*> providers() const override;
 
-    QString generateHandlerId();
+    QString generateHandlerId() override;
 
-    int voiceCallCount() const;
-    QList<AbstractVoiceCallHandler*> voiceCalls() const;
+    int voiceCallCount() const override;
+    QList<AbstractVoiceCallHandler*> voiceCalls() const override;
 
-    AbstractVoiceCallHandler* activeVoiceCall() const;
+    AbstractVoiceCallHandler* activeVoiceCall() const override;
 
-    QString audioMode() const;
-    bool isAudioRouted() const;
-    bool isMicrophoneMuted() const;
-    bool isSpeakerMuted() const;
+    QString audioMode() const override;
+    bool isAudioRouted() const override;
+    bool isMicrophoneMuted() const override;
+    bool isSpeakerMuted() const override;
 
-    QString errorString() const;
+    QString errorString() const override;
 
-    int totalOutgoingCallDuration() const;
-    int totalIncomingCallDuration() const;
-    void resetCallDurationCounters();
+    int totalOutgoingCallDuration() const override;
+    int totalIncomingCallDuration() const override;
+    void resetCallDurationCounters() override;
 
 public Q_SLOTS:
-    void setError(const QString &errorString);
+    void setError(const QString &errorString) override;
 
-    void appendProvider(AbstractVoiceCallProvider *provider);
-    void removeProvider(AbstractVoiceCallProvider *provider);
+    void appendProvider(AbstractVoiceCallProvider *provider) override;
+    void removeProvider(AbstractVoiceCallProvider *provider) override;
 
-    bool dial(const QString &providerId, const QString &msisdn);
+    bool dial(const QString &providerId, const QString &msisdn) override;
 
     void setCallFiltering(bool on = true) override;
 
-    void playRingtone(const QString &ringtonePath);
-    void silenceRingtone();
+    void playRingtone(const QString &ringtonePath) override;
+    void silenceRingtone() override;
 
-    void setAudioMode(const QString &mode);
-    void setAudioRouted(bool on);
-    void setMuteMicrophone(bool on);
-    void setMuteSpeaker(bool on);
+    void setAudioMode(const QString &mode) override;
+    void setAudioRouted(bool on) override;
+    void setMuteMicrophone(bool on) override;
+    void setMuteSpeaker(bool on) override;
 
-    void onAudioModeChanged(const QString &mode);
-    void onAudioRoutedChanged(bool on);
-    void onMuteMicrophoneChanged(bool on);
-    void onMuteSpeakerChanged(bool on);
+    void onAudioModeChanged(const QString &mode) override;
+    void onAudioRoutedChanged(bool on) override;
+    void onMuteMicrophoneChanged(bool on) override;
+    void onMuteSpeakerChanged(bool on) override;
 
-    void startEventTone(ToneType type, int volume);
-    void stopEventTone();
+    void startEventTone(ToneType type, int volume) override;
+    void stopEventTone() override;
 
-    void startDtmfTone(const QString &tone, int volume);
-    void stopDtmfTone();
+    void startDtmfTone(const QString &tone, int volume) override;
+    void stopDtmfTone() override;
 
 protected Q_SLOTS:
     void onVoiceCallAdded(AbstractVoiceCallHandler *handler);

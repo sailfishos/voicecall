@@ -290,12 +290,12 @@ void StreamChannelHandler::getHoldState()
     QDBusPendingReply<uint, uint> reply = holdIface->GetHoldState();
     QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(reply, this);
     QObject::connect(watcher, &QDBusPendingCallWatcher::finished,
-                     this, [this](QDBusPendingCallWatcher *watcher) {
-        QDBusPendingReply<uint, uint> reply = *watcher;
-        if (!reply.isError()) {
-            onStreamedMediaChannelHoldStateChanged(reply.argumentAt(0).toUInt(), reply.argumentAt(1).toUInt());
+                     this, [this](QDBusPendingCallWatcher *finished) {
+        QDBusPendingReply<uint, uint> holdState = *finished;
+        if (!holdState.isError()) {
+            onStreamedMediaChannelHoldStateChanged(holdState.argumentAt(0).toUInt(), holdState.argumentAt(1).toUInt());
         }
-        watcher->deleteLater();
+        finished->deleteLater();
     });
 }
 

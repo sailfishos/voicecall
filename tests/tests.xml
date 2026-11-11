@@ -12,4 +12,13 @@
       </case>
     </set>
   </suite>
+  <suite name="voicecall-manager-tests" domain="mw">
+    <description>Voicecall manager automatic tests</description>
+    <set name="unit-tests" feature="Voice Call Manager">
+      <description>Call bookkeeping of the voice call manager</description>
+      <case manual="false" name="manager">
+        <step>/opt/tests/voicecall/manager/tst_voicecallmanager</step>
+      </case>
+    </set>
+  </suite>
 </testdefinition>

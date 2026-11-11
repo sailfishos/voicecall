@@ -28,6 +28,7 @@
 
 #include <QtDBus>
 #include <QtPlugin>
+#include <QPointer>
 
 #define MCE_SERVICE "com.nokia.mce"
 #define MCE_PATH    "/com/nokia/mce/request"
@@ -47,7 +48,8 @@ public:
 
     VoiceCallManagerInterface *manager;
 
-    QHash<QString, AbstractVoiceCallHandler*> calls;
+    // QPointer: providers delete their handlers themselves.
+    QHash<QString, QPointer<AbstractVoiceCallHandler> > calls;
 };
 
 McePlugin::McePlugin(QObject *parent)
@@ -138,8 +140,6 @@ void McePlugin::onVoiceCallsChanged()
                 d->calls.insert(call->handlerId(), call);
             }
 
-            isEmergency |= call->isEmergency();
-
             switch(call->status())
             {
             case AbstractVoiceCallHandler::STATUS_NULL:
@@ -151,6 +151,7 @@ void McePlugin::onVoiceCallsChanged()
             case AbstractVoiceCallHandler::STATUS_INCOMING:
                 DEBUG_T("RINGING");
                 state = "ringing";
+                isEmergency |= call->isEmergency();
                 continue;
 
             case AbstractVoiceCallHandler::STATUS_DIALING:
@@ -161,6 +162,9 @@ void McePlugin::onVoiceCallsChanged()
                 DEBUG_T("ACTIVE");
                 if (state != "ringing")
                     state = "active";
+                // Only calls that are still up: an emergency call that has
+                // just ended must not keep MCE in emergency mode.
+                isEmergency |= call->isEmergency();
                 continue;
             }
         }
@@ -170,11 +174,13 @@ void McePlugin::onVoiceCallsChanged()
             if (handlerIds.contains(callId))
                 continue;
 
+            // May already be gone: Qt drops its connections then.
             AbstractVoiceCallHandler *call = d->calls.value(callId);
 
             DEBUG_T("Deregistering call handler from internal dictionary.");
 
-            QObject::disconnect(call, SIGNAL(statusChanged(VoiceCallStatus)), this, SLOT(onVoiceCallsChanged()));
+            if (call)
+                QObject::disconnect(call, SIGNAL(statusChanged(VoiceCallStatus)), this, SLOT(onVoiceCallsChanged()));
 
             d->calls.remove(callId);
         }

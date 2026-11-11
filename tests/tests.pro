@@ -2,8 +2,9 @@ TEMPLATE = subdirs
 
 store.file = store.pro
 controller.file = controller.pro
+manager.file = manager.pro
 
-SUBDIRS += store controller
+SUBDIRS += store controller manager
 
 tests_xml.path = /opt/tests/voicecall/cellbroadcast
 tests_xml.files = tests.xml

@@ -167,3 +167,4 @@ fi
 %files tests
 /opt/tests/voicecall/filter
 /opt/tests/voicecall/cellbroadcast
+/opt/tests/voicecall/manager

@@ -124,7 +124,11 @@ void VoiceCallManagerDBusService::onVoiceCallAdded(AbstractVoiceCallHandler *han
 {
     TRACE
 
-    new VoiceCallHandlerDBusAdapter(handler);
+    // A provider that goes away and comes back (a telepathy account going
+    // offline and online again) announces its surviving calls again. Adapt
+    // each handler once, or every D-Bus signal of the call is sent twice.
+    if (!handler->findChild<VoiceCallHandlerDBusAdapter *>(QString(), Qt::FindDirectChildrenOnly))
+        new VoiceCallHandlerDBusAdapter(handler);
 
     if (!QDBusConnection::sessionBus().registerObject("/calls/" + handler->handlerId(), handler)) {
         WARNING_T("Failed to register DBus object: %s", qPrintable(QDBusConnection::sessionBus().lastError().message()));
@@ -143,10 +147,11 @@ void VoiceCallManagerDBusService::onActiveVoiceCallChanged()
     TRACE
     Q_D(VoiceCallManagerDBusService);
 
+    // registerObject() refuses a path that is still registered, and the
+    // active call can change from one call to another.
+    QDBusConnection::sessionBus().unregisterObject("/calls/active");
     if (d->manager->activeVoiceCall()) {
         DEBUG_T("VoiceCallManagerDBusService:: registering active voice call interface.");
         QDBusConnection::sessionBus().registerObject("/calls/active", d->manager->activeVoiceCall());
-    } else {
-        QDBusConnection::sessionBus().unregisterObject("/calls/active");
     }
 }

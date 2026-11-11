@@ -28,6 +28,7 @@
 #include <CommHistory/EventModel>
 #include <CommHistory/Event>
 
+#include <QSet>
 #include <QTimer>
 
 class CommHistoryPlugin::Private
@@ -40,6 +41,14 @@ public:
                 [this] () {
                     for (const QString &id : m_calls.keys()) {
                         CommHistory::Event &event = m_calls[id];
+                        // An inbound call is only added once its outcome is
+                        // known (see newVoiceCall()). Adding one that is still
+                        // ringing would make it valid, and voiceCallEnded()
+                        // could no longer turn it into a missed call.
+                        if (event.direction() == CommHistory::Event::Inbound
+                                && !event.isValid()) {
+                            continue;
+                        }
                         storeCall(&event);
                     }
                 });
@@ -47,6 +56,8 @@ public:
 
     VoiceCallManagerInterface *m_manager = nullptr;
     QMap<QString, CommHistory::Event> m_calls;
+    // Calls that have been connected at least once
+    QSet<QString> m_connected;
     QTimer m_timer;
     CommHistory::EventModel m_eventModel;
 
@@ -76,25 +87,43 @@ public:
         m_calls.insert(handler.handlerId(), event);
     }
 
+    // The event of a call that is still being tracked. Handlers can emit
+    // after voiceCallRemoved (a telepathy channel being invalidated); that
+    // must not create a new, empty event.
+    CommHistory::Event *trackedEvent(const AbstractVoiceCallHandler &handler)
+    {
+        QMap<QString, CommHistory::Event>::iterator it = m_calls.find(handler.handlerId());
+        return it == m_calls.end() ? nullptr : &it.value();
+    }
+
     void onVoiceCallStatusChanged(const AbstractVoiceCallHandler &handler)
     {
-        CommHistory::Event &event = m_calls[handler.handlerId()];
+        CommHistory::Event *event = trackedEvent(handler);
+        if (!event) {
+            return;
+        }
 
         switch (handler.status()) {
         case AbstractVoiceCallHandler::STATUS_ACTIVE:
-            event.setStartTime(QDateTime::currentDateTime());
-            event.setEndTime(event.startTime());
-            storeCall(&event);
+            // The call starts when it is first connected. Coming back from
+            // hold, or out of a conference, is not a new start: duration()
+            // counts from the first connection.
+            if (!m_connected.contains(handler.handlerId())) {
+                m_connected.insert(handler.handlerId());
+                event->setStartTime(QDateTime::currentDateTime());
+                event->setEndTime(event->startTime());
+            }
+            storeCall(event);
             break;
         case AbstractVoiceCallHandler::STATUS_DISCONNECTED:
-            event.setEndTime(event.startTime().addSecs(handler.duration()));
+            event->setEndTime(event->startTime().addSecs(handler.duration()));
             // No need to save the changes now, the voiceCallEnded will do it.
             break;
         case AbstractVoiceCallHandler::STATUS_IGNORED:
-            event.setIncomingStatus(CommHistory::Event::Ignored);
+            event->setIncomingStatus(CommHistory::Event::Ignored);
             break;
         case AbstractVoiceCallHandler::STATUS_REJECTED:
-            event.setIncomingStatus(CommHistory::Event::Rejected);
+            event->setIncomingStatus(CommHistory::Event::Rejected);
             break;
         default:
             break;
@@ -103,15 +132,23 @@ public:
 
     void onVoiceCallEmergencyChanged(const AbstractVoiceCallHandler &handler)
     {
-        CommHistory::Event &event = m_calls[handler.handlerId()];
-        event.setIsEmergencyCall(handler.isEmergency());
-        storeCall(&event);
+        CommHistory::Event *event = trackedEvent(handler);
+        if (!event) {
+            return;
+        }
+        event->setIsEmergencyCall(handler.isEmergency());
+        // Not for an inbound call that is still ringing, see the timer.
+        if (event->direction() == CommHistory::Event::Outbound || event->isValid()) {
+            storeCall(event);
+        }
     }
 
     void onVoiceCallDurationChanged(const AbstractVoiceCallHandler &handler)
     {
-        CommHistory::Event &event = m_calls[handler.handlerId()];
-        event.setEndTime(event.startTime().addSecs(handler.duration()));
+        CommHistory::Event *event = trackedEvent(handler);
+        if (event) {
+            event->setEndTime(event->startTime().addSecs(handler.duration()));
+        }
     }
 
     void storeCall(CommHistory::Event *event)
@@ -126,7 +163,11 @@ public:
 
     void voiceCallEnded(const QString &id)
     {
+        if (!m_calls.contains(id)) {
+            return;
+        }
         CommHistory::Event event = m_calls.take(id);
+        m_connected.remove(id);
 
         if (event.direction() == CommHistory::Event::Inbound
             && event.incomingStatus() == CommHistory::Event::Received
@@ -211,7 +252,7 @@ void CommHistoryPlugin::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
                 d->onVoiceCallStatusChanged(*handler);
             });
     connect(handler, &AbstractVoiceCallHandler::durationChanged,
-            this, [this, handler] (bool) {
+            this, [this, handler] (int) {
                 d->onVoiceCallDurationChanged(*handler);
             });
 

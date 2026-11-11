@@ -810,7 +810,11 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
                 && (eligible || (state != Active && state != Pending
                                  && state != AwaitingLocation)));
     const bool firstPresentable = state == Suppressed && currentGeoState.isEmpty();
+    // Another language's copy of a warning the user already dismissed is the
+    // same warning: only a newer update may bring it back.
+    const bool acknowledgedVariant = state == Acknowledged && !firstMessage && !newer;
     const bool candidateNeedsGeoCheck = candidateSelected && eligible
+            && !acknowledgedVariant
             && needsGeoCheck(jsonProperties)
             && (firstMessage || newer || state == AwaitingLocation
                 || (preferredLanguage && (firstPresentable || geometryChanged)));
@@ -1348,6 +1352,13 @@ QVariantList CellBroadcastStore::geoFenceAlerts(
 
     for (quint64 alertId : alertIds) {
         const QVariantMap alert = readAlert(alertId);
+        // Suppressed covers both "outside the area", which a trigger may
+        // re-check, and "not to be shown at all" (display none, channel off,
+        // another language's copy), which no location makes presentable.
+        if (alert.value(QStringLiteral("State")).toInt() == Suppressed
+                && !presentationEligible(alert)) {
+            continue;
+        }
         if (!valueString(alert, "Geometries").isEmpty()) {
             result.append(alert);
         }

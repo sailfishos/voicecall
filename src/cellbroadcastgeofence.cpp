@@ -18,6 +18,7 @@
 #include <QtGlobal>
 
 #include <algorithm>
+#include <limits>
 
 CellBroadcastGeoFence::CellBroadcastGeoFence(QObject *parent,
                                              QGeoPositionInfoSource *source)
@@ -52,13 +53,17 @@ void CellBroadcastGeoFence::check(quint64 alertId, const QString &geometries,
     if (!alertId || geometries.isEmpty()) {
         return;
     }
+    m_deferred.remove(alertId);
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (deadline <= now) {
-        Q_EMIT resolved(alertId, true, QStringLiteral("timeout"));
-        return;
-    }
-    if (!m_source) {
-        Q_EMIT resolved(alertId, true, QStringLiteral("location-unavailable"));
+    if (deadline <= now || !m_source) {
+        // Emitting here re-entered the daemon in the middle of storing an
+        // alert, which then announced the active alert it had read before.
+        // An earlier request for this alert is answered by this one.
+        if (m_requests.remove(alertId)) {
+            updateSource();
+        }
+        resolveLater(alertId, true, deadline <= now ? QStringLiteral("timeout")
+                                                    : QStringLiteral("location-unavailable"));
         return;
     }
 
@@ -76,6 +81,7 @@ void CellBroadcastGeoFence::check(quint64 alertId, const QString &geometries,
 
 void CellBroadcastGeoFence::cancel(quint64 alertId)
 {
+    m_deferred.remove(alertId);
     if (m_requests.remove(alertId)) {
         updateSource();
     }
@@ -156,6 +162,20 @@ void CellBroadcastGeoFence::finish(quint64 alertId, bool display, const QString 
     }
 }
 
+void CellBroadcastGeoFence::resolveLater(quint64 alertId, bool display,
+                                         const QString &state)
+{
+    const quint64 serial = ++m_deferredSerial;
+    m_deferred.insert(alertId, serial);
+    QTimer::singleShot(0, this, [this, alertId, display, state, serial]() {
+        if (m_deferred.value(alertId) != serial) {
+            return;
+        }
+        m_deferred.remove(alertId);
+        Q_EMIT resolved(alertId, display, state);
+    });
+}
+
 void CellBroadcastGeoFence::updateSource()
 {
     if (!m_source) {
@@ -173,8 +193,12 @@ void CellBroadcastGeoFence::updateSource()
             earliestDeadline = request.deadline;
         }
     }
-    const int remaining = qMax(1, int(earliestDeadline
-                                     - QDateTime::currentMSecsSinceEpoch()));
+    // A deadline more than 24.8 days away does not fit the timer's int and
+    // used to wrap to 1 ms, waking up continuously until it passed. Waking
+    // up early is harmless: checkDeadlines() only finishes what is due.
+    const qint64 wait = earliestDeadline - QDateTime::currentMSecsSinceEpoch();
+    const int remaining = int(qBound(qint64(1), wait,
+                                     qint64(std::numeric_limits<int>::max())));
     m_deadlineTimer.start(remaining);
     m_source->startUpdates();
 }

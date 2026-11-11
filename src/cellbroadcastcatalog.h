@@ -85,6 +85,10 @@ struct CellBroadcastAttentionProfile
 
     bool isValid() const;
     QString hapticSequence() const;
+
+    // Whether soundFile is a regular file inside directory once ".." and
+    // symbolic links are resolved.
+    bool soundFileWithin(const QString &directory) const;
 };
 
 struct CellBroadcastCatalogEntry

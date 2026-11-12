@@ -16,6 +16,9 @@ checker and runs every tst_* binary with:
   asan       AddressSanitizer + UndefinedBehaviorSanitizer, any report
              is fatal, leaks included
   tsan       ThreadSanitizer, with ASLR off as TSan needs
+             (not tst_dbusservice: QtDBus does its work in a thread
+             of the uninstrumented system Qt, and TSan reports the
+             data that Qt hands over to it)
   valgrind   memcheck; fails on any error or definite leak
 
 Pass -c once per C++ compiler to build the sanitizer runs with (GCC and

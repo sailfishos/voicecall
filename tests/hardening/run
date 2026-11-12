@@ -87,6 +87,10 @@ check() {
     } > "$log" 2>&1 || rc=1
     if [ $rc = 0 ]; then
         for t in $(find "$build" -type f -name 'tst_*' -perm -u+x | sort); do
+            case " ${SKIP:-} " in *" $(basename "$t") "*)
+                echo "--- $(basename "$t") not run: $SKIP_WHY" >> "$log"
+                continue;;
+            esac
             count=$((count + 1))
             echo "--- $(basename "$t")" >> "$log"
             # shellcheck disable=SC2086
@@ -117,6 +121,12 @@ for c in "${CHECKS[@]}"; do
         done;;
     tsan)
         for cc in "${COMPILERS[@]}"; do
+            # QtDBus works in a thread of its own inside the system Qt,
+            # which has no TSan instrumentation and hands data over under
+            # futex-based QMutex that TSan cannot see, so it reports Qt's
+            # own message copying. None of voicecall's code runs on that
+            # thread; the D-Bus test still runs under ASan and valgrind.
+            SKIP="tst_dbusservice" SKIP_WHY="QtDBus' own thread is not instrumented" \
             check "tsan-$(cc_name "$cc")" "$cc" "$TSAN_FLAGS" \
                 "setarch $(uname -m) -R $RUNNER" TSAN_OPTIONS=halt_on_error=1
         done;;

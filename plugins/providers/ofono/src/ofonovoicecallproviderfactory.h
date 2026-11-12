@@ -23,6 +23,8 @@
 
 #include <abstractvoicecallmanagerplugin.h>
 
+#include <QStringList>
+
 class OfonoVoiceCallProviderFactory : public AbstractVoiceCallManagerPlugin
 {
     Q_OBJECT
@@ -45,6 +47,7 @@ public Q_SLOTS:
 protected Q_SLOTS:
     void onModemAdded(const QString &modemPath);
     void onModemRemoved(const QString &modemPath);
+    void onModemsChanged(const QStringList &modemPaths);
 
 private:
     class OfonoVoiceCallProviderFactoryPrivate *d_ptr;

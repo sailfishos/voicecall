@@ -87,12 +87,16 @@ bool OfonoVoiceCallProviderFactory::configure(VoiceCallManagerInterface *manager
 
     QObject::connect(d->ofonoModemManager, SIGNAL(modemAdded(QString)), SLOT(onModemAdded(QString)));
     QObject::connect(d->ofonoModemManager, SIGNAL(modemRemoved(QString)), SLOT(onModemRemoved(QString)));
+    // QOfonoManager learns the modems that already exist from an asynchronous
+    // GetModems, at start and each time oFono reappears, and reports those
+    // with modemsChanged() only, never modemAdded(). Started while oFono was
+    // already running (a restart after a crash), voicecall would otherwise
+    // have no providers at all until a modem came or went.
+    QObject::connect(d->ofonoModemManager, SIGNAL(modemsChanged(QStringList)), SLOT(onModemsChanged(QStringList)));
 
     d->isConfigured = true;
 
-    foreach (QString modemPath, d->ofonoModemManager->modems()) {
-        this->onModemAdded(modemPath);
-    }
+    onModemsChanged(d->ofonoModemManager->modems());
 
     return true;
 }
@@ -136,6 +140,22 @@ void OfonoVoiceCallProviderFactory::onModemAdded(const QString &modemPath)
 
     if (d->isConfigured) {
         d->manager->appendProvider(provider);
+    }
+}
+
+void OfonoVoiceCallProviderFactory::onModemsChanged(const QStringList &modemPaths)
+{
+    TRACE
+    Q_D(OfonoVoiceCallProviderFactory);
+
+    const QStringList known = d->providers.keys();
+    for (const QString &modemPath : known) {
+        if (!modemPaths.contains(modemPath))
+            onModemRemoved(modemPath);
+    }
+    for (const QString &modemPath : modemPaths) {
+        if (!d->providers.contains(modemPath))
+            onModemAdded(modemPath);
     }
 }
 

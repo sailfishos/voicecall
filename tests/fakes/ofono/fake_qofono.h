@@ -185,4 +185,68 @@ private:
     QStringList m_interfaces = initialInterfaces();
 };
 
+class QOfonoManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit QOfonoManager(QObject *parent = 0) : QObject(parent), m_modems(initialModems()) { last() = this; }
+    ~QOfonoManager() { if (last() == this) last() = 0; }
+
+    static QOfonoManager *&last()
+    {
+        static QOfonoManager *manager = 0;
+        return manager;
+    }
+    // Modems the next manager already knows when it is created
+    static QStringList &initialModems()
+    {
+        static QStringList modems;
+        return modems;
+    }
+
+    QStringList modems() const { return m_modems; }
+
+    // Test controls, emitting what libqofono emits in each case:
+    // the GetModems reply (at start and when oFono reappears) only
+    // changes the list; ModemAdded and ModemRemoved also name the modem;
+    // oFono going away removes each modem.
+    void getModemsReply(const QStringList &modems)
+    {
+        m_modems = modems;
+        m_modems.sort();
+        emit modemsChanged(m_modems);
+    }
+    void addModem(const QString &path)
+    {
+        m_modems.append(path);
+        m_modems.sort();
+        emit modemAdded(path);
+        emit modemsChanged(m_modems);
+    }
+    void removeModem(const QString &path)
+    {
+        if (m_modems.removeOne(path)) {
+            emit modemRemoved(path);
+            emit modemsChanged(m_modems);
+        }
+    }
+    void ofonoGone()
+    {
+        const QStringList modems = m_modems;
+        for (const QString &path : modems)
+            emit modemRemoved(path);
+        m_modems.clear();
+        emit modemsChanged(m_modems);
+    }
+
+Q_SIGNALS:
+    void modemAdded(const QString &path);
+    void modemRemoved(const QString &path);
+    void modemsChanged(const QStringList &modems);
+
+private:
+    QStringList m_modems;
+};
+
 #endif // FAKE_QOFONO_H

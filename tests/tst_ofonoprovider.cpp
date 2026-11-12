@@ -23,6 +23,7 @@
 
 #include "ofonovoicecallhandler.h"
 #include "ofonovoicecallprovider.h"
+#include "ofonovoicecallproviderfactory.h"
 #include "voicecallmanager.h"
 
 #include "fake_qofono.h"
@@ -63,6 +64,9 @@ private Q_SLOTS:
     void callControlAfterInterfaceLoss();
     void mergeAcrossModemsRefused();
     void modemLossLeavesOtherModem();
+    void factoryTakesModemsListedLater();
+    void factoryTakesModemsKnownAtStart();
+    void factoryFollowsModemChanges();
 
 private:
     OfonoVoiceCallProvider *createProvider(const char *modemPath = ModemPath);
@@ -79,6 +83,7 @@ void tst_OfonoProvider::init()
 {
     QOfonoModem::initialInterfaces() = QStringList() << QStringLiteral("org.ofono.VoiceCallManager");
     QOfonoVoiceCall::presetStates().clear();
+    QOfonoManager::initialModems().clear();
     m_manager = new VoiceCallManager;
     m_provider = createProvider();
 }
@@ -457,6 +462,71 @@ void tst_OfonoProvider::modemLossLeavesOtherModem()
     call0->hold(false);
     QCOMPARE(manager0->requests, QStringList() << QStringLiteral("swapCalls"));
     delete provider1;
+}
+
+static QStringList providerIds(VoiceCallManagerInterface *manager)
+{
+    QStringList ids;
+    foreach (AbstractVoiceCallProvider *provider, manager->providers())
+        ids << provider->providerId();
+    ids.sort();
+    return ids;
+}
+
+// voicecall-manager restarted while oFono runs (Restart=always after a
+// crash): libqofono reports the modems it finds with modemsChanged() only,
+// once its GetModems reply is in. Every one of them needs a provider, or no
+// call can be made until a modem comes or goes.
+void tst_OfonoProvider::factoryTakesModemsListedLater()
+{
+    OfonoVoiceCallProviderFactory factory;
+    QVERIFY(factory.initialize());
+    QVERIFY(factory.configure(m_manager));
+    QCOMPARE(providerIds(m_manager), QStringList() << QStringLiteral("ofono-/ril_0"));
+
+    QOfonoManager::last()->getModemsReply(QStringList() << QStringLiteral("/ril_6") << QStringLiteral("/ril_5"));
+    QCOMPARE(providerIds(m_manager), QStringList() << QStringLiteral("ofono-/ril_0")
+             << QStringLiteral("ofono-/ril_5") << QStringLiteral("ofono-/ril_6"));
+}
+
+void tst_OfonoProvider::factoryTakesModemsKnownAtStart()
+{
+    QOfonoManager::initialModems() = QStringList() << QStringLiteral("/ril_5");
+    OfonoVoiceCallProviderFactory factory;
+    QVERIFY(factory.initialize());
+    QVERIFY(factory.configure(m_manager));
+    QCOMPARE(providerIds(m_manager), QStringList() << QStringLiteral("ofono-/ril_0")
+             << QStringLiteral("ofono-/ril_5"));
+}
+
+// Each modem gets one provider however it is announced, and loses it however
+// it goes: removed, missing from a new list, or oFono going away.
+void tst_OfonoProvider::factoryFollowsModemChanges()
+{
+    OfonoVoiceCallProviderFactory factory;
+    QVERIFY(factory.initialize());
+    QVERIFY(factory.configure(m_manager));
+    QOfonoManager *ofono = QOfonoManager::last();
+    QSignalSpy changed(m_manager, SIGNAL(providersChanged()));
+
+    ofono->getModemsReply(QStringList() << QStringLiteral("/ril_5"));
+    ofono->addModem(QStringLiteral("/ril_6"));
+    ofono->getModemsReply(QStringList() << QStringLiteral("/ril_5") << QStringLiteral("/ril_6"));
+    QCOMPARE(providerIds(m_manager), QStringList() << QStringLiteral("ofono-/ril_0")
+             << QStringLiteral("ofono-/ril_5") << QStringLiteral("ofono-/ril_6"));
+    QCOMPARE(changed.count(), 2);
+
+    ofono->removeModem(QStringLiteral("/ril_5"));
+    QCOMPARE(providerIds(m_manager), QStringList() << QStringLiteral("ofono-/ril_0")
+             << QStringLiteral("ofono-/ril_6"));
+
+    ofono->getModemsReply(QStringList() << QStringLiteral("/ril_7"));
+    QCOMPARE(providerIds(m_manager), QStringList() << QStringLiteral("ofono-/ril_0")
+             << QStringLiteral("ofono-/ril_7"));
+
+    ofono->ofonoGone();
+    QCOMPARE(providerIds(m_manager), QStringList() << QStringLiteral("ofono-/ril_0"));
+    QCoreApplication::sendPostedEvents(Q_NULLPTR, QEvent::DeferredDelete);
 }
 
 QTEST_GUILESS_MAIN(tst_OfonoProvider)

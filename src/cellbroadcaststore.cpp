@@ -121,6 +121,15 @@ QString valueString(const QVariantMap &properties, const char *key)
     return properties.value(QString::fromLatin1(key)).toString();
 }
 
+// Presentation of an alert the catalog did not classify (a topic outside
+// it, or ETWS, which oFono sends without one): shown, as the catalog's
+// own default for a category is.
+QString displayPolicy(const QVariantMap &properties)
+{
+    const QString display = valueString(properties, "CellBroadcastDisplay");
+    return display.isEmpty() ? QStringLiteral("alert") : display;
+}
+
 int valueInt(const QVariantMap &properties, const char *key, int fallback = -1)
 {
     const QVariant value = properties.value(QString::fromLatin1(key));
@@ -757,7 +766,7 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
         insertAlert.addBindValue(valueString(properties, "CellBroadcastTitle"));
         insertAlert.addBindValue(valueString(properties, "CellBroadcastAlertLevel"));
         insertAlert.addBindValue(valueString(properties, "CellBroadcastAttentionPolicy"));
-        insertAlert.addBindValue(valueString(properties, "CellBroadcastDisplay"));
+        insertAlert.addBindValue(displayPolicy(properties));
         insertAlert.addBindValue(state);
         insertAlert.addBindValue(timestamp);
         insertAlert.addBindValue(timestamp);
@@ -775,7 +784,10 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
     const bool firstMessage = currentMessageId == 0;
     const bool newer = orderingResetForCandidate
             || updateIsNewer(candidateUpdate, currentUpdate);
-    const bool preferredLanguage = candidateUpdate == currentUpdate
+    // Another language of the update already held. Without an update number
+    // (oFono's IncomingBroadcast has none) the candidate's -1 matches a new
+    // alert's -1, and the null geo state of that alert would be kept.
+    const bool preferredLanguage = !firstMessage && candidateUpdate == currentUpdate
             && candidateLanguageScore > currentLanguageScore;
     QVariantMap jsonProperties(properties);
     const QString currentRawGeometry = valueString(currentProperties, "Geometries");
@@ -915,7 +927,7 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
         updateAlert.addBindValue(valueString(properties, "CellBroadcastTitle"));
         updateAlert.addBindValue(valueString(properties, "CellBroadcastAlertLevel"));
         updateAlert.addBindValue(valueString(properties, "CellBroadcastAttentionPolicy"));
-        updateAlert.addBindValue(valueString(properties, "CellBroadcastDisplay"));
+        updateAlert.addBindValue(displayPolicy(properties));
         updateAlert.addBindValue(state);
         updateAlert.addBindValue(state == AwaitingLocation
                                  ? QStringLiteral("checking")

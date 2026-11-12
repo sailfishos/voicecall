@@ -243,6 +243,8 @@ private Q_SLOTS:
     void loadsCategoryPolicy();
     void loadsAttentionProfiles();
     void storesBeforePresentation();
+    void storesWhatOfonoSends_data();
+    void storesWhatOfonoSends();
     void queuesIndependentAlerts();
     void suppressesDuplicates();
     void expiresDuplicateIdentities();
@@ -613,6 +615,64 @@ void TestCellBroadcastStore::storesBeforePresentation()
     QVERIFY(result.requestAttention);
     QCOMPARE(result.activeAlert.value(QStringLiteral("Text")).toString(),
              QStringLiteral("Take shelter"));
+    QCOMPARE(store.alertHistory(0, 20).count(), 1);
+}
+
+// What CellBroadcastDaemon hands over for the signals the oFono LuneOS
+// ships has sent: IncomingBroadcast(s,q) gives only a topic, with the
+// catalog's classification added when the topic is in it, and
+// EmergencyBroadcast(s,a{sv}) gives ETWS the emergency type and no topic.
+// No update number, serial or PLMN: each of these must still be kept and
+// shown.
+void TestCellBroadcastStore::storesWhatOfonoSends_data()
+{
+    QTest::addColumn<QVariantMap>("properties");
+
+    QVariantMap base;
+    base.insert(QStringLiteral("ModemPath"), QStringLiteral("/ril_0"));
+    base.insert(QStringLiteral("ReceivedAt"), qint64(1794465000000LL));
+
+    QVariantMap classified(base);
+    classified.insert(QStringLiteral("Topic"), 4370);
+    classified.insert(QStringLiteral("CellBroadcastCategory"), QStringLiteral("presidential"));
+    classified.insert(QStringLiteral("CellBroadcastTitle"), QStringLiteral("Government Alert"));
+    classified.insert(QStringLiteral("CellBroadcastAlertLevel"), QStringLiteral("critical"));
+    classified.insert(QStringLiteral("CellBroadcastAttentionPolicy"),
+                      QStringLiteral("silent-dnd-override"));
+    classified.insert(QStringLiteral("CellBroadcastDisplay"), QStringLiteral("alert"));
+    classified.insert(QStringLiteral("CellBroadcastEnabled"), true);
+    QTest::newRow("catalogued topic") << classified;
+
+    QVariantMap unclassified(base);
+    unclassified.insert(QStringLiteral("Topic"), 50);
+    QTest::newRow("topic not in the catalog") << unclassified;
+
+    QVariantMap etws(base);
+    etws.insert(QStringLiteral("EmergencyType"), QStringLiteral("Earthquake"));
+    etws.insert(QStringLiteral("EmergencyAlert"), true);
+    etws.insert(QStringLiteral("Popup"), true);
+    etws.insert(QStringLiteral("CellBroadcastAlertLevel"), QStringLiteral("critical"));
+    etws.insert(QStringLiteral("CellBroadcastAttentionPolicy"),
+                QStringLiteral("silent-dnd-override"));
+    QTest::newRow("ETWS") << etws;
+}
+
+void TestCellBroadcastStore::storesWhatOfonoSends()
+{
+    QFETCH(QVariantMap, properties);
+    QTemporaryDir directory;
+    CellBroadcastStore store(directory.path() + QStringLiteral("/alerts.sqlite"));
+    QVERIFY(store.isDurable());
+
+    const CellBroadcastStore::StoreResult result = store.store(
+                QStringLiteral("Take shelter"), properties);
+    QVERIFY2(result.stored, qPrintable(store.errorString()));
+    QVERIFY(result.activeChanged);
+    QVERIFY(result.presentationChanged);
+    QCOMPARE(result.activeAlert.value(QStringLiteral("Text")).toString(),
+             QStringLiteral("Take shelter"));
+    QCOMPARE(result.activeAlert.value(QStringLiteral("CellBroadcastDisplay")).toString(),
+             QStringLiteral("alert"));
     QCOMPARE(store.alertHistory(0, 20).count(), 1);
 }
 

@@ -27,6 +27,7 @@ BuildRequires:  pkgconfig(qt5-boostable)
 BuildRequires:  pkgconfig(nemodevicelock)
 BuildRequires:  pkgconfig(systemd)
 BuildRequires:  pkgconfig(mlite5)
+BuildRequires:  pkgconfig(ssu-sysinfo)
 BuildRequires:  libqofono-qt5-devel >= 0.131
 BuildRequires:  oneshot
 %{_oneshot_requires_post}

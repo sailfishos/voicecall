@@ -7,7 +7,7 @@ INCLUDEPATH += ../lib/src
 
 DEFINES += VOICECALL_PLUGIN_DIRECTORY=\"\\\"$$[QT_INSTALL_LIBS]/voicecall/plugins\\\"\"
 
-PKGCONFIG += mlite5 qofono-qt5
+PKGCONFIG += mlite5 qofono-qt5 ssu-sysinfo
 
 enable-nemo-devicelock {
     PKGCONFIG += nemodevicelock
@@ -33,6 +33,7 @@ HEADERS += \
     cellbroadcasttopics.h \
     dbus/voicecallmanagerdbusservice.h \
     basicvoicecallconfigurator.h \
+    hearingaidpreference.h \
     voicecallmanager.h \
     dbus/voicecallmanagerdbusadapter.h \
     dbus/voicecallhandlerdbusadapter.h
@@ -49,6 +50,7 @@ SOURCES += \
     dbus/voicecallmanagerdbusadapter.cpp \
     dbus/voicecallhandlerdbusadapter.cpp \
     basicvoicecallconfigurator.cpp \
+    hearingaidpreference.cpp \
     voicecallmanager.cpp \
     main.cpp \
 

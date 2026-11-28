@@ -23,6 +23,7 @@
 #include "voicecallmanager.h"
 #include "basicvoicecallconfigurator.h"
 #include "cellbroadcastdaemon.h"
+#ifdef HAVE_HEARING_AID_PREFERENCE
 #include "hearingaidpreference.h"
 #include <ssusysinfo/ssusysinfo.h>
 
@@ -38,6 +39,7 @@ static bool hearingAidSupported()
     ssusysinfo_delete(sysinfo);
     return supported;
 }
+#endif
 
 Q_DECL_EXPORT int main(int argc, char **argv)
 {
@@ -59,8 +61,10 @@ Q_DECL_EXPORT int main(int argc, char **argv)
         qWarning("VoiceCall: failed to register cell broadcast D-Bus object");
     }
 
+#ifdef HAVE_HEARING_AID_PREFERENCE
     if (hearingAidSupported())
         new HearingAidPreference(&app);
+#endif
 
     return app.exec();
 }

@@ -170,7 +170,11 @@ CellBroadcastGeometry::Evaluation CellBroadcastGeometry::evaluate(
 
     bool validGeometry = false;
     bool ambiguous = false;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    const QStringList shapes = geometries.split(QLatin1Char(';'), Qt::SkipEmptyParts);
+#else
     const QStringList shapes = geometries.split(QLatin1Char(';'), QString::SkipEmptyParts);
+#endif
     for (const QString &shape : shapes) {
         QStringList parts = shape.split(QLatin1Char('|'));
         const QString type = parts.takeFirst();

@@ -1851,7 +1851,7 @@ void TestCellBroadcastStore::ignoresStaleLocation()
 
     QGeoPositionInfo staleOutside(
                 QGeoCoordinate(-30.0, 140.0),
-                QDateTime::fromMSecsSinceEpoch(now - 1000, Qt::UTC));
+                QDateTime::fromMSecsSinceEpoch(now - 1000, QTimeZone::utc()));
     staleOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
     source.sendPosition(staleOutside);
     QCOMPARE(resolved.count(), 0);
@@ -1859,7 +1859,7 @@ void TestCellBroadcastStore::ignoresStaleLocation()
     QGeoPositionInfo freshOutside(
                 QGeoCoordinate(-30.0, 140.0),
                 QDateTime::fromMSecsSinceEpoch(
-                    QDateTime::currentMSecsSinceEpoch() + 1, Qt::UTC));
+                    QDateTime::currentMSecsSinceEpoch() + 1, QTimeZone::utc()));
     freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
     source.sendPosition(freshOutside);
     QCOMPARE(resolved.count(), 1);
@@ -1882,7 +1882,7 @@ void TestCellBroadcastStore::preservesFreshnessForRepeatedGeoFenceRequest()
 
     QGeoPositionInfo freshOutside(
                 QGeoCoordinate(-30.0, 140.0),
-                QDateTime::fromMSecsSinceEpoch(positionTime, Qt::UTC));
+                QDateTime::fromMSecsSinceEpoch(positionTime, QTimeZone::utc()));
     freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
     source.sendPosition(freshOutside);
     QCOMPARE(resolved.count(), 1);
@@ -1901,12 +1901,12 @@ void TestCellBroadcastStore::cancelsObsoleteGeoFenceRequest()
 
     QGeoPositionInfo freshOutside(
                 QGeoCoordinate(-30.0, 140.0),
-                QDateTime::fromMSecsSinceEpoch(now + 1, Qt::UTC));
+                QDateTime::fromMSecsSinceEpoch(now + 1, QTimeZone::utc()));
     freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
     source.sendPosition(freshOutside);
     QCOMPARE(resolved.count(), 0);
 }
 #endif
 
-QTEST_APPLESS_MAIN(TestCellBroadcastStore)
+QTEST_GUILESS_MAIN(TestCellBroadcastStore)
 #include "tst_cellbroadcaststore.moc"

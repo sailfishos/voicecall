@@ -23,15 +23,19 @@
 
 #include <QObject>
 #include <QDateTime>
+#include <QtGlobal>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+// moc needs to know where the forward-declared type lives to generate the
+// property metacalls. The macro is new in Qt 6; Qt 5 moc did without it.
+Q_MOC_INCLUDE("abstractvoicecallprovider.h")
+#endif
 
 class AbstractVoiceCallProvider;
 
 class AbstractVoiceCallHandler : public QObject
 {
     Q_OBJECT
-
-    Q_ENUMS(VoiceCallStatus)
-    Q_ENUMS(VoiceCallFilterAction)
 
     Q_PROPERTY(QString handlerId READ handlerId CONSTANT)
     Q_PROPERTY(AbstractVoiceCallProvider* provider READ provider)
@@ -61,12 +65,14 @@ public:
         STATUS_REJECTED,
         STATUS_IGNORED
     };
+    Q_ENUM(VoiceCallStatus)
 
     enum VoiceCallFilterAction {
         ACTION_CONTINUE,
         ACTION_IGNORE,
         ACTION_REJECT
     };
+    Q_ENUM(VoiceCallFilterAction)
 
     explicit AbstractVoiceCallHandler(QObject *parent = 0) : QObject(parent) {/* ... */}
     virtual ~AbstractVoiceCallHandler() {/* ... */}

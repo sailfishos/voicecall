@@ -121,6 +121,15 @@ QString valueString(const QVariantMap &properties, const char *key)
     return properties.value(QString::fromLatin1(key)).toString();
 }
 
+// Presentation of an alert the catalog did not classify (a topic outside
+// it, or ETWS, which oFono sends without one): shown, as the catalog's
+// own default for a category is.
+QString displayPolicy(const QVariantMap &properties)
+{
+    const QString display = valueString(properties, "CellBroadcastDisplay");
+    return display.isEmpty() ? QStringLiteral("alert") : display;
+}
+
 int valueInt(const QVariantMap &properties, const char *key, int fallback = -1)
 {
     const QVariant value = properties.value(QString::fromLatin1(key));
@@ -757,7 +766,7 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
         insertAlert.addBindValue(valueString(properties, "CellBroadcastTitle"));
         insertAlert.addBindValue(valueString(properties, "CellBroadcastAlertLevel"));
         insertAlert.addBindValue(valueString(properties, "CellBroadcastAttentionPolicy"));
-        insertAlert.addBindValue(valueString(properties, "CellBroadcastDisplay"));
+        insertAlert.addBindValue(displayPolicy(properties));
         insertAlert.addBindValue(state);
         insertAlert.addBindValue(timestamp);
         insertAlert.addBindValue(timestamp);
@@ -775,7 +784,10 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
     const bool firstMessage = currentMessageId == 0;
     const bool newer = orderingResetForCandidate
             || updateIsNewer(candidateUpdate, currentUpdate);
-    const bool preferredLanguage = candidateUpdate == currentUpdate
+    // Another language of the update already held. Without an update number
+    // (oFono's IncomingBroadcast has none) the candidate's -1 matches a new
+    // alert's -1, and the null geo state of that alert would be kept.
+    const bool preferredLanguage = !firstMessage && candidateUpdate == currentUpdate
             && candidateLanguageScore > currentLanguageScore;
     QVariantMap jsonProperties(properties);
     const QString currentRawGeometry = valueString(currentProperties, "Geometries");
@@ -797,9 +809,9 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
             GeoFenceAttentionRequiredProperty
         };
         for (const char *keyName : preservedKeys) {
-            const QString key = QString::fromLatin1(keyName);
-            if (currentProperties.contains(key)) {
-                jsonProperties.insert(key, currentProperties.value(key));
+            const QString preservedKey = QString::fromLatin1(keyName);
+            if (currentProperties.contains(preservedKey)) {
+                jsonProperties.insert(preservedKey, currentProperties.value(preservedKey));
             }
         }
     }
@@ -810,7 +822,11 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
                 && (eligible || (state != Active && state != Pending
                                  && state != AwaitingLocation)));
     const bool firstPresentable = state == Suppressed && currentGeoState.isEmpty();
+    // Another language's copy of a warning the user already dismissed is the
+    // same warning: only a newer update may bring it back.
+    const bool acknowledgedVariant = state == Acknowledged && !firstMessage && !newer;
     const bool candidateNeedsGeoCheck = candidateSelected && eligible
+            && !acknowledgedVariant
             && needsGeoCheck(jsonProperties)
             && (firstMessage || newer || state == AwaitingLocation
                 || (preferredLanguage && (firstPresentable || geometryChanged)));
@@ -911,7 +927,7 @@ CellBroadcastStore::StoreResult CellBroadcastStore::store(
         updateAlert.addBindValue(valueString(properties, "CellBroadcastTitle"));
         updateAlert.addBindValue(valueString(properties, "CellBroadcastAlertLevel"));
         updateAlert.addBindValue(valueString(properties, "CellBroadcastAttentionPolicy"));
-        updateAlert.addBindValue(valueString(properties, "CellBroadcastDisplay"));
+        updateAlert.addBindValue(displayPolicy(properties));
         updateAlert.addBindValue(state);
         updateAlert.addBindValue(state == AwaitingLocation
                                  ? QStringLiteral("checking")
@@ -1296,8 +1312,13 @@ QVariantList CellBroadcastStore::geoFenceAlerts(
     }
 
     const qint64 cutoff = QDateTime::currentDateTimeUtc().addDays(-1).toMSecsSinceEpoch();
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    const QStringList references = referenceList.split(QLatin1Char(';'),
+                                                       Qt::SkipEmptyParts);
+#else
     const QStringList references = referenceList.split(QLatin1Char(';'),
                                                        QString::SkipEmptyParts);
+#endif
     QSet<quint64> alertIds;
     for (const QString &reference : references) {
         const QStringList identity = reference.split(QLatin1Char(','));
@@ -1343,6 +1364,13 @@ QVariantList CellBroadcastStore::geoFenceAlerts(
 
     for (quint64 alertId : alertIds) {
         const QVariantMap alert = readAlert(alertId);
+        // Suppressed covers both "outside the area", which a trigger may
+        // re-check, and "not to be shown at all" (display none, channel off,
+        // another language's copy), which no location makes presentable.
+        if (alert.value(QStringLiteral("State")).toInt() == Suppressed
+                && !presentationEligible(alert)) {
+            continue;
+        }
         if (!valueString(alert, "Geometries").isEmpty()) {
             result.append(alert);
         }
@@ -1375,8 +1403,13 @@ QVariantList CellBroadcastStore::prepareGeoFenceTrigger(
         const QVariantMap alert = value.toMap();
         maximumWait = qMax(maximumWait, maximumWaitSeconds(alert));
         if (triggerType == SharedWarningAreaTriggerType) {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+            const QStringList areas = valueString(alert, "Geometries").split(
+                        QLatin1Char(';'), Qt::SkipEmptyParts);
+#else
             const QStringList areas = valueString(alert, "Geometries").split(
                         QLatin1Char(';'), QString::SkipEmptyParts);
+#endif
             for (const QString &area : areas) {
                 if (!commonAreas.contains(area)) {
                     commonAreas.append(area);

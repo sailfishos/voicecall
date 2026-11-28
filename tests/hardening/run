@@ -1,0 +1,144 @@
+#!/bin/bash
+#
+# Runs the unit tests under the runtime checkers:
+#
+#   asan       AddressSanitizer + UndefinedBehaviorSanitizer
+#   tsan       ThreadSanitizer (run with ASLR off, as TSan needs)
+#   valgrind   memcheck, failing on any error or definite leak
+#
+#   run [-c compiler]... [check]...
+#
+# With no checks given, all three run. Each -c adds a C++ compiler to
+# build the sanitizer runs with (default: $CXX or g++), e.g. -c g++ -c
+# clang++. Valgrind uses the first one, without instrumentation.
+#
+# Every run builds tests/tests.pro from clean in a shadow build directory
+# under tests/hardening/logs, with the checker's flags added to
+# QMAKE_CXXFLAGS/QMAKE_LFLAGS, and runs every tst_* binary it produced.
+# QMAKE selects the qmake to use (default: qmake). To test a cross build
+# on the build host, point TEST_RUNNER at the sysroot's dynamic loader,
+# e.g.
+#
+#   TEST_RUNNER="$SYSROOT/usr/lib/ld-linux-x86-64.so.2 \
+#       --library-path $SYSROOT/usr/lib" \
+#   QMAKE=$SYSROOT/usr/bin/qmake tests/hardening/run \
+#       -c "x86_64-linux-g++ --sysroot=$SYSROOT"
+#
+# A compiler without the sanitizer runtime fails to link, and that run
+# is reported as failed, not skipped.
+#
+
+set -u
+
+COMPILERS=()
+CHECKS=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+    -c) COMPILERS+=("$2"); shift 2;;
+    asan|tsan|valgrind) CHECKS+=("$1"); shift;;
+    *) echo "Usage: $0 [-c compiler]... [asan|tsan|valgrind]..." >&2; exit 2;;
+    esac
+done
+[ ${#COMPILERS[@]} -gt 0 ] || COMPILERS=("${CXX:-g++}")
+[ ${#CHECKS[@]} -gt 0 ] || CHECKS=(asan tsan valgrind)
+
+TOP_DIR=$(cd "$(dirname "$0")/../.." && pwd)
+LOG_DIR="$TOP_DIR/tests/hardening/logs"
+QMAKE=${QMAKE:-qmake}
+RUNNER=${TEST_RUNNER:-}
+JOBS=${JOBS:-$(nproc 2>/dev/null || echo 4)}
+ASAN_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+TSAN_FLAGS="-fsanitize=thread"
+mkdir -p "$LOG_DIR"
+failed=()
+
+# Clang's -fsanitize=function flags calls through Qt's and GLib's
+# function pointer casts (signal/slot thunks, G_CALLBACK); they are fine
+# on every ABI we run on.
+san_flags() {
+    case "$1" in *clang*) echo "$2 -fno-sanitize=function";; *) echo "$2";; esac
+}
+
+qmake_spec() {
+    case "$1" in *clang*) echo linux-clang;; *) echo linux-g++;; esac
+}
+
+# Short name of a compiler command, for the log file name
+cc_name() {
+    local n
+    n=$(basename "${1%% *}")
+    case "$n" in *clang*) echo clang;; *g++*|*gcc*) echo gcc;; *) echo "$n";; esac
+}
+
+# name compiler flags runner [env...]
+check() {
+    local name=$1 cc=$2 flags=$3 runner=$4 log="$LOG_DIR/$1.log"
+    local build="$LOG_DIR/build-$1" t rc=0 count=0
+    shift 4
+    echo "== $name"
+    rm -rf "$build"
+    mkdir -p "$build"
+    {
+        (cd "$build" && "$QMAKE" -spec "$(qmake_spec "$cc")" -r \
+            "QMAKE_CXX=$cc" "QMAKE_LINK=$cc" \
+            "QMAKE_CXXFLAGS+=$flags" "QMAKE_LFLAGS+=$flags" CONFIG+=debug \
+            "$TOP_DIR/tests/tests.pro") &&
+        make -C "$build" -s -j"$JOBS"
+    } > "$log" 2>&1 || rc=1
+    if [ $rc = 0 ]; then
+        for t in $(find "$build" -type f -name 'tst_*' -perm -u+x | sort); do
+            case " ${SKIP:-} " in *" $(basename "$t") "*)
+                echo "--- $(basename "$t") not run: $SKIP_WHY" >> "$log"
+                continue;;
+            esac
+            count=$((count + 1))
+            echo "--- $(basename "$t")" >> "$log"
+            # shellcheck disable=SC2086
+            (cd "$(dirname "$t")" && env "$@" QT_LOGGING_RULES="*.debug=false" \
+                $runner "$t") >> "$log" 2>&1 || rc=1
+        done
+        [ $count -gt 0 ] || { echo "no test binaries built" >> "$log"; rc=1; }
+    fi
+    if [ $rc = 0 ]; then
+        echo "   ok ($count test binaries, $(grep -E '^Totals:' "$log" |
+            awk '{n += $2} END {print n + 0}') tests)"
+    else
+        grep -m5 -E "ERROR|runtime error|WARNING: ThreadSanitizer|definitely lost|^FAIL|error:|Error [0-9]" "$log" |
+            sed 's/^/   /'
+        echo "   FAILED, see $log"
+        failed+=("$name")
+    fi
+    rm -rf "$build"
+}
+
+for c in "${CHECKS[@]}"; do
+    case $c in
+    asan)
+        for cc in "${COMPILERS[@]}"; do
+            check "asan-$(cc_name "$cc")" "$cc" "$(san_flags "$cc" "$ASAN_FLAGS")" \
+                "$RUNNER" ASAN_OPTIONS=detect_leaks=1:abort_on_error=1 \
+                UBSAN_OPTIONS=print_stacktrace=1
+        done;;
+    tsan)
+        for cc in "${COMPILERS[@]}"; do
+            # QtDBus works in a thread of its own inside the system Qt,
+            # which has no TSan instrumentation and hands data over under
+            # futex-based QMutex that TSan cannot see, so it reports Qt's
+            # own message copying. None of voicecall's code runs on that
+            # thread; the D-Bus test still runs under ASan and valgrind.
+            SKIP="tst_dbusservice" SKIP_WHY="QtDBus' own thread is not instrumented" \
+            check "tsan-$(cc_name "$cc")" "$cc" "$TSAN_FLAGS" \
+                "setarch $(uname -m) -R $RUNNER" TSAN_OPTIONS=halt_on_error=1
+        done;;
+    valgrind)
+        check valgrind "${COMPILERS[0]}" "-O1 -g" "valgrind -q \
+--error-exitcode=99 --leak-check=full --errors-for-leak-kinds=definite \
+--show-possibly-lost=no $RUNNER";;
+    esac
+done
+
+if [ ${#failed[@]} -gt 0 ]; then
+    echo "*** FAILED:" "${failed[@]}"
+    exit 1
+fi
+echo "All checks passed"

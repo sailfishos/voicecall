@@ -239,6 +239,18 @@ bool CellBroadcastAttentionProfile::isValid() const
     return !id.isEmpty() && !soundFile.isEmpty();
 }
 
+bool CellBroadcastAttentionProfile::soundFileWithin(const QString &directory) const
+{
+    const QString canonicalDirectory = QFileInfo(directory).canonicalFilePath();
+    const QFileInfo file(soundFile);
+    const QString canonicalFile = file.canonicalFilePath();
+    // canonicalFilePath() is empty for what does not exist
+    return !canonicalDirectory.isEmpty() && !canonicalFile.isEmpty()
+            && file.isAbsolute()
+            && canonicalFile.startsWith(canonicalDirectory + QLatin1Char('/'))
+            && QFileInfo(canonicalFile).isFile();
+}
+
 QString CellBroadcastAttentionProfile::hapticSequence() const
 {
     QStringList steps;

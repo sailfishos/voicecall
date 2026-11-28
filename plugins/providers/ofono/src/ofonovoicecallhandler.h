@@ -38,47 +38,48 @@ public:
     ~OfonoVoiceCallHandler();
 
     QString path() const;
+    bool isValid() const;
 
-    AbstractVoiceCallProvider* provider() const;
+    static QDateTime parseStartTime(const QString &startTime);
 
-    QString handlerId() const;
-    QString lineId() const;
+    AbstractVoiceCallProvider* provider() const override;
+
+    QString handlerId() const override;
+    QString lineId() const override;
     QString subscriberId() const override;
-    QDateTime startedAt() const;
-    int duration() const;
-    bool isIncoming() const;
-    bool isMultiparty() const;
-    bool isEmergency() const;
-    bool isForwarded() const;
-    bool isRemoteHeld() const;
+    QDateTime startedAt() const override;
+    int duration() const override;
+    bool isIncoming() const override;
+    bool isMultiparty() const override;
+    bool isEmergency() const override;
+    bool isForwarded() const override;
+    bool isRemoteHeld() const override;
 
     // TODO: unimplemented - JB#35997
-    QString parentHandlerId() const { return QString(); }
-    QList<AbstractVoiceCallHandler*> childCalls() const { return QList<AbstractVoiceCallHandler*>(); }
+    QString parentHandlerId() const override { return QString(); }
+    QList<AbstractVoiceCallHandler*> childCalls() const override { return QList<AbstractVoiceCallHandler*>(); }
 
-    VoiceCallStatus status() const;
+    VoiceCallStatus status() const override;
 
 Q_SIGNALS:
     void validChanged(bool valid);
 
 public Q_SLOTS:
-    void answer();
-    void hangup();
-    void hold(bool on = true);
-    void deflect(const QString &target);
-    void sendDtmf(const QString &tones);
-    void filter(VoiceCallFilterAction action);
-
-    // TODO: unimplemented - JB#35997
-    void merge(const QString &) {}
-    void split() {}
+    void answer() override;
+    void hangup() override;
+    void hold(bool on = true) override;
+    void deflect(const QString &target) override;
+    void sendDtmf(const QString &tones) override;
+    void filter(VoiceCallFilterAction action) override;
+    void merge(const QString &callHandle) override;
+    void split() override;
 
 protected Q_SLOTS:
     void onStatusChanged();
     void onValidChanged(bool);
 
 protected:
-    void timerEvent(QTimerEvent *event);
+    void timerEvent(QTimerEvent *event) override;
 
 private:
     class OfonoVoiceCallHandlerPrivate *d_ptr;

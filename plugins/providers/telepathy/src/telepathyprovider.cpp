@@ -167,7 +167,12 @@ bool TelepathyProvider::createConference(Tp::ChannelPtr channel1, Tp::ChannelPtr
     }
 
     if (d->account->protocolName() == "sip") {
-        WARNING_T("Conference calls not supported for SIP protocol");
+        // Fail like the other unsupported cases: there is no request to
+        // wait for (connecting to a null request only produced warnings).
+        d->errorString = "Conference calls not supported for SIP protocol";
+        WARNING_T("%s", qPrintable(d->errorString));
+        emit this->error(d->errorString);
+        return false;
     } else if (d->account->protocolName() == "tel") {
         QList<Tp::ChannelPtr> channels;
         channels << channel1 << channel2;
@@ -287,12 +292,13 @@ void TelepathyProvider::createHandler(Tp::ChannelPtr ch, const QDateTime &userAc
     QObject::connect(handler, SIGNAL(error(QString)), SIGNAL(error(QString)));
     QObject::connect(handler, SIGNAL(invalidated(QString,QString)), SLOT(onHandlerInvalidated(QString,QString)));
 
-    connect(handler, &BaseChannelHandler::ready,
+    // Context object: the lambda must not outlive the provider.
+    connect(handler, &BaseChannelHandler::ready, this,
             [this, handler] () {
-                Q_D(TelepathyProvider);
-                d->invalidVoiceCalls.remove(handler->handlerId());
+                TelepathyProviderPrivate *priv = d_func();
+                priv->invalidVoiceCalls.remove(handler->handlerId());
 
-                d->voiceCalls.insert(handler->handlerId(), handler);
+                priv->voiceCalls.insert(handler->handlerId(), handler);
                 emit this->voiceCallAdded(handler);
                 emit this->voiceCallsChanged();
             });

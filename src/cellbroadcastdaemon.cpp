@@ -30,7 +30,6 @@
 #include <QDBusConnection>
 #include <QDateTime>
 #include <QDebug>
-#include <QFileInfo>
 #include <QSet>
 
 namespace {
@@ -43,17 +42,11 @@ const char AttentionEventProperty[] = "CellBroadcastAttentionEvent";
 const char AttentionHapticSequenceProperty[] = "CellBroadcastAttentionHapticSequence";
 const char AttentionReservedUse[] = "official-cell-broadcast-public-warning";
 const char AttentionSoundFileProperty[] = "CellBroadcastAttentionSoundFile";
-const char AttentionTonePrefix[] = "/usr/share/cell-broadcast-provider-info/attention-tones/";
+const char AttentionToneDirectory[] = "/usr/share/cell-broadcast-provider-info/attention-tones";
 const char GeoFenceDeadlineProperty[] = "CellBroadcastGeoFenceDeadline";
 const char GeoFenceGeometriesProperty[] = "CellBroadcastGeoFenceGeometries";
 const char TopicProperty[] = "Topic";
 const int DefaultMaximumWaitSeconds = 30;
-
-bool attentionSoundFileAllowed(const QString &path)
-{
-    return path.startsWith(QLatin1String(AttentionTonePrefix))
-            && QFileInfo(path).isFile();
-}
 
 bool addAttentionProperties(QVariantMap *properties,
                             const CellBroadcastAttentionProfile &profile)
@@ -81,7 +74,8 @@ bool addAttentionProperties(QVariantMap *properties,
                    << profile.id;
         return false;
     }
-    if (!attentionSoundFileAllowed(profile.soundFile)) {
+    // A prefix check alone let "attention-tones/../../.." through
+    if (!profile.soundFileWithin(QString::fromLatin1(AttentionToneDirectory))) {
         qWarning() << "Rejected Cell Broadcast attention sound outside private asset path"
                    << profile.soundFile;
         return false;

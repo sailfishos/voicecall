@@ -95,6 +95,8 @@ protected Q_SLOTS:
     void onPendingVoidCallFinished(QDBusPendingCallWatcher *watcher);
 
 private:
+    QDBusInterface *createInterface();
+
     class VoiceCallManagerPrivate *d_ptr;
 
     Q_DISABLE_COPY(VoiceCallManager)

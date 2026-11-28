@@ -44,7 +44,11 @@ bool parsePoint(const QString &text, Point *point)
     bool longitudeOk = false;
     const double latitude = values.at(0).toDouble(&latitudeOk);
     const double longitude = values.at(1).toDouble(&longitudeOk);
-    if (!latitudeOk || !longitudeOk || latitude < -90.0 || latitude > 90.0
+    // toDouble() accepts "nan" and "inf", for which every comparison below
+    // is false: a broadcast's shape would then come out as Outside, and the
+    // alert suppressed, instead of Invalid.
+    if (!latitudeOk || !longitudeOk || !qIsFinite(latitude) || !qIsFinite(longitude)
+            || latitude < -90.0 || latitude > 90.0
             || longitude < -180.0 || longitude > 180.0) {
         return false;
     }
@@ -106,7 +110,8 @@ CellBroadcastGeometry::Evaluation evaluateCircle(const QStringList &parts,
     Point center;
     bool radiusOk = false;
     const double radius = parts.at(1).toDouble(&radiusOk);
-    if (!parsePoint(parts.at(0), &center) || !radiusOk || radius < 0.0) {
+    if (!parsePoint(parts.at(0), &center) || !radiusOk || !qIsFinite(radius)
+            || radius < 0.0) {
         return CellBroadcastGeometry::Invalid;
     }
     const double centerDistance = distance(center, location);
@@ -163,14 +168,19 @@ CellBroadcastGeometry::Evaluation CellBroadcastGeometry::evaluate(
         double accuracyMeters)
 {
     Point location = { latitude, longitude };
-    if (latitude < -90.0 || latitude > 90.0 || longitude < -180.0
+    if (!qIsFinite(latitude) || !qIsFinite(longitude) || !qIsFinite(accuracyMeters)
+            || latitude < -90.0 || latitude > 90.0 || longitude < -180.0
             || longitude > 180.0 || accuracyMeters < 0.0) {
         return Invalid;
     }
 
     bool validGeometry = false;
     bool ambiguous = false;
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    const QStringList shapes = geometries.split(QLatin1Char(';'), Qt::SkipEmptyParts);
+#else
     const QStringList shapes = geometries.split(QLatin1Char(';'), QString::SkipEmptyParts);
+#endif
     for (const QString &shape : shapes) {
         QStringList parts = shape.split(QLatin1Char('|'));
         const QString type = parts.takeFirst();

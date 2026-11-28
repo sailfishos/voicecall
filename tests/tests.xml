@@ -12,4 +12,25 @@
       </case>
     </set>
   </suite>
+  <suite name="voicecall-manager-tests" domain="mw">
+    <description>Voicecall manager automatic tests</description>
+    <set name="unit-tests" feature="Voice Call Manager">
+      <description>Call bookkeeping of the voice call manager</description>
+      <case manual="false" name="manager">
+        <step>/opt/tests/voicecall/manager/tst_voicecallmanager</step>
+      </case>
+      <case manual="false" name="ofono-provider">
+        <step>/opt/tests/voicecall/ofono/tst_ofonoprovider</step>
+      </case>
+      <case manual="false" name="dbus-service">
+        <step>/opt/tests/voicecall/dbus/tst_dbusservice</step>
+      </case>
+      <case manual="false" name="telepathy-dtmf">
+        <step>/opt/tests/voicecall/telepathy/tst_dtmf</step>
+      </case>
+      <case manual="false" name="declarative-recordingfile">
+        <step>/opt/tests/voicecall/declarative/tst_recordingfile</step>
+      </case>
+    </set>
+  </suite>
 </testdefinition>

@@ -33,6 +33,7 @@
  */
 
 #include "voicecallaudiorecorder.h"
+#include "recordingfile.h"
 
 #include <QDateTime>
 #include <QDBusConnection>
@@ -44,6 +45,14 @@
 #include <QDataStream>
 #include <QStandardPaths>
 #include <QtDebug>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QAudioDevice>
+#include <QMediaDevices>
+#else
+#include <QAudioDeviceInfo>
+#endif
+
+#include <memory>
 
 #include <unistd.h>
 
@@ -54,11 +63,11 @@ const QString CallRecordingsDirPath = QStringLiteral("%1/system/privileged/Phone
         .arg(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation))
         .arg(RecordingsDir);
 
-const quint16 ChannelCount = 1;
-const quint16 SampleRate = 8000;
-const quint16 SampleBits = 16;
-const quint32 WaveHeaderLength = 44;
-const quint16 WavePCMFormat = 1;
+const int ChannelCount = 1;
+const int SampleRate = 8000;
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+const int SampleBits = 16;
+#endif
 
 const QString RouteManagerService("org.nemomobile.Route.Manager");
 const QString RouteManagerPath("/org/nemomobile/Route/Manager");
@@ -70,14 +79,34 @@ QAudioFormat getRecordingFormat()
 
     format.setChannelCount(ChannelCount);
     format.setSampleRate(SampleRate);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    // Qt6 dropped the codec, byte order and sample size setters: a QAudioFormat
+    // is always host-order linear PCM now, described by a single sample format.
+    format.setSampleFormat(QAudioFormat::Int16);
+
+    const QAudioDevice info = QMediaDevices::defaultAudioInput();
+    if (!info.isFormatSupported(format)) {
+        format = info.preferredFormat();
+        // The header written for the recording says integer PCM
+        if (format.sampleFormat() == QAudioFormat::Float) {
+            qWarning() << "Recording format does not match WAV PCM:" << format;
+        }
+#else
     format.setSampleSize(SampleBits);
     format.setCodec(QStringLiteral("audio/pcm"));
     format.setByteOrder(QAudioFormat::LittleEndian);
-    format.setSampleType(QAudioFormat::UnSignedInt);
+    // 16-bit WAV PCM is signed
+    format.setSampleType(QAudioFormat::SignedInt);
 
     QAudioDeviceInfo info(QAudioDeviceInfo::defaultInputDevice());
     if (!info.isFormatSupported(format)) {
         format = info.nearestFormat(format);
+        if (format.byteOrder() != QAudioFormat::LittleEndian
+                || (format.sampleSize() == 8) != (format.sampleType() == QAudioFormat::UnSignedInt)) {
+            qWarning() << "Recording format does not match WAV PCM:" << format;
+        }
+#endif
     }
 
     return format;
@@ -176,7 +205,9 @@ void VoiceCallAudioRecorder::startRecording(const QString &name, const QString &
     }
 
     const QString timestamp(QLocale::c().toString(QDateTime::currentDateTime(), QStringLiteral("yyyyMMdd-HHmmsszzz")));
-    const QString fileName(QString("%1.%2.%3.%4").arg(name, uid, timestamp, QString::number(incoming ? 1 : 0)));
+    const QString fileName(QString("%1.%2.%3.%4").arg(RecordingFile::component(name),
+                                                      RecordingFile::component(uid),
+                                                      timestamp, QString::number(incoming ? 1 : 0)));
 
     if (initiateRecording(fileName)) {
         label = name;
@@ -205,6 +236,11 @@ QString VoiceCallAudioRecorder::decodeRecordingFileName(const QString &fileName)
 
 bool VoiceCallAudioRecorder::deleteRecording(const QString &fileName)
 {
+    if (!RecordingFile::isPlainFileName(fileName)) {
+        qWarning() << "Not a recording file name:" << fileName;
+        return false;
+    }
+
     QDir outputDir(CallRecordingsDirPath);
     if (outputDir.exists(fileName)) {
         if (outputDir.remove(fileName)) {
@@ -279,7 +315,7 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
 
     filePath.append(QStringLiteral(".tmp"));
 
-    QScopedPointer<QFile> file(new QFile(filePath));
+    std::unique_ptr<QFile> file(new QFile(filePath));
     if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         qWarning() << "Unable to open file for write:" << filePath;
         emit recordingError(FileCreation);
@@ -287,7 +323,7 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
     }
 
     // Leave space for the header to be placed later
-    const QByteArray emptyBytes(WaveHeaderLength, '\0');
+    const QByteArray emptyBytes(RecordingFile::HeaderLength, '\0');
     if (file->write(emptyBytes) == -1) {
         qWarning() << "Unable to write header space to file:" << filePath;
         emit recordingError(FileCreation);
@@ -302,10 +338,15 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
         return false;
     }
 
-    output.swap(file);
+    output.reset(file.release());
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    input.reset(new QAudioSource(recordingFormat));
+    connect(input.data(), &QAudioSource::stateChanged, this, &VoiceCallAudioRecorder::inputStateChanged);
+#else
     input.reset(new QAudioInput(recordingFormat));
     connect(input.data(), &QAudioInput::stateChanged, this, &VoiceCallAudioRecorder::inputStateChanged);
+#endif
 
     input->start(output.data());
     active = true;
@@ -317,6 +358,9 @@ bool VoiceCallAudioRecorder::initiateRecording(const QString &fileName)
 void VoiceCallAudioRecorder::terminateRecording()
 {
     if (input) {
+        // stop() emits stateChanged(StoppedState), which would come back
+        // here while input is half torn down.
+        disconnect(input.data(), Q_NULLPTR, this, Q_NULLPTR);
         input->stop();
         input.reset();
 
@@ -327,33 +371,25 @@ void VoiceCallAudioRecorder::terminateRecording()
     }
     if (output) {
         bool success = false;
+        bool empty = false;
 
         // We need to write the header to the file
-        const quint32 fileLength = output->size();
-        const quint32 dataLength = fileLength - WaveHeaderLength;
+        const qint64 dataLength = output->size() - RecordingFile::HeaderLength;
 
-        if (dataLength > 0) {
-            QByteArray waveHeader;
-            {
-                QDataStream os(&waveHeader, QIODevice::WriteOnly);
-                os.setByteOrder(QDataStream::LittleEndian);
-
-                os.writeRawData("RIFF", 4);
-                os << quint32(fileLength - 8);  // Total data length
-                os.writeRawData("WAVE", 4);
-                os.writeRawData("fmt ", 4);
-                os << quint32(16);              // fmt header length
-                os << quint16(WavePCMFormat);
-                os << quint16(ChannelCount);
-                os << quint32(SampleRate);
-                os << quint32(SampleRate * ChannelCount * (SampleBits / CHAR_BIT)); // data rate
-                os << quint16(SampleBits/ CHAR_BIT); // bytes per sample
-                os << quint16(SampleBits);
-                os.writeRawData("data", 4);
-                os << quint32(dataLength);
-            }
-
-            if (output->seek(0) && output->write(waveHeader) == waveHeader.length()) {
+        if (dataLength <= 0) {
+            empty = true;
+        } else {
+            const QByteArray waveHeader(RecordingFile::waveHeader(recordingFormat.channelCount(),
+                                                                  recordingFormat.sampleRate(),
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+                                                                  recordingFormat.bytesPerSample() * 8,
+#else
+                                                                  recordingFormat.sampleSize(),
+#endif
+                                                                  dataLength));
+            if (!waveHeader.isEmpty() && output->seek(0)
+                    && output->write(waveHeader) == waveHeader.length()
+                    && output->flush()) {
                 success = true;
             } else {
                 qWarning() << "Unable to write header to file:" << output->fileName();
@@ -365,9 +401,16 @@ void VoiceCallAudioRecorder::terminateRecording()
             fileName.chop(4);
         } else {
             qWarning() << "Unexpected file name after recording";
+            success = false;
         }
 
-        output->rename(fileName);
+        if (empty) {
+            // Nothing was recorded: leave no header-only file behind
+            output->remove();
+        } else if (success && !output->rename(fileName)) {
+            qWarning() << "Unable to store recording:" << fileName << output->errorString();
+            success = false;
+        }
         output.reset();
 
         if (success) {

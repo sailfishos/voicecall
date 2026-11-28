@@ -69,6 +69,9 @@ private:
     gulong mSHFsConferenceRemoved;
     gulong mSHContentAdded;
     gulong mSHContentRemoved;
+    // Contents we connected to, referenced until removed or destroyed so
+    // their handlers can be disconnected before this object goes away.
+    QList<TfContent *> mContents;
 
     void setState(Tp::MediaStreamState state);
     void setError(const QString &errorMessage);
@@ -92,7 +95,8 @@ private:
     static void onFsConferenceRemoved(TfChannel *tfc, FsConference * conf, FarstreamChannel *self);
     static void onContentAdded(TfChannel *tfc, TfContent * content, FarstreamChannel *self);
     static void onContentRemoved(TfChannel *tfc, TfContent * content, FarstreamChannel *self);
-    static bool onStartSending(TfContent *tfc, FarstreamChannel *self);
+    // A gboolean, not bool: the signal's marshaller reads a full int
+    static gboolean onStartSending(TfContent *tfc, FarstreamChannel *self);
     static void onStopSending(TfContent *tfc, FarstreamChannel *self);
     static void onSrcPadAddedContent(TfContent *content, uint handle, FsStream *stream, GstPad *src, FsCodec *codec, FarstreamChannel *self);
 

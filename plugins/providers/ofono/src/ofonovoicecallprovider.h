@@ -43,6 +43,9 @@ public:
 
     QOfonoModem* modem() const;
 
+    /// A merge or split did not happen: says why on error().
+    void reportCallControlError(const QString &message);
+
 public Q_SLOTS:
     bool dial(const QString &msisdn);
 
@@ -52,11 +55,13 @@ protected Q_SLOTS:
     void onCallRemoved(const QString &call);
 
     void onDialComplete(const bool status);
+    void onCallControlComplete(bool status);
 
     void onVoiceCallHandlerValidChanged(bool isValid);
 
 private:
     void initialize();
+    void addValidCall(class OfonoVoiceCallHandler *handler);
     class OfonoVoiceCallProviderPrivate *d_ptr;
 
     Q_DECLARE_PRIVATE(OfonoVoiceCallProvider)

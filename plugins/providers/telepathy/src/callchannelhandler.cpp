@@ -23,6 +23,7 @@
 
 #include "farstreamchannel.h"
 #include "telepathyprovider.h"
+#include "dtmf.h"
 
 #include <TelepathyQt/Channel>
 #include <TelepathyQt/PendingReady>
@@ -63,7 +64,7 @@ class CallChannelHandlerPrivate
 public:
     CallChannelHandlerPrivate(CallChannelHandler *q, const QString &id, Tp::CallChannelPtr c, const QDateTime &s, TelepathyProvider *p)
         : q_ptr(q), handlerId(id), provider(p), startedAt(s), status(AbstractVoiceCallHandler::STATUS_NULL),
-          channel(c), fsChannel(NULL), duration(0), durationTimerId(-1), isEmergency(false),
+          channel(c), fsChannel(NULL), duration(0), connectedAt(0), durationTimerId(-1), isEmergency(false),
           isForwarded(false), isIncoming(false), isRemoteHeld(false)
     { /* ... */ }
 
@@ -233,8 +234,14 @@ void CallChannelHandler::hold(bool on)
 {
     TRACE
     Q_D(CallChannelHandler);
-    Tp::Client::ChannelInterfaceHoldInterface *holdIface = new Tp::Client::ChannelInterfaceHoldInterface(d->channel.data(), this);
-    holdIface->RequestHold(on);
+    // The channel owns its interface proxies; creating one per call piled
+    // them up for the lifetime of the call.
+    Tp::Client::ChannelInterfaceHoldInterface *holdIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceHoldInterface>();
+    if (holdIface)
+        holdIface->RequestHold(on);
+    else
+        WARNING_T("Cannot hold, no interface");
 }
 
 //FIXME: Don't know what telepathy API provides this.
@@ -249,22 +256,22 @@ void CallChannelHandler::sendDtmf(const QString &tones)
 {
     TRACE
     Q_D(CallChannelHandler);
-    Tp::Client::ChannelInterfaceDTMFInterface *dtmfIface = new Tp::Client::ChannelInterfaceDTMFInterface(d->channel.data(), this);
-
-    bool ok = true;
-    unsigned int toneId = tones.toInt(&ok);
-
-    if (!ok) {
-        if (tones == "*") toneId = 10;
-        else if (tones == "#") toneId = 11;
-        else if (tones == "A") toneId = 12;
-        else if (tones == "B") toneId = 13;
-        else if (tones == "C") toneId = 14;
-        else if (tones == "D") toneId = 15;
-        else return;
+    Tp::Client::ChannelInterfaceDTMFInterface *dtmfIface
+        = d->channel->optionalInterface<Tp::Client::ChannelInterfaceDTMFInterface>();
+    if (!dtmfIface) {
+        WARNING_T("Cannot send DTMF, no interface");
+        return;
     }
 
-    dtmfIface->StartTone(1, toneId, 0);
+    // A single key, as the keypad sends, is one event; "123".toInt() used
+    // to be sent as event 123, and lower case keys were dropped.
+    if (tones.length() == 1) {
+        const int event = Dtmf::event(tones.at(0));
+        if (event >= 0)
+            dtmfIface->StartTone(1, uchar(event));
+    } else if (!tones.isEmpty()) {
+        dtmfIface->MultipleTones(tones);
+    }
 }
 
 void CallChannelHandler::onCallChannelChannelReady(Tp::PendingOperation *op)

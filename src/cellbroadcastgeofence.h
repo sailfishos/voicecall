@@ -27,6 +27,8 @@ public:
     explicit CellBroadcastGeoFence(QObject *parent = 0,
                                    QGeoPositionInfoSource *source = 0);
 
+    // resolved() is never emitted from within check() or cancel(), only
+    // from the event loop, so a caller may act on its own state first.
     void check(quint64 alertId, const QString &geometries, qint64 deadline,
                qint64 createdAt);
     void cancel(quint64 alertId);
@@ -49,11 +51,16 @@ private:
 
     QList<quint64> orderedAlertIds() const;
     void finish(quint64 alertId, bool display, const QString &state);
+    void resolveLater(quint64 alertId, bool display, const QString &state);
     void updateSource();
 
 private:
     QGeoPositionInfoSource *m_source;
     QHash<quint64, Request> m_requests;
+    // Answers known at check() time, delivered from the event loop; a later
+    // check() or cancel() of the same alert replaces them.
+    QHash<quint64, quint64> m_deferred;
+    quint64 m_deferredSerial = 0;
     QTimer m_deadlineTimer;
 };
 

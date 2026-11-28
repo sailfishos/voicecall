@@ -23,6 +23,7 @@
 #include <QSet>
 #include <QSqlDatabase>
 #include <QSqlQuery>
+#include <QTimeZone>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -206,7 +207,10 @@ public:
 
     void startUpdates() override
     {
+        ++starts;
     }
+
+    int starts = 0;
 
     void stopUpdates() override
     {
@@ -239,6 +243,8 @@ private Q_SLOTS:
     void loadsCategoryPolicy();
     void loadsAttentionProfiles();
     void storesBeforePresentation();
+    void storesWhatOfonoSends_data();
+    void storesWhatOfonoSends();
     void queuesIndependentAlerts();
     void suppressesDuplicates();
     void expiresDuplicateIdentities();
@@ -251,6 +257,7 @@ private Q_SLOTS:
     void presentsUnfilteredLanguages();
     void keepsValidatedGeometryForLanguageVariant();
     void preservesPendingGeoFenceAttentionForLanguageVariant();
+    void acknowledgedAlertStaysAcknowledgedForLanguageVariant();
     void preservesValidatedPendingGeoFenceAttentionForLanguageVariant();
     void inheritsMissingGeometryForLanguageVariant();
     void rechecksChangedGeometryForLanguageVariant();
@@ -265,6 +272,8 @@ private Q_SLOTS:
     void resolvesGeoFenceOutside();
     void queuesGeoFenceResultWithoutAttention();
     void findsGeoFenceTriggerReferences();
+    void triggerKeepsIneligibleAlertSuppressed_data();
+    void triggerKeepsIneligibleAlertSuppressed();
     void ignoresStaleGeoFenceTriggerReferences();
     void usesLastReceiptForGeoFenceTriggerReferences();
     void isolatesGeoFenceTriggerContext();
@@ -279,7 +288,13 @@ private Q_SLOTS:
     void hidesGeofencingTriggers();
     void evaluatesCircleGeometry();
     void evaluatesPolygonGeometry();
+    void rejectsNonFiniteGeometry_data();
+    void rejectsNonFiniteGeometry();
+    void attentionSoundStaysInDirectory();
 #ifdef HAVE_CELLBROADCAST_GEOFENCE_TESTS
+    void waitsQuietlyForFarDeadline();
+    void resolvesPastDeadlineFromEventLoop();
+    void laterCheckReplacesDeferredResolution();
     void waitsForAccurateLocation();
     void ignoresStaleLocation();
     void preservesFreshnessForRepeatedGeoFenceRequest();
@@ -603,6 +618,64 @@ void TestCellBroadcastStore::storesBeforePresentation()
     QCOMPARE(store.alertHistory(0, 20).count(), 1);
 }
 
+// What CellBroadcastDaemon hands over for the signals the oFono LuneOS
+// ships has sent: IncomingBroadcast(s,q) gives only a topic, with the
+// catalog's classification added when the topic is in it, and
+// EmergencyBroadcast(s,a{sv}) gives ETWS the emergency type and no topic.
+// No update number, serial or PLMN: each of these must still be kept and
+// shown.
+void TestCellBroadcastStore::storesWhatOfonoSends_data()
+{
+    QTest::addColumn<QVariantMap>("properties");
+
+    QVariantMap base;
+    base.insert(QStringLiteral("ModemPath"), QStringLiteral("/ril_0"));
+    base.insert(QStringLiteral("ReceivedAt"), qint64(1794465000000LL));
+
+    QVariantMap classified(base);
+    classified.insert(QStringLiteral("Topic"), 4370);
+    classified.insert(QStringLiteral("CellBroadcastCategory"), QStringLiteral("presidential"));
+    classified.insert(QStringLiteral("CellBroadcastTitle"), QStringLiteral("Government Alert"));
+    classified.insert(QStringLiteral("CellBroadcastAlertLevel"), QStringLiteral("critical"));
+    classified.insert(QStringLiteral("CellBroadcastAttentionPolicy"),
+                      QStringLiteral("silent-dnd-override"));
+    classified.insert(QStringLiteral("CellBroadcastDisplay"), QStringLiteral("alert"));
+    classified.insert(QStringLiteral("CellBroadcastEnabled"), true);
+    QTest::newRow("catalogued topic") << classified;
+
+    QVariantMap unclassified(base);
+    unclassified.insert(QStringLiteral("Topic"), 50);
+    QTest::newRow("topic not in the catalog") << unclassified;
+
+    QVariantMap etws(base);
+    etws.insert(QStringLiteral("EmergencyType"), QStringLiteral("Earthquake"));
+    etws.insert(QStringLiteral("EmergencyAlert"), true);
+    etws.insert(QStringLiteral("Popup"), true);
+    etws.insert(QStringLiteral("CellBroadcastAlertLevel"), QStringLiteral("critical"));
+    etws.insert(QStringLiteral("CellBroadcastAttentionPolicy"),
+                QStringLiteral("silent-dnd-override"));
+    QTest::newRow("ETWS") << etws;
+}
+
+void TestCellBroadcastStore::storesWhatOfonoSends()
+{
+    QFETCH(QVariantMap, properties);
+    QTemporaryDir directory;
+    CellBroadcastStore store(directory.path() + QStringLiteral("/alerts.sqlite"));
+    QVERIFY(store.isDurable());
+
+    const CellBroadcastStore::StoreResult result = store.store(
+                QStringLiteral("Take shelter"), properties);
+    QVERIFY2(result.stored, qPrintable(store.errorString()));
+    QVERIFY(result.activeChanged);
+    QVERIFY(result.presentationChanged);
+    QCOMPARE(result.activeAlert.value(QStringLiteral("Text")).toString(),
+             QStringLiteral("Take shelter"));
+    QCOMPARE(result.activeAlert.value(QStringLiteral("CellBroadcastDisplay")).toString(),
+             QStringLiteral("alert"));
+    QCOMPARE(store.alertHistory(0, 20).count(), 1);
+}
+
 void TestCellBroadcastStore::queuesIndependentAlerts()
 {
     QTemporaryDir directory;
@@ -910,6 +983,41 @@ void TestCellBroadcastStore::preservesPendingGeoFenceAttentionForLanguageVariant
     QVERIFY(resolved.requestAttention);
     QCOMPARE(resolved.activeAlert.value(QStringLiteral("Text")).toString(),
              QStringLiteral("Preferred language"));
+}
+
+// The user dismissed the alert. The same warning in the preferred language,
+// with its area drawn differently, used to send it back to a location check
+// and, once inside, back on screen.
+void TestCellBroadcastStore::acknowledgedAlertStaysAcknowledgedForLanguageVariant()
+{
+    QTemporaryDir directory;
+    CellBroadcastStore store(directory.path() + QStringLiteral("/alerts.sqlite"));
+    QVariantMap local = alertProperties(4370, 0x1230, 0);
+    local.insert(QStringLiteral("Geometries"),
+                 QStringLiteral("circle|-35.3,149.1|1000"));
+    const CellBroadcastStore::StoreResult first = store.store(
+                QStringLiteral("Local language"), local);
+    QVERIFY(first.needsGeoCheck);
+    QVERIFY(store.resolveGeoFence(first.alertId, true, QStringLiteral("inside")).stored);
+    QVERIFY(store.acknowledge(first.alertId));
+    QCOMPARE(store.alert(first.alertId).value(QStringLiteral("State")).toInt(), 2);
+    QVERIFY(store.activeAlert().isEmpty());
+
+    QVariantMap additional = alertProperties(
+                4383, 0x1230, 0, QStringLiteral("additional"),
+                QLocale::system().name().left(2).toLower());
+    additional.insert(QStringLiteral("Geometries"),
+                      QStringLiteral("circle|-35.3,149.1|1500"));
+    const CellBroadcastStore::StoreResult variant = store.store(
+                QStringLiteral("Preferred language"), additional);
+    QCOMPARE(variant.alertId, first.alertId);
+    QVERIFY(!variant.needsGeoCheck);
+    QVERIFY(!variant.requestAttention);
+    QCOMPARE(store.alert(first.alertId).value(QStringLiteral("State")).toInt(), 2);
+
+    // Nothing pending that a location fix could bring back
+    QVERIFY(store.pendingGeoFenceAlerts().isEmpty());
+    QVERIFY(store.activeAlert().isEmpty());
 }
 
 void TestCellBroadcastStore::preservesValidatedPendingGeoFenceAttentionForLanguageVariant()
@@ -1328,6 +1436,44 @@ void TestCellBroadcastStore::findsGeoFenceTriggerReferences()
     QCOMPARE(alerts.count(), 1);
     QCOMPARE(alerts.first().toMap().value(QStringLiteral("RecordId")).toULongLong(),
              stored.alertId);
+}
+
+void TestCellBroadcastStore::triggerKeepsIneligibleAlertSuppressed_data()
+{
+    QTest::addColumn<QString>("key");
+    QTest::addColumn<QVariant>("value");
+
+    QTest::newRow("display none") << "CellBroadcastDisplay" << QVariant(QStringLiteral("none"));
+    QTest::newRow("disabled") << "CellBroadcastEnabled" << QVariant(false);
+}
+
+// A trigger used to move any suppressed alert it referenced to
+// AwaitingLocation, so a location inside the area showed an alert the user
+// had switched off.
+void TestCellBroadcastStore::triggerKeepsIneligibleAlertSuppressed()
+{
+    QFETCH(QString, key);
+    QFETCH(QVariant, value);
+
+    QTemporaryDir directory;
+    CellBroadcastStore store(directory.path() + QStringLiteral("/alerts.sqlite"));
+    QVariantMap properties = alertProperties(4370, 0x1230, 0);
+    properties.insert(QStringLiteral("Geometries"),
+                      QStringLiteral("circle|-35.3,149.1|1000"));
+    properties.insert(key, value);
+    const CellBroadcastStore::StoreResult stored = store.store(
+                QStringLiteral("Switched off warning"), properties);
+    QVERIFY(stored.stored);
+    QCOMPARE(store.alert(stored.alertId).value(QStringLiteral("State")).toInt(),
+             3); // Suppressed
+
+    QVERIFY(store.geoFenceAlerts(QStringLiteral("4370,4656")).isEmpty());
+    QVERIFY(store.prepareGeoFenceTrigger(QStringLiteral("4370,4656"), 1,
+                                         QDateTime::currentMSecsSinceEpoch(),
+                                         QVariantMap()).isEmpty());
+    QCOMPARE(store.alert(stored.alertId).value(QStringLiteral("State")).toInt(),
+             3); // Suppressed
+    QVERIFY(store.activeAlert().isEmpty());
 }
 
 void TestCellBroadcastStore::ignoresStaleGeoFenceTriggerReferences()
@@ -1817,7 +1963,169 @@ void TestCellBroadcastStore::evaluatesPolygonGeometry()
              CellBroadcastGeometry::Invalid);
 }
 
+void TestCellBroadcastStore::rejectsNonFiniteGeometry_data()
+{
+    QTest::addColumn<QString>("geometry");
+    QTest::addColumn<double>("latitude");
+    QTest::addColumn<double>("longitude");
+    QTest::addColumn<double>("accuracy");
+
+    const double nan = qQNaN();
+    const double inf = qInf();
+    const QString circle = QStringLiteral("circle|-35.3,149.1|1000");
+    // Far away from every shape: a finite but wrong answer would be Outside,
+    // which suppresses the alert.
+    QTest::newRow("nan center") << "circle|nan,nan|1000" << -30.0 << 140.0 << 10.0;
+    QTest::newRow("inf center") << "circle|inf,149.1|1000" << -30.0 << 140.0 << 10.0;
+    QTest::newRow("nan radius") << "circle|-35.3,149.1|nan" << -30.0 << 140.0 << 10.0;
+    QTest::newRow("inf radius") << "circle|-35.3,149.1|inf" << -30.0 << 140.0 << 10.0;
+    QTest::newRow("nan vertex")
+            << "polygon|-35.30,149.10|nan,149.20|-35.20,149.20" << -30.0 << 140.0 << 10.0;
+    QTest::newRow("inf vertex")
+            << "polygon|-35.30,149.10|-35.30,-inf|-35.20,149.20" << -30.0 << 140.0 << 10.0;
+    QTest::newRow("nan latitude") << circle << nan << 140.0 << 10.0;
+    QTest::newRow("nan longitude") << circle << -30.0 << nan << 10.0;
+    QTest::newRow("nan accuracy") << circle << -30.0 << 140.0 << nan;
+    QTest::newRow("inf accuracy") << circle << -30.0 << 140.0 << inf;
+}
+
+void TestCellBroadcastStore::rejectsNonFiniteGeometry()
+{
+    QFETCH(QString, geometry);
+    QFETCH(double, latitude);
+    QFETCH(double, longitude);
+    QFETCH(double, accuracy);
+    QCOMPARE(CellBroadcastGeometry::evaluate(geometry, latitude, longitude, accuracy),
+             CellBroadcastGeometry::Invalid);
+}
+
+void TestCellBroadcastStore::attentionSoundStaysInDirectory()
+{
+    QTemporaryDir root;
+    QVERIFY(root.isValid());
+    const QString tones = root.path() + QStringLiteral("/tones");
+    QVERIFY(QDir().mkpath(tones));
+    QVERIFY(QDir().mkpath(root.path() + QStringLiteral("/tones-other")));
+    for (const QString &name : { QStringLiteral("/tones/a.wav"),
+                                 QStringLiteral("/outside.wav"),
+                                 QStringLiteral("/tones-other/b.wav") }) {
+        QFile file(root.path() + name);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+    }
+    QVERIFY(QFile::link(root.path() + QStringLiteral("/outside.wav"),
+                        tones + QStringLiteral("/link.wav")));
+    QVERIFY(QFile::link(tones + QStringLiteral("/a.wav"),
+                        root.path() + QStringLiteral("/in-link.wav")));
+
+    CellBroadcastAttentionProfile profile;
+    const auto allowed = [&](const QString &soundFile) {
+        profile.soundFile = soundFile;
+        return profile.soundFileWithin(tones);
+    };
+    QVERIFY(allowed(tones + QStringLiteral("/a.wav")));
+    QVERIFY(allowed(tones + QStringLiteral("/./a.wav")));
+
+    QVERIFY(!allowed(tones + QStringLiteral("/../outside.wav")));
+    QVERIFY(!allowed(tones + QStringLiteral("/link.wav")));
+    QVERIFY(!allowed(root.path() + QStringLiteral("/tones-other/b.wav")));
+    QVERIFY(!allowed(tones + QStringLiteral("/../tones-other/b.wav")));
+    QVERIFY(!allowed(tones + QStringLiteral("/missing.wav")));
+    QVERIFY(!allowed(tones));
+    QVERIFY(!allowed(tones + QLatin1Char('/')));
+    QVERIFY(!allowed(QString()));
+    QVERIFY(!allowed(QStringLiteral("tones/a.wav")));
+    profile.soundFile = tones + QStringLiteral("/a.wav");
+    QVERIFY(!profile.soundFileWithin(root.path() + QStringLiteral("/missing")));
+
+    // A link from outside that resolves to a file inside names that asset
+    QVERIFY(allowed(root.path() + QStringLiteral("/in-link.wav")));
+}
+
 #ifdef HAVE_CELLBROADCAST_GEOFENCE_TESTS
+// A deadline beyond the timer's int range wrapped to a 1 ms timer that kept
+// firing, and restarting location updates, until the deadline.
+void TestCellBroadcastStore::waitsQuietlyForFarDeadline()
+{
+    TestPositionSource source;
+    CellBroadcastGeoFence geoFence(0, &source);
+    QSignalSpy resolved(&geoFence, &CellBroadcastGeoFence::resolved);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    geoFence.check(1, QStringLiteral("circle|-35.3,149.1|1000"),
+                   now + Q_INT64_C(30) * 24 * 3600 * 1000, now);
+    QCOMPARE(source.starts, 1);
+
+    QTest::qWait(100);
+    QCOMPARE(source.starts, 1);
+    QCOMPARE(resolved.count(), 0);
+}
+
+// check() used to emit resolved() before returning when the deadline had
+// passed, re-entering the daemon while it was still storing the alert.
+void TestCellBroadcastStore::resolvesPastDeadlineFromEventLoop()
+{
+    TestPositionSource source;
+    CellBroadcastGeoFence geoFence(0, &source);
+    QSignalSpy resolved(&geoFence, &CellBroadcastGeoFence::resolved);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    geoFence.check(1, QStringLiteral("circle|-35.3,149.1|1000"), now - 1, now - 1000);
+    QCOMPARE(resolved.count(), 0);
+
+    QTRY_COMPARE(resolved.count(), 1);
+    QCOMPARE(resolved.at(0).at(0).toULongLong(), quint64(1));
+    QCOMPARE(resolved.at(0).at(1).toBool(), true);
+    QCOMPARE(resolved.at(0).at(2).toString(), QStringLiteral("timeout"));
+
+    // Without a position source the answer is deferred the same way
+    CellBroadcastGeoFence noSource(0, 0);
+    QSignalSpy unavailable(&noSource, &CellBroadcastGeoFence::resolved);
+    // createDefaultSource() may find a plugin on the host: only check the
+    // timing when it did not.
+    noSource.check(2, QStringLiteral("circle|-35.3,149.1|1000"), now + 10000, now);
+    QCOMPARE(unavailable.count(), 0);
+}
+
+void TestCellBroadcastStore::laterCheckReplacesDeferredResolution()
+{
+    TestPositionSource source;
+    CellBroadcastGeoFence geoFence(0, &source);
+    QSignalSpy resolved(&geoFence, &CellBroadcastGeoFence::resolved);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const QString geometry = QStringLiteral("circle|-35.3,149.1|1000");
+
+    // A pending request answered by a check whose deadline has passed:
+    // resolved once, not again by a later position
+    geoFence.check(1, geometry, now + 10000, now);
+    geoFence.check(1, geometry, now - 1, now);
+    QTRY_COMPARE(resolved.count(), 1);
+    // A fix taken after the check; a slow run (valgrind) must not make it stale
+    const auto freshInside = []() {
+        QGeoPositionInfo position(QGeoCoordinate(-35.3, 149.1),
+                                  QDateTime::fromMSecsSinceEpoch(
+                                      QDateTime::currentMSecsSinceEpoch() + 1, QTimeZone::utc()));
+        position.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
+        return position;
+    };
+    source.sendPosition(freshInside());
+    QCOMPARE(resolved.count(), 1);
+    resolved.clear();
+
+    // A deferred timeout replaced by a new check with time left
+    geoFence.check(2, geometry, now - 1, now);
+    geoFence.check(2, geometry, now + 10000, now);
+    QTest::qWait(20);
+    QCOMPARE(resolved.count(), 0);
+    source.sendPosition(freshInside());
+    QCOMPARE(resolved.count(), 1);
+    QCOMPARE(resolved.at(0).at(2).toString(), QStringLiteral("inside"));
+    resolved.clear();
+
+    // ... or cancelled
+    geoFence.check(3, geometry, now - 1, now);
+    geoFence.cancel(3);
+    QTest::qWait(20);
+    QCOMPARE(resolved.count(), 0);
+}
+
 void TestCellBroadcastStore::waitsForAccurateLocation()
 {
     TestPositionSource source;
@@ -1851,7 +2159,7 @@ void TestCellBroadcastStore::ignoresStaleLocation()
 
     QGeoPositionInfo staleOutside(
                 QGeoCoordinate(-30.0, 140.0),
-                QDateTime::fromMSecsSinceEpoch(now - 1000, Qt::UTC));
+                QDateTime::fromMSecsSinceEpoch(now - 1000, QTimeZone::utc()));
     staleOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
     source.sendPosition(staleOutside);
     QCOMPARE(resolved.count(), 0);
@@ -1859,7 +2167,7 @@ void TestCellBroadcastStore::ignoresStaleLocation()
     QGeoPositionInfo freshOutside(
                 QGeoCoordinate(-30.0, 140.0),
                 QDateTime::fromMSecsSinceEpoch(
-                    QDateTime::currentMSecsSinceEpoch() + 1, Qt::UTC));
+                    QDateTime::currentMSecsSinceEpoch() + 1, QTimeZone::utc()));
     freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
     source.sendPosition(freshOutside);
     QCOMPARE(resolved.count(), 1);
@@ -1882,7 +2190,7 @@ void TestCellBroadcastStore::preservesFreshnessForRepeatedGeoFenceRequest()
 
     QGeoPositionInfo freshOutside(
                 QGeoCoordinate(-30.0, 140.0),
-                QDateTime::fromMSecsSinceEpoch(positionTime, Qt::UTC));
+                QDateTime::fromMSecsSinceEpoch(positionTime, QTimeZone::utc()));
     freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
     source.sendPosition(freshOutside);
     QCOMPARE(resolved.count(), 1);
@@ -1901,12 +2209,12 @@ void TestCellBroadcastStore::cancelsObsoleteGeoFenceRequest()
 
     QGeoPositionInfo freshOutside(
                 QGeoCoordinate(-30.0, 140.0),
-                QDateTime::fromMSecsSinceEpoch(now + 1, Qt::UTC));
+                QDateTime::fromMSecsSinceEpoch(now + 1, QTimeZone::utc()));
     freshOutside.setAttribute(QGeoPositionInfo::HorizontalAccuracy, 10.0);
     source.sendPosition(freshOutside);
     QCOMPARE(resolved.count(), 0);
 }
 #endif
 
-QTEST_APPLESS_MAIN(TestCellBroadcastStore)
+QTEST_GUILESS_MAIN(TestCellBroadcastStore)
 #include "tst_cellbroadcaststore.moc"

@@ -22,6 +22,7 @@
 #include "voicecallmanager.h"
 
 #include <QHash>
+#include <QPointer>
 #include <QUuid>
 #include <QSettings>
 
@@ -39,7 +40,7 @@ class VoiceCallManagerPrivate
 
 public:
     VoiceCallManagerPrivate(VoiceCallManager *q)
-        : q_ptr(q), activeVoiceCall(NULL),
+        : q_ptr(q),
           audioMode("earpiece"), isAudioRouted(false), isMicrophoneMuted(false), isSpeakerMuted(false)
     {/* ... */}
 
@@ -48,8 +49,12 @@ public:
     QHash<QString, AbstractVoiceCallProvider*> providers;
 
     QHash<QString, AbstractVoiceCallHandler*> voiceCalls;
+    // Handler ids in the order the calls were added, to break ties when
+    // picking the active call.
+    QStringList callOrder;
 
-    AbstractVoiceCallHandler *activeVoiceCall;
+    // A QPointer, as providers delete their handlers themselves.
+    QPointer<AbstractVoiceCallHandler> activeVoiceCall;
 
 #ifdef WITH_NEMO_DEVICELOCK
     NemoDeviceLock::DeviceLock deviceLock;
@@ -152,6 +157,14 @@ void VoiceCallManager::removeProvider(AbstractVoiceCallProvider *provider)
                         SIGNAL(error(QString)), 
                         this,
                         SLOT(setError(QString)));
+
+    // The provider's calls go with it: providers delete their handlers
+    // without announcing it once they are no longer registered, so keeping
+    // them would leave dangling pointers here and in every plugin.
+    foreach (AbstractVoiceCallHandler *handler, d->voiceCalls.values()) {
+        if (handler->provider() == provider)
+            forgetVoiceCall(handler);
+    }
 
     d->providers.remove(provider->providerId());
     emit this->providersChanged();
@@ -349,6 +362,10 @@ void VoiceCallManager::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
     TRACE
     Q_D(VoiceCallManager);
 
+    // Already registered: a provider re-announcing its calls.
+    if (d->voiceCalls.contains(handler->handlerId()))
+        return;
+
 #ifdef WITH_NEMO_DEVICELOCK
     if (!handler->isEmergency()
             && d->deviceLock.state() == NemoDeviceLock::DeviceLock::ManagerLockout) {
@@ -367,14 +384,81 @@ void VoiceCallManager::onVoiceCallAdded(AbstractVoiceCallHandler *handler)
 
     //AudioCallPolicyProxy *pHandler = new AudioCallPolicyProxy(handler, this);
     d->voiceCalls.insert(handler->handlerId(), handler);
+    d->callOrder.append(handler->handlerId());
+    QObject::connect(handler, &AbstractVoiceCallHandler::statusChanged,
+                     this, &VoiceCallManager::updateActiveVoiceCall);
 
     emit this->voiceCallAdded(handler);
     emit this->voiceCallsChanged();
 
-    if (!d->activeVoiceCall) {
-        d->activeVoiceCall = handler;
+    updateActiveVoiceCall();
+}
+
+// The call that DTMF, the audio routing and the UI act on: the connected
+// call if there is one, else one being set up, else one ringing, else a held
+// one. The current choice is kept while no better call exists, and ties go
+// to the call that was added first.
+static int activeCallRank(AbstractVoiceCallHandler::VoiceCallStatus status)
+{
+    switch (status) {
+    case AbstractVoiceCallHandler::STATUS_ACTIVE:
+        return 5;
+    case AbstractVoiceCallHandler::STATUS_DIALING:
+    case AbstractVoiceCallHandler::STATUS_ALERTING:
+        return 4;
+    case AbstractVoiceCallHandler::STATUS_INCOMING:
+    case AbstractVoiceCallHandler::STATUS_WAITING:
+        return 3;
+    case AbstractVoiceCallHandler::STATUS_HELD:
+        return 2;
+    default:
+        return 1;
+    }
+}
+
+void VoiceCallManager::updateActiveVoiceCall()
+{
+    TRACE
+    Q_D(VoiceCallManager);
+    AbstractVoiceCallHandler *current = d->activeVoiceCall.data();
+    AbstractVoiceCallHandler *best = NULL;
+    int bestRank = 0;
+
+    if (current && d->voiceCalls.contains(current->handlerId())) {
+        best = current;
+        bestRank = activeCallRank(best->status());
+    }
+
+    foreach (const QString &handlerId, d->callOrder) {
+        AbstractVoiceCallHandler *handler = d->voiceCalls.value(handlerId);
+        const int rank = handler ? activeCallRank(handler->status()) : 0;
+        if (rank > bestRank) {
+            best = handler;
+            bestRank = rank;
+        }
+    }
+
+    if (best != current) {
+        d->activeVoiceCall = best;
         emit this->activeVoiceCallChanged();
     }
+}
+
+void VoiceCallManager::forgetVoiceCall(AbstractVoiceCallHandler *handler)
+{
+    TRACE
+    Q_D(VoiceCallManager);
+    const QString handlerId = handler->handlerId();
+
+    QObject::disconnect(handler, &AbstractVoiceCallHandler::statusChanged,
+                        this, &VoiceCallManager::updateActiveVoiceCall);
+    d->voiceCalls.remove(handlerId);
+    d->callOrder.removeAll(handlerId);
+
+    emit this->voiceCallRemoved(handlerId);
+    emit this->voiceCallsChanged();
+
+    updateActiveVoiceCall();
 }
 
 void VoiceCallManager::onVoiceCallRemoved(const QString &handlerId)
@@ -386,15 +470,7 @@ void VoiceCallManager::onVoiceCallRemoved(const QString &handlerId)
         DEBUG_T("VCM: attempt to remove unregistered handler: %s", qPrintable(handlerId));
         return;
     }
-    d->voiceCalls.remove(handlerId);
-
-    emit this->voiceCallRemoved(handlerId);
-    emit this->voiceCallsChanged();
-
-    if (d->activeVoiceCall && d->activeVoiceCall->handlerId() == handlerId) {
-        d->activeVoiceCall = NULL;
-        emit this->activeVoiceCallChanged();
-    }
+    forgetVoiceCall(handler);
 
     QSettings settings;
     settings.beginGroup(QLatin1String("Voice Counters"));
